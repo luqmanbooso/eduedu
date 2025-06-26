@@ -1,10 +1,13 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { GraduationCap, User, LogOut, Plus, BookOpen } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { GraduationCap, User, LogOut, Plus, BookOpen, Moon, Sun } from 'lucide-react';
+import NotificationCenter from './NotificationCenter';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -46,21 +49,42 @@ const Navbar = () => {
                   </Link>
                 )}
                 
+                {user.role === 'admin' && (
+                  <Link 
+                    to="/admin" 
+                    className="flex items-center space-x-1 text-red-600 hover:text-red-700 px-3 py-2 rounded-md text-sm font-medium dark:text-red-400"
+                  >
+                    <span>Admin Panel</span>
+                  </Link>
+                )}
+                
                 <Link 
                   to="/dashboard" 
-                  className="flex items-center space-x-1 text-gray-700 hover:text-blue-500 px-3 py-2 rounded-md text-sm font-medium"
+                  className="flex items-center space-x-1 text-gray-700 hover:text-blue-500 px-3 py-2 rounded-md text-sm font-medium dark:text-gray-300 dark:hover:text-blue-400"
                 >
                   <User className="h-4 w-4" />
                   <span>Dashboard</span>
                 </Link>
 
+                {/* Notification Center */}
+                <NotificationCenter />
+
+                {/* Theme Toggle */}
+                <button
+                  onClick={toggleTheme}
+                  className="p-2 text-gray-700 hover:text-blue-500 dark:text-gray-300 dark:hover:text-blue-400"
+                  title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                >
+                  {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                </button>
+
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-700">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
                     {user.name}
                   </span>
                   <button 
                     onClick={handleLogout}
-                    className="flex items-center space-x-1 text-gray-700 hover:text-red-500 px-3 py-2 rounded-md text-sm font-medium"
+                    className="flex items-center space-x-1 text-gray-700 hover:text-red-500 px-3 py-2 rounded-md text-sm font-medium dark:text-gray-300"
                   >
                     <LogOut className="h-4 w-4" />
                     <span>Logout</span>
@@ -69,9 +93,18 @@ const Navbar = () => {
               </div>
             ) : (
               <div className="flex items-center space-x-4">
+                {/* Theme Toggle for non-logged users */}
+                <button
+                  onClick={toggleTheme}
+                  className="p-2 text-gray-700 hover:text-blue-500 dark:text-gray-300 dark:hover:text-blue-400"
+                  title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                >
+                  {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                </button>
+                
                 <Link 
                   to="/login" 
-                  className="text-gray-700 hover:text-blue-500 px-3 py-2 rounded-md text-sm font-medium"
+                  className="text-gray-700 hover:text-blue-500 px-3 py-2 rounded-md text-sm font-medium dark:text-gray-300"
                 >
                   Login
                 </Link>

@@ -37,6 +37,52 @@ const userSchema = new mongoose.Schema({
     type: String,
     maxlength: [500, 'Bio cannot be more than 500 characters']
   },
+  socialLinks: {
+    linkedin: String,
+    twitter: String,
+    github: String,
+    website: String
+  },
+  skills: [String],
+  location: String,
+  phoneNumber: String,
+  dateOfBirth: Date,
+  preferences: {
+    emailNotifications: {
+      type: Boolean,
+      default: true
+    },
+    pushNotifications: {
+      type: Boolean,
+      default: true
+    },
+    courseRecommendations: {
+      type: Boolean,
+      default: true
+    },
+    theme: {
+      type: String,
+      enum: ['light', 'dark', 'auto'],
+      default: 'auto'
+    },
+    language: {
+      type: String,
+      default: 'en'
+    }
+  },
+  lastLogin: Date,
+  totalLearningTime: {
+    type: Number,
+    default: 0 // in minutes
+  },
+  certificatesEarned: {
+    type: Number,
+    default: 0
+  },
+  coursesCompleted: {
+    type: Number,
+    default: 0
+  },
   enrolledCourses: [{
     course: {
       type: mongoose.Schema.Types.ObjectId,

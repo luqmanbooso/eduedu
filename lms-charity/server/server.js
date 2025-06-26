@@ -8,6 +8,12 @@ import authRoutes from './routes/auth.js';
 import courseRoutes from './routes/courses.js';
 import lessonRoutes from './routes/lessons.js';
 import adminRoutes from './routes/admin.js';
+import uploadRoutes from './routes/upload.js';
+import commentRoutes from './routes/comments.js';
+import notificationRoutes from './routes/notifications.js';
+import certificateRoutes from './routes/certificates.js';
+import progressRoutes from './routes/progress.js';
+import profileRoutes from './routes/profile.js';
 
 // Load environment variables
 dotenv.config();
@@ -28,6 +34,15 @@ app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/lessons', lessonRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/certificates', certificateRoutes);
+app.use('/api/progress', progressRoutes);
+app.use('/api/profile', profileRoutes);
+
+// Serve static files
+app.use('/uploads', express.static('uploads'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
