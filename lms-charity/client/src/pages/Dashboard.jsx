@@ -66,7 +66,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
@@ -74,14 +74,31 @@ const Dashboard = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Welcome back, {user.name}!
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            {user.role === 'student' && "Continue your learning journey"}
-            {user.role === 'instructor' && "Manage your courses and students"}
-            {user.role === 'admin' && "Oversee platform operations"}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                Welcome back, {user.name}! 👋
+              </h1>
+              <p className="text-lg text-gray-600">
+                {user.role === 'student' && "Continue your learning journey and unlock new possibilities"}
+                {user.role === 'instructor' && "Inspire minds and shape the future through teaching"}
+                {user.role === 'admin' && "Oversee platform operations and drive growth"}
+              </p>
+            </div>
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="hidden md:block"
+            >
+              <Link
+                to="/courses"
+                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-xl hover:shadow-lg transition-all duration-200"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Explore Courses
+              </Link>
+            </motion.div>
+          </div>
         </motion.div>
 
         {/* Tabs */}

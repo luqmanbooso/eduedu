@@ -336,15 +336,20 @@ const Navbar = () => {
             {user ? (
               <>
                 {/* Notifications */}
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative p-2 hover:bg-gray-100 transition-colors"
+                <div 
+                  className="relative"
+                  onMouseEnter={() => setShowNotifications(true)}
+                  onMouseLeave={() => setShowNotifications(false)}
                 >
-                  <Bell className="w-5 h-5 text-gray-600" />
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500"></span>
-                </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <Bell className="w-5 h-5 text-gray-600" />
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                  </motion.button>
+                </div>
 
                 {/* User Menu */}
                 <div className="relative">
@@ -352,9 +357,9 @@ const Navbar = () => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
-                    className="flex items-center space-x-2 p-1.5 hover:bg-gray-100 transition-colors"
+                    className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    <div className="w-7 h-7 bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                    <div className="w-7 h-7 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
                       <span className="text-white text-sm font-medium">
                         {user.name.charAt(0).toUpperCase()}
                       </span>
@@ -373,7 +378,7 @@ const Navbar = () => {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: -10 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute right-0 mt-2 w-56 bg-white shadow-lg border border-gray-200 py-1 z-50"
+                        className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50"
                       >
                         {/* User Info */}
                         <div className="px-3 py-2 border-b border-gray-100">
@@ -444,7 +449,7 @@ const Navbar = () => {
                 >
                   <Link
                     to="/register"
-                    className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors"
                   >
                     Get Started
                   </Link>
@@ -522,7 +527,17 @@ const Navbar = () => {
       {/* Notification Center */}
       <AnimatePresence>
         {showNotifications && (
-          <NotificationCenter onClose={() => setShowNotifications(false)} />
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-16 right-4 z-50"
+            onMouseEnter={() => setShowNotifications(true)}
+            onMouseLeave={() => setShowNotifications(false)}
+          >
+            <NotificationCenter onClose={() => setShowNotifications(false)} />
+          </motion.div>
         )}
       </AnimatePresence>
     </motion.nav>
