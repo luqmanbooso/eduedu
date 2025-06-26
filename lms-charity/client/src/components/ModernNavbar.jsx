@@ -47,37 +47,31 @@ const Navbar = () => {
     { 
       name: 'Data Science', 
       description: 'Analytics, Machine Learning & AI',
-      icon: '📊',
       courses: ['Python for Data Science', 'Machine Learning Basics', 'Data Visualization']
     },
     { 
       name: 'Software Engineering', 
       description: 'Web & Mobile Development',
-      icon: '💻',
       courses: ['Full Stack Development', 'React.js Mastery', 'Node.js Backend']
     },
     { 
       name: 'IoT & Hardware', 
       description: 'Internet of Things & Electronics',
-      icon: '🔌',
       courses: ['Arduino Programming', 'Raspberry Pi Projects', 'Smart Home Systems']
     },
     { 
       name: 'Digital Marketing', 
       description: 'SEO, Social Media & Analytics',
-      icon: '📱',
       courses: ['SEO Fundamentals', 'Social Media Strategy', 'Google Analytics']
     },
     { 
       name: 'Design', 
       description: 'UI/UX & Graphic Design',
-      icon: '🎨',
       courses: ['UI/UX Design', 'Adobe Creative Suite', 'Figma Mastery']
     },
     { 
       name: 'Business', 
       description: 'Entrepreneurship & Management',
-      icon: '💼',
       courses: ['Startup Fundamentals', 'Project Management', 'Financial Planning']
     }
   ];
@@ -100,8 +94,7 @@ const Navbar = () => {
       animate={{ y: 0 }}
       className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-gray-200/80"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+      <div className="flex justify-between items-center h-16 px-4 sm:px-6 lg:px-8">
           {/* Logo */}
           <motion.div
             whileHover={{ scale: 1.02 }}
@@ -522,7 +515,6 @@ const Navbar = () => {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
 
       {/* Notification Center */}
       <AnimatePresence>

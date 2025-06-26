@@ -1,5 +1,5 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -22,31 +22,62 @@ import {
 
 const HomePage = () => {
   const { user } = useAuth();
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Hero slides with clean background images and content
+  const heroSlides = [
+    {
+      id: 1,
+      title: "Transform Your Future",
+      subtitle: "Learn. Impact. Succeed.",
+      description: "Join thousands of learners making a difference through education while contributing to charitable causes worldwide.",
+      image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1920&h=1080&fit=crop&crop=center"
+    },
+    {
+      id: 2,
+      title: "Master In-Demand Skills",
+      subtitle: "Code. Design. Innovate.",
+      description: "Access expert-led courses in technology, design, and business. Build projects that matter and advance your career.",
+      image: "https://images.unsplash.com/photo-1531482615713-2afd69097998?w=1920&h=1080&fit=crop&crop=center"
+    },
+    {
+      id: 3,
+      title: "Join a Global Community",
+      subtitle: "Connect. Collaborate. Create.",
+      description: "Learn alongside motivated individuals from around the world. Work on projects that create real social impact.",
+      image: "https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=1920&h=1080&fit=crop&crop=center"
+    }
+  ];
+
+  // Auto-advance slides with faster transitions
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+    }, 4500); // Change slide every 4.5 seconds
+
+    return () => clearInterval(timer);
+  }, [heroSlides.length]);
 
   const features = [
     {
       icon: <Sparkles className="w-8 h-8" />,
       title: "AI-Powered Learning",
-      description: "Experience personalized learning paths powered by advanced AI algorithms that adapt to your pace.",
-      gradient: "from-purple-500 to-pink-500"
+      description: "Experience personalized learning paths powered by advanced AI algorithms that adapt to your pace."
     },
     {
       icon: <Globe className="w-8 h-8" />,
       title: "Global Community",
-      description: "Connect with learners worldwide and collaborate on projects that make a real difference.",
-      gradient: "from-blue-500 to-cyan-500"
+      description: "Connect with learners worldwide and collaborate on projects that make a real difference."
     },
     {
       icon: <Zap className="w-8 h-8" />,
       title: "Instant Feedback",
-      description: "Get real-time feedback and suggestions to accelerate your learning journey.",
-      gradient: "from-yellow-500 to-orange-500"
+      description: "Get real-time feedback and suggestions to accelerate your learning journey."
     },
     {
       icon: <Heart className="w-8 h-8" />,
       title: "Impact Learning",
-      description: "Every course you complete contributes to charitable causes around the world.",
-      gradient: "from-red-500 to-pink-500"
+      description: "Every course you complete contributes to charitable causes around the world."
     }
   ];
 
@@ -86,187 +117,128 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen bg-white overflow-hidden">
-      {/* Hero Section with Floating Elements */}
-      <section className="relative min-h-screen flex items-center bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-        {/* Animated Background Elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float"></div>
-          <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-r from-pink-400 to-red-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float-delayed"></div>
-          <div className="absolute bottom-40 left-20 w-40 h-40 bg-gradient-to-r from-green-400 to-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float-slow"></div>
+      {/* Simplified Hero Section with Image Slider */}
+      <section className="relative min-h-screen font-serif">
+        {/* Background Image Slider */}
+        <div className="absolute inset-0">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentSlide}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
+              className="absolute inset-0"
+            >
+              <div 
+                className="w-full h-full bg-cover bg-center bg-no-repeat"
+                style={{ 
+                  backgroundImage: `url(${heroSlides[currentSlide].image})`,
+                }}
+              />
+              {/* Purple and Black Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-purple-900/60 to-black/70" />
+            </motion.div>
+          </AnimatePresence>
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="space-y-8"
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-100 to-pink-100 px-4 py-2 rounded-full"
-              >
-                <Sparkles className="w-4 h-4 text-purple-600" />
-                <span className="text-sm font-medium text-purple-700">Transforming Lives Through Education</span>
-              </motion.div>
+        {/* Slide Indicators */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex space-x-2">
+          {heroSlides.map((_, index) => (
+            <div
+              key={index}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                index === currentSlide 
+                  ? 'bg-white' 
+                  : 'bg-white/40'
+              }`}
+            />
+          ))}
+        </div>
 
-              <h1 className="text-6xl lg:text-7xl font-bold leading-tight">
-                <span className="text-gray-900">Learn.</span>
-                <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
-                  Impact.
-                </span>
-                <br />
-                <span className="text-gray-900">Succeed.</span>
-              </h1>
+        {/* Hero Content */}
+        <div className="relative z-10 min-h-screen flex items-center">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentSlide}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.6 }}
+                  className="space-y-6"
+                >
+                  {/* Main Title */}
+                  <motion.h1 
+                    className="text-4xl lg:text-6xl font-bold leading-tight text-white font-serif"
+                  >
+                    {heroSlides[currentSlide].title}
+                  </motion.h1>
 
-              <p className="text-xl text-gray-600 leading-relaxed max-w-lg">
-                Join the next generation of learners who are making a difference. 
-                Master new skills while contributing to charitable causes worldwide.
-              </p>
+                  {/* Subtitle */}
+                  <motion.h2
+                    className="text-xl lg:text-2xl font-medium text-purple-200 font-serif"
+                  >
+                    {heroSlides[currentSlide].subtitle}
+                  </motion.h2>
 
-              <div className="flex flex-col sm:flex-row gap-4">
-                {!user ? (
-                  <>
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
+                  {/* Description */}
+                  <motion.p 
+                    className="text-lg text-gray-300 leading-relaxed max-w-lg font-sans"
+                  >
+                    {heroSlides[currentSlide].description}
+                  </motion.p>
+
+                  {/* Simple CTA */}
+                  <motion.div className="pt-4">
+                    {!user ? (
                       <Link
                         to="/register"
-                        className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 shadow-xl hover:shadow-2xl"
+                        className="inline-flex items-center px-8 py-3 text-lg font-medium text-black bg-white hover:bg-gray-100 transition-colors duration-300 font-sans"
                       >
-                        <span className="relative z-10">Start Your Journey</span>
-                        <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                        Get Started
+                        <ArrowRight className="ml-2 w-5 h-5" />
                       </Link>
-                    </motion.div>
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
+                    ) : (
                       <Link
-                        to="/courses"
-                        className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-2xl hover:border-gray-300 hover:shadow-lg transition-all duration-300"
+                        to="/dashboard"
+                        className="inline-flex items-center px-8 py-3 text-lg font-medium text-black bg-white hover:bg-gray-100 transition-colors duration-300 font-sans"
                       >
-                        <Play className="mr-2 w-5 h-5" />
-                        Explore Courses
+                        Continue Learning
+                        <ArrowRight className="ml-2 w-5 h-5" />
                       </Link>
-                    </motion.div>
-                  </>
-                ) : (
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Link
-                      to="/dashboard"
-                      className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 shadow-xl hover:shadow-2xl"
-                    >
-                      <span className="relative z-10">Continue Learning</span>
-                      <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                    </Link>
+                    )}
                   </motion.div>
-                )}
-              </div>
-
-              {/* Trust Indicators */}
-              <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-2">
-                  <Shield className="w-5 h-5 text-green-500" />
-                  <span className="text-sm text-gray-600">Trusted by 50k+ learners</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Clock className="w-5 h-5 text-blue-500" />
-                  <span className="text-sm text-gray-600">24/7 Support</span>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Hero Image with Floating Cards */}
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-              className="relative"
-            >
-              <div className="relative z-10">
-                <motion.div
-                  animate={{ y: [0, -10, 0] }}
-                  transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                  className="relative"
-                >
-                  <img
-                    src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&h=400&fit=crop"
-                    alt="Modern Learning Environment"
-                    className="rounded-3xl shadow-2xl"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/20 to-pink-500/20 rounded-3xl"></div>
                 </motion.div>
+              </AnimatePresence>
 
-                {/* Floating Achievement Cards */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.6, delay: 1 }}
-                  className="absolute -top-8 -left-8 bg-white p-4 rounded-2xl shadow-xl"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl flex items-center justify-center">
-                      <CheckCircle className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Course Completed!</p>
-                      <p className="text-xs text-gray-600">+$50 donated</p>
-                    </div>
-                  </div>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.6, delay: 1.2 }}
-                  className="absolute -bottom-8 -right-8 bg-white p-4 rounded-2xl shadow-xl"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-pink-500 rounded-xl flex items-center justify-center">
-                      <Award className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Certificate Earned!</p>
-                      <p className="text-xs text-gray-600">5 skills mastered</p>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-20 bg-gradient-to-r from-indigo-600 to-purple-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
+              {/* Stats Section */}
               <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                className="text-center"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.3 }}
+                className="hidden lg:block"
               >
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-white/20 rounded-2xl mb-4">
-                  <div className="text-white">{stat.icon}</div>
+                <div className="grid grid-cols-2 gap-6">
+                  {stats.map((stat, index) => (
+                    <motion.div
+                      key={stat.label}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.5 + index * 0.1 }}
+                      className="text-center p-6 bg-white/10 backdrop-blur-sm border border-white/20"
+                    >
+                      <div className="text-purple-200 mb-2 flex justify-center">
+                        {stat.icon}
+                      </div>
+                      <div className="text-2xl font-bold text-white font-serif">{stat.number}</div>
+                      <div className="text-sm text-gray-300 font-sans">{stat.label}</div>
+                    </motion.div>
+                  ))}
                 </div>
-                <div className="text-4xl font-bold text-white mb-2">{stat.number}</div>
-                <div className="text-purple-100">{stat.label}</div>
               </motion.div>
-            ))}
+            </div>
           </div>
         </div>
       </section>
@@ -299,14 +271,14 @@ const HomePage = () => {
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 viewport={{ once: true }}
                 whileHover={{ y: -5 }}
-                className="group relative bg-white p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300"
+                className="group relative bg-white p-8 border border-gray-200 hover:border-purple-200 transition-all duration-300"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-white opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div className="relative z-10">
-                  <div className={`inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r ${feature.gradient} text-white rounded-2xl mb-6 group-hover:scale-110 transition-transform`}>
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-600 text-white mb-6 group-hover:bg-black transition-colors">
                     {feature.icon}
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-4 group-hover:text-indigo-600 transition-colors">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4 group-hover:text-purple-600 transition-colors">
                     {feature.title}
                   </h3>
                   <p className="text-gray-600 leading-relaxed text-lg">

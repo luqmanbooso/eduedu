@@ -1,6 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, X, Check, Eye, Trash2, Settings } from 'lucide-react';
+import { 
+  Bell, 
+  X, 
+  Check, 
+  Eye, 
+  Trash2, 
+  Settings,
+  BookOpen,
+  Target,
+  Trophy,
+  MessageCircle,
+  RefreshCw,
+  CheckCircle,
+  BarChart3,
+  Plus,
+  User,
+  Megaphone
+} from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
@@ -150,19 +167,19 @@ const NotificationCenter = ({ onClose }) => {
 
   const getNotificationIcon = (type) => {
     const iconMap = {
-      course_enrollment: '📚',
-      new_lesson: '🎯',
-      course_completion: '🎉',
-      certificate_issued: '🏆',
-      comment_reply: '💬',
-      course_update: '🔄',
-      lesson_completed: '✅',
-      quiz_result: '📊',
-      new_course_available: '🆕',
-      instructor_message: '👨‍🏫',
-      system_announcement: '📢'
+      course_enrollment: <BookOpen className="w-4 h-4 text-gray-600" />,
+      new_lesson: <Target className="w-4 h-4 text-gray-600" />,
+      course_completion: <Trophy className="w-4 h-4 text-gray-600" />,
+      certificate_issued: <Trophy className="w-4 h-4 text-gray-600" />,
+      comment_reply: <MessageCircle className="w-4 h-4 text-gray-600" />,
+      course_update: <RefreshCw className="w-4 h-4 text-gray-600" />,
+      lesson_completed: <CheckCircle className="w-4 h-4 text-gray-600" />,
+      quiz_result: <BarChart3 className="w-4 h-4 text-gray-600" />,
+      new_course_available: <Plus className="w-4 h-4 text-gray-600" />,
+      instructor_message: <User className="w-4 h-4 text-gray-600" />,
+      system_announcement: <Megaphone className="w-4 h-4 text-gray-600" />
     };
-    return iconMap[type] || '🔔';
+    return iconMap[type] || <Bell className="w-4 h-4 text-gray-600" />;
   };
 
   const getPriorityColor = (priority) => {
@@ -252,7 +269,7 @@ const NotificationCenter = ({ onClose }) => {
                 >
                   <div className="flex items-start space-x-3">
                     <div className="flex-shrink-0 mt-1">
-                      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-sm">
+                      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
                         {getNotificationIcon(notification.type)}
                       </div>
                     </div>
