@@ -20,7 +20,9 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Please provide a password'],
+    required: function() {
+      return !this.googleId; // Password not required if Google auth
+    },
     minlength: [6, 'Password must be at least 6 characters'],
     select: false
   },
@@ -108,6 +110,16 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  googleId: {
+    type: String,
+    sparse: true, // Allows multiple null values
+    unique: true
+  },
+  authProvider: {
+    type: String,
+    enum: ['local', 'google'],
+    default: 'local'
   }
 }, {
   timestamps: true
@@ -115,7 +127,8 @@ const userSchema = new mongoose.Schema({
 
 // Encrypt password before saving
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
+  // Skip password hashing for Google auth users or if password not modified
+  if (!this.isModified('password') || !this.password) {
     next();
   }
   

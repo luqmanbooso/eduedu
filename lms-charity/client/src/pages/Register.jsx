@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { Sparkles, Eye, EyeOff, ArrowRight, CheckCircle, Users, BookOpen, GraduationCap, Heart } from 'lucide-react';
+import GoogleAuthButton from '../components/GoogleAuthButton';
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -393,6 +394,23 @@ const Register = () => {
               </motion.button>
             </div>
           </motion.form>
+
+          {/* Divider */}
+          <div className="mt-6 mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">Or continue with</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Google Authentication Button */}
+          <div className="mb-6">
+            <GoogleAuthButton text="Sign up with Google" />
+          </div>
 
           {/* Sign In Link */}
           <motion.div

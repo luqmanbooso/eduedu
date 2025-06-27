@@ -83,11 +83,30 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const googleAuth = async (userData) => {
+    try {
+      const response = await axios.post('/auth/google', userData);
+      const { token, user } = response.data;
+      
+      localStorage.setItem('token', token);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      setUser(user);
+      
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Google authentication failed' 
+      };
+    }
+  };
+
   const value = {
     user,
     login,
     register,
     logout,
+    googleAuth,
     loading
   };
 

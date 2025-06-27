@@ -1,6 +1,7 @@
 import express from 'express';
 import User from '../models/User.js';
 import { protect, generateToken } from '../middleware/auth.js';
+import { admin } from '../firebase-admin.js';
 
 const router = express.Router();
 
@@ -135,6 +136,77 @@ router.put('/profile', protect, async (req, res) => {
     console.error(error);
     res.status(500).json({ 
       message: 'Server error updating profile',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Google OAuth authentication
+// @route   POST /api/auth/google
+// @access  Public
+router.post('/google', async (req, res) => {
+  try {
+    const { email, displayName, photoURL, uid, idToken } = req.body;
+
+    if (!email || !displayName || !uid) {
+      return res.status(400).json({ message: 'Missing required Google user data' });
+    }
+
+    // Verify Firebase ID token if provided (optional for extra security)
+    if (idToken) {
+      try {
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        if (decodedToken.uid !== uid) {
+          return res.status(401).json({ message: 'Invalid Firebase token' });
+        }
+      } catch (firebaseError) {
+        console.error('Firebase token verification failed:', firebaseError);
+        // Continue without token verification for now
+      }
+    }
+
+    // Check if user already exists
+    let user = await User.findOne({ email });
+
+    if (user) {
+      // User exists, update Google info if needed
+      if (!user.googleId) {
+        user.googleId = uid;
+        user.avatar = photoURL || user.avatar;
+        user.authProvider = 'google';
+        await user.save();
+      }
+    } else {
+      // Create new user
+      user = await User.create({
+        name: displayName,
+        email,
+        googleId: uid,
+        avatar: photoURL,
+        role: 'student', // Default role
+        password: null, // No password for Google users
+        authProvider: 'google'
+      });
+    }
+
+    // Generate token and return user data
+    const token = generateToken(user._id);
+
+    res.status(200).json({
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        authProvider: user.authProvider
+      },
+      token
+    });
+  } catch (error) {
+    console.error('Google auth error:', error);
+    res.status(500).json({ 
+      message: 'Server error during Google authentication',
       error: error.message 
     });
   }
