@@ -101,12 +101,51 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const forgotPassword = async (email) => {
+    try {
+      const response = await axios.post('/auth/forgot-password', { email });
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Failed to send reset code' 
+      };
+    }
+  };
+
+  const verifyResetCode = async (resetToken, code) => {
+    try {
+      const response = await axios.post('/auth/verify-reset-code', { resetToken, code });
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Invalid verification code' 
+      };
+    }
+  };
+
+  const resetPassword = async (resetToken, newPassword) => {
+    try {
+      const response = await axios.post('/auth/reset-password', { resetToken, newPassword });
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Failed to reset password' 
+      };
+    }
+  };
+
   const value = {
     user,
     login,
     register,
     logout,
     googleAuth,
+    forgotPassword,
+    verifyResetCode,
+    resetPassword,
     loading
   };
 

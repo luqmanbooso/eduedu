@@ -120,7 +120,20 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['local', 'google'],
     default: 'local'
-  }
+  },
+  // Password reset fields
+  resetPasswordToken: {
+    type: String,
+    select: false
+  },
+  resetPasswordCode: {
+    type: String,
+    select: false
+  },
+  resetPasswordExpires: {
+    type: Date,
+    select: false
+  },
 }, {
   timestamps: true
 });
@@ -139,6 +152,40 @@ userSchema.pre('save', async function(next) {
 // Compare password method
 userSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Generate password reset token and code
+userSchema.methods.getResetPasswordToken = function() {
+  // Generate a 6-digit code
+  const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // Generate a secure token
+  const resetToken = require('crypto').randomBytes(20).toString('hex');
+  
+  // Hash and set the code
+  this.resetPasswordCode = require('crypto')
+    .createHash('sha256')
+    .update(resetCode)
+    .digest('hex');
+  
+  // Set token
+  this.resetPasswordToken = resetToken;
+  
+  // Set expire time (15 minutes)
+  this.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
+  
+  return { resetToken, resetCode };
+};
+
+// Verify reset code
+userSchema.methods.verifyResetCode = function(code) {
+  const hashedCode = require('crypto')
+    .createHash('sha256')
+    .update(code)
+    .digest('hex');
+  
+  return this.resetPasswordCode === hashedCode && 
+         this.resetPasswordExpires > Date.now();
 };
 
 export default mongoose.model('User', userSchema);
