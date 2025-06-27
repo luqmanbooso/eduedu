@@ -2,8 +2,85 @@ import express from 'express';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
 import { protect, restrictTo } from '../middleware/auth.js';
+import { uploadVideo, uploadImage, uploadDocument, uploadAny, uploadToCloudinary } from '../utils/cloudinary.js';
 
 const router = express.Router();
+
+// @desc    Upload file (video, image, document)
+// @route   POST /api/courses/upload
+// @access  Private (Instructor)
+router.post('/upload', protect, restrictTo('instructor', 'admin'), (req, res) => {
+  const { type } = req.body;
+  
+  let uploadMiddleware;
+  switch (type) {
+    case 'video':
+      uploadMiddleware = uploadVideo.single('file');
+      break;
+    case 'image':
+      uploadMiddleware = uploadImage.single('file');
+      break;
+    case 'document':
+      uploadMiddleware = uploadDocument.single('file');
+      break;
+    default:
+      uploadMiddleware = uploadAny.single('file');
+  }
+  
+  uploadMiddleware(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        message: 'File upload failed',
+        error: err.message
+      });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    try {
+      // Upload to Cloudinary
+      const cloudinaryOptions = {
+        folder: `lms-charity/${type || 'general'}`,
+        resource_type: type === 'video' ? 'video' : type === 'image' ? 'image' : 'raw'
+      };
+
+      if (type === 'image') {
+        cloudinaryOptions.transformation = [
+          { width: 1200, height: 800, crop: 'limit', quality: 'auto:good' }
+        ];
+      }
+
+      const uploadResult = await uploadToCloudinary(req.file.path, cloudinaryOptions);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          url: uploadResult.url,
+          publicId: uploadResult.publicId,
+          format: uploadResult.format,
+          size: uploadResult.bytes,
+          resourceType: uploadResult.resourceType,
+          width: uploadResult.width,
+          height: uploadResult.height,
+          duration: uploadResult.duration
+        }
+      });
+    } catch (error) {
+      console.error('Cloudinary upload error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to upload to cloud storage',
+        error: error.message
+      });
+    }
+  });
+});
 
 // @desc    Get all courses
 // @route   GET /api/courses
@@ -82,6 +159,253 @@ router.get('/', async (req, res) => {
   }
 });
 
+// @desc    Create a new course
+// @route   POST /api/courses
+// @access  Private (Instructor/Admin)
+router.post('/', protect, restrictTo('instructor', 'admin'), async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      shortDescription,
+      category,
+      subcategory,
+      level,
+      thumbnail,
+      previewVideo,
+      tags,
+      learningOutcomes,
+      requirements,
+      targetAudience,
+      language,
+      price,
+      discountPrice,
+      currency,
+      estimatedCompletionTime,
+      difficulty,
+      isFeatured
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !description || !category || !level) {
+      return res.status(400).json({ 
+        message: 'Please provide title, description, category, and level' 
+      });
+    }
+
+    // Create course object with enhanced fields
+    const courseData = {
+      title,
+      description,
+      shortDescription: shortDescription || '',
+      category,
+      subcategory: subcategory || '',
+      level,
+      price: parseFloat(price) || 0,
+      discountPrice: discountPrice ? parseFloat(discountPrice) : undefined,
+      currency: currency || 'USD',
+      thumbnail: {
+        url: thumbnail || '',
+        publicId: ''
+      },
+      previewVideo: {
+        url: previewVideo || '',
+        publicId: '',
+        duration: 0
+      },
+      tags: Array.isArray(tags) ? tags : [],
+      learningOutcomes: Array.isArray(learningOutcomes) ? learningOutcomes : [],
+      requirements: Array.isArray(requirements) ? requirements : [],
+      targetAudience: Array.isArray(targetAudience) ? targetAudience : [],
+      language: language || 'English',
+      estimatedCompletionTime: estimatedCompletionTime || '',
+      difficulty: difficulty || 'Medium',
+      instructor: req.user._id,
+      isFeatured: isFeatured || false,
+      isPublished: false,
+      status: 'draft',
+      modules: [],
+      liveSessions: [],
+      discussions: [],
+      enrolledStudents: []
+    };
+
+    // Create the course
+    const course = await Course.create(courseData);
+
+    // Add course to instructor's created courses
+    await User.findByIdAndUpdate(req.user._id, {
+      $push: { createdCourses: course._id }
+    });
+
+    // Populate instructor info before sending response
+    const populatedCourse = await Course.findById(course._id)
+      .populate('instructor', 'name avatar email');
+
+    res.status(201).json({
+      message: 'Course created successfully',
+      course: populatedCourse
+    });
+  } catch (error) {
+    console.error('Course creation error:', error);
+    
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ 
+        message: 'Validation Error',
+        errors: messages
+      });
+    }
+    
+    res.status(500).json({ 
+      message: 'Server error creating course',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Update course
+// @route   PUT /api/courses/:id
+// @access  Private (Course Instructor/Admin)
+router.put('/:id', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check if user is course instructor or admin
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to update this course' });
+    }
+
+    // Update course
+    const updatedCourse = await Course.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    ).populate('instructor', 'name avatar');
+
+    res.json({
+      message: 'Course updated successfully',
+      course: updatedCourse
+    });
+  } catch (error) {
+    console.error('Course update error:', error);
+    res.status(500).json({ 
+      message: 'Server error updating course',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Delete course
+// @route   DELETE /api/courses/:id
+// @access  Private (Course Instructor/Admin)
+router.delete('/:id', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check if user is course instructor or admin
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to delete this course' });
+    }
+
+    // Remove course from instructor's created courses
+    await User.findByIdAndUpdate(course.instructor, {
+      $pull: { createdCourses: course._id }
+    });
+
+    // Remove course from students' enrolled courses
+    await User.updateMany(
+      { 'enrolledCourses.course': course._id },
+      { $pull: { enrolledCourses: { course: course._id } } }
+    );
+
+    // Delete the course
+    await Course.findByIdAndDelete(req.params.id);
+
+    res.json({ message: 'Course deleted successfully' });
+  } catch (error) {
+    console.error('Course deletion error:', error);
+    res.status(500).json({ 
+      message: 'Server error deleting course',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Publish/Unpublish course
+// @route   PATCH /api/courses/:id/publish
+// @access  Private (Course Instructor/Admin)
+router.patch('/:id/publish', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check if user is course instructor or admin
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to publish this course' });
+    }
+
+    // Toggle published status
+    course.isPublished = !course.isPublished;
+    await course.save();
+
+    res.json({
+      message: `Course ${course.isPublished ? 'published' : 'unpublished'} successfully`,
+      course
+    });
+  } catch (error) {
+    console.error('Course publish error:', error);
+    res.status(500).json({ 
+      message: 'Server error publishing course',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Get instructor's courses
+// @route   GET /api/courses/instructor/my-courses
+// @access  Private (Instructor)
+router.get('/instructor/my-courses', protect, restrictTo('instructor', 'admin'), async (req, res) => {
+  try {
+    const courses = await Course.find({ instructor: req.user._id })
+      .populate('instructor', 'name avatar')
+      .sort({ createdAt: -1 });
+
+    // Add calculated fields
+    const coursesWithStats = courses.map(course => ({
+      ...course.toObject(),
+      totalStudents: course.enrolledStudents.length,
+      totalModules: course.modules.length,
+      totalLessons: course.modules.reduce((acc, module) => acc + (module.lessons ? module.lessons.length : 0), 0),
+      averageRating: course.rating ? course.rating.average || 0 : 0,
+      totalRatings: course.rating ? course.rating.count || 0 : 0
+    }));
+
+    res.json({
+      courses: coursesWithStats,
+      total: courses.length
+    });
+  } catch (error) {
+    console.error('Get instructor courses error:', error);
+    res.status(500).json({ 
+      message: 'Server error fetching instructor courses',
+      error: error.message 
+    });
+  }
+});
+
 // @desc    Get single course
 // @route   GET /api/courses/:id
 // @access  Public
@@ -106,117 +430,6 @@ router.get('/:id', async (req, res) => {
     console.error(error);
     res.status(500).json({ 
       message: 'Server error fetching course',
-      error: error.message 
-    });
-  }
-});
-
-// @desc    Create new course
-// @route   POST /api/courses
-// @access  Private (Instructor/Admin)
-router.post('/', protect, restrictTo('instructor', 'admin'), async (req, res) => {
-  try {
-    const {
-      title,
-      description,
-      category,
-      level,
-      thumbnail,
-      requirements,
-      learningOutcomes,
-      tags
-    } = req.body;
-
-    const course = await Course.create({
-      title,
-      description,
-      category,
-      level,
-      instructor: req.user._id,
-      thumbnail,
-      requirements: requirements || [],
-      learningOutcomes: learningOutcomes || [],
-      tags: tags || []
-    });
-
-    // Add course to instructor's created courses
-    await User.findByIdAndUpdate(req.user._id, {
-      $push: { createdCourses: course._id }
-    });
-
-    const populatedCourse = await Course.findById(course._id)
-      .populate('instructor', 'name avatar');
-
-    res.status(201).json(populatedCourse);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ 
-      message: 'Server error creating course',
-      error: error.message 
-    });
-  }
-});
-
-// @desc    Update course
-// @route   PUT /api/courses/:id
-// @access  Private (Course Instructor/Admin)
-router.put('/:id', protect, async (req, res) => {
-  try {
-    const course = await Course.findById(req.params.id);
-
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
-
-    // Check if user is course instructor or admin
-    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to update this course' });
-    }
-
-    const updatedCourse = await Course.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    ).populate('instructor', 'name avatar');
-
-    res.json(updatedCourse);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ 
-      message: 'Server error updating course',
-      error: error.message 
-    });
-  }
-});
-
-// @desc    Delete course
-// @route   DELETE /api/courses/:id
-// @access  Private (Course Instructor/Admin)
-router.delete('/:id', protect, async (req, res) => {
-  try {
-    const course = await Course.findById(req.params.id);
-
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
-
-    // Check if user is course instructor or admin
-    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to delete this course' });
-    }
-
-    await Course.findByIdAndDelete(req.params.id);
-
-    // Remove course from instructor's created courses
-    await User.findByIdAndUpdate(course.instructor, {
-      $pull: { createdCourses: req.params.id }
-    });
-
-    res.json({ message: 'Course deleted successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ 
-      message: 'Server error deleting course',
       error: error.message 
     });
   }
@@ -306,6 +519,677 @@ router.post('/:id/lessons', protect, async (req, res) => {
     console.error(error);
     res.status(500).json({ 
       message: 'Server error adding lesson',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Add module to course
+// @route   POST /api/courses/:id/modules
+// @access  Private (Course Instructor/Admin)
+router.post('/:id/modules', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check if user is course instructor or admin
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to modify this course' });
+    }
+
+    const {
+      title,
+      description,
+      estimatedDuration,
+      prerequisites,
+      learningObjectives
+    } = req.body;
+
+    // Validate required fields
+    if (!title) {
+      return res.status(400).json({ message: 'Module title is required' });
+    }
+
+    // Calculate order
+    const order = course.modules.length + 1;
+
+    const newModule = {
+      title,
+      description: description || '',
+      order,
+      estimatedDuration: estimatedDuration || 0,
+      prerequisites: prerequisites || [],
+      learningObjectives: learningObjectives || [],
+      lessons: []
+    };
+
+    course.modules.push(newModule);
+    await course.save();
+
+    const createdModule = course.modules[course.modules.length - 1];
+
+    res.status(201).json({
+      message: 'Module added successfully',
+      module: createdModule
+    });
+  } catch (error) {
+    console.error('Module creation error:', error);
+    res.status(500).json({ 
+      message: 'Server error creating module',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Update module
+// @route   PUT /api/courses/:courseId/modules/:moduleId
+// @access  Private (Course Instructor/Admin)
+router.put('/:courseId/modules/:moduleId', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check authorization
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to modify this course' });
+    }
+
+    const module = course.modules.id(req.params.moduleId);
+    if (!module) {
+      return res.status(404).json({ message: 'Module not found' });
+    }
+
+    // Update module fields
+    Object.keys(req.body).forEach(key => {
+      if (req.body[key] !== undefined) {
+        module[key] = req.body[key];
+      }
+    });
+
+    await course.save();
+
+    res.json({
+      message: 'Module updated successfully',
+      module
+    });
+  } catch (error) {
+    console.error('Module update error:', error);
+    res.status(500).json({ 
+      message: 'Server error updating module',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Delete module
+// @route   DELETE /api/courses/:courseId/modules/:moduleId
+// @access  Private (Course Instructor/Admin)
+router.delete('/:courseId/modules/:moduleId', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check authorization
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to modify this course' });
+    }
+
+    const moduleIndex = course.modules.findIndex(m => m._id.toString() === req.params.moduleId);
+    if (moduleIndex === -1) {
+      return res.status(404).json({ message: 'Module not found' });
+    }
+
+    course.modules.splice(moduleIndex, 1);
+    await course.save();
+
+    res.json({ message: 'Module deleted successfully' });
+  } catch (error) {
+    console.error('Module deletion error:', error);
+    res.status(500).json({ 
+      message: 'Server error deleting module',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Add lesson to module
+// @route   POST /api/courses/:courseId/modules/:moduleId/lessons
+// @access  Private (Course Instructor/Admin)
+router.post('/:courseId/modules/:moduleId/lessons', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check authorization
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to modify this course' });
+    }
+
+    const module = course.modules.id(req.params.moduleId);
+    if (!module) {
+      return res.status(404).json({ message: 'Module not found' });
+    }
+
+    const {
+      title,
+      description,
+      content,
+      videoUrl,
+      videoDuration,
+      videoPublicId,
+      type,
+      resources,
+      quiz,
+      assignment,
+      isPreview
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !description) {
+      return res.status(400).json({ message: 'Lesson title and description are required' });
+    }
+
+    // Calculate order
+    const order = module.lessons.length + 1;
+
+    const newLesson = {
+      title,
+      description,
+      content: content || '',
+      videoUrl: videoUrl || '',
+      videoDuration: videoDuration || 0,
+      videoPublicId: videoPublicId || '',
+      order,
+      type: type || 'video',
+      resources: resources || [],
+      quiz: quiz || {
+        questions: [],
+        timeLimit: null,
+        attemptsAllowed: 3,
+        passingScore: 70,
+        showCorrectAnswers: true
+      },
+      assignment: assignment || null,
+      isPreview: isPreview || false,
+      isPublished: false
+    };
+
+    module.lessons.push(newLesson);
+    await course.save();
+
+    const createdLesson = module.lessons[module.lessons.length - 1];
+
+    res.status(201).json({
+      message: 'Lesson added successfully',
+      lesson: createdLesson
+    });
+  } catch (error) {
+    console.error('Lesson creation error:', error);
+    res.status(500).json({ 
+      message: 'Server error creating lesson',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Update lesson
+// @route   PUT /api/courses/:courseId/modules/:moduleId/lessons/:lessonId
+// @access  Private (Course Instructor/Admin)
+router.put('/:courseId/modules/:moduleId/lessons/:lessonId', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check authorization
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to modify this course' });
+    }
+
+    const module = course.modules.id(req.params.moduleId);
+    if (!module) {
+      return res.status(404).json({ message: 'Module not found' });
+    }
+
+    const lesson = module.lessons.id(req.params.lessonId);
+    if (!lesson) {
+      return res.status(404).json({ message: 'Lesson not found' });
+    }
+
+    // Update lesson fields
+    Object.keys(req.body).forEach(key => {
+      if (req.body[key] !== undefined) {
+        lesson[key] = req.body[key];
+      }
+    });
+
+    await course.save();
+
+    res.json({
+      message: 'Lesson updated successfully',
+      lesson
+    });
+  } catch (error) {
+    console.error('Lesson update error:', error);
+    res.status(500).json({ 
+      message: 'Server error updating lesson',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Delete lesson
+// @route   DELETE /api/courses/:courseId/modules/:moduleId/lessons/:lessonId
+// @access  Private (Course Instructor/Admin)
+router.delete('/:courseId/modules/:moduleId/lessons/:lessonId', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check authorization
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to modify this course' });
+    }
+
+    const module = course.modules.id(req.params.moduleId);
+    if (!module) {
+      return res.status(404).json({ message: 'Module not found' });
+    }
+
+    const lessonIndex = module.lessons.findIndex(l => l._id.toString() === req.params.lessonId);
+    if (lessonIndex === -1) {
+      return res.status(404).json({ message: 'Lesson not found' });
+    }
+
+    module.lessons.splice(lessonIndex, 1);
+    await course.save();
+
+    res.json({ message: 'Lesson deleted successfully' });
+  } catch (error) {
+    console.error('Lesson deletion error:', error);
+    res.status(500).json({ 
+      message: 'Server error deleting lesson',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Schedule live session
+// @route   POST /api/courses/:id/live-sessions
+// @access  Private (Course Instructor/Admin)
+router.post('/:id/live-sessions', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check authorization
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to schedule sessions for this course' });
+    }
+
+    const {
+      title,
+      description,
+      scheduledAt,
+      duration,
+      meetingUrl,
+      meetingId,
+      meetingPassword
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !scheduledAt || !duration) {
+      return res.status(400).json({ message: 'Title, scheduled time, and duration are required' });
+    }
+
+    const liveSession = {
+      title,
+      description: description || '',
+      scheduledAt: new Date(scheduledAt),
+      duration,
+      meetingUrl: meetingUrl || '',
+      meetingId: meetingId || '',
+      meetingPassword: meetingPassword || '',
+      status: 'scheduled',
+      attendees: []
+    };
+
+    course.liveSessions.push(liveSession);
+    await course.save();
+
+    const createdSession = course.liveSessions[course.liveSessions.length - 1];
+
+    res.status(201).json({
+      message: 'Live session scheduled successfully',
+      session: createdSession
+    });
+  } catch (error) {
+    console.error('Live session creation error:', error);
+    res.status(500).json({ 
+      message: 'Server error scheduling live session',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Update live session status
+// @route   PUT /api/courses/:courseId/live-sessions/:sessionId
+// @access  Private (Course Instructor/Admin)
+router.put('/:courseId/live-sessions/:sessionId', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check authorization
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to modify this session' });
+    }
+
+    const session = course.liveSessions.id(req.params.sessionId);
+    if (!session) {
+      return res.status(404).json({ message: 'Live session not found' });
+    }
+
+    // Update session fields
+    Object.keys(req.body).forEach(key => {
+      if (req.body[key] !== undefined) {
+        session[key] = req.body[key];
+      }
+    });
+
+    await course.save();
+
+    res.json({
+      message: 'Live session updated successfully',
+      session
+    });
+  } catch (error) {
+    console.error('Live session update error:', error);
+    res.status(500).json({ 
+      message: 'Server error updating live session',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Create discussion topic
+// @route   POST /api/courses/:id/discussions
+// @access  Private (Enrolled Student/Course Instructor/Admin)
+router.post('/:id/discussions', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check if user is enrolled, instructor, or admin
+    const isEnrolled = course.enrolledStudents.some(
+      enrollment => enrollment.student.toString() === req.user._id.toString()
+    );
+    const isInstructor = course.instructor.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isEnrolled && !isInstructor && !isAdmin) {
+      return res.status(403).json({ message: 'Not authorized to create discussions in this course' });
+    }
+
+    const {
+      title,
+      content,
+      category
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !content) {
+      return res.status(400).json({ message: 'Title and content are required' });
+    }
+
+    const discussion = {
+      title,
+      content,
+      category: category || 'general',
+      author: req.user._id,
+      isPinned: false,
+      replies: [],
+      likes: [],
+      views: 0
+    };
+
+    course.discussions.push(discussion);
+    await course.save();
+
+    // Populate author info
+    await course.populate('discussions.author', 'name avatar');
+
+    const createdDiscussion = course.discussions[course.discussions.length - 1];
+
+    res.status(201).json({
+      message: 'Discussion created successfully',
+      discussion: createdDiscussion
+    });
+  } catch (error) {
+    console.error('Discussion creation error:', error);
+    res.status(500).json({ 
+      message: 'Server error creating discussion',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Reply to discussion
+// @route   POST /api/courses/:courseId/discussions/:discussionId/replies
+// @access  Private (Enrolled Student/Course Instructor/Admin)
+router.post('/:courseId/discussions/:discussionId/replies', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check authorization
+    const isEnrolled = course.enrolledStudents.some(
+      enrollment => enrollment.student.toString() === req.user._id.toString()
+    );
+    const isInstructor = course.instructor.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isEnrolled && !isInstructor && !isAdmin) {
+      return res.status(403).json({ message: 'Not authorized to reply to discussions in this course' });
+    }
+
+    const discussion = course.discussions.id(req.params.discussionId);
+    if (!discussion) {
+      return res.status(404).json({ message: 'Discussion not found' });
+    }
+
+    const { content } = req.body;
+
+    if (!content) {
+      return res.status(400).json({ message: 'Reply content is required' });
+    }
+
+    const reply = {
+      content,
+      author: req.user._id,
+      createdAt: new Date(),
+      likes: []
+    };
+
+    discussion.replies.push(reply);
+    await course.save();
+
+    // Populate author info
+    await course.populate('discussions.replies.author', 'name avatar');
+
+    const createdReply = discussion.replies[discussion.replies.length - 1];
+
+    res.status(201).json({
+      message: 'Reply added successfully',
+      reply: createdReply
+    });
+  } catch (error) {
+    console.error('Reply creation error:', error);
+    res.status(500).json({ 
+      message: 'Server error adding reply',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Publish/Unpublish course
+// @route   PUT /api/courses/:id/publish
+// @access  Private (Course Instructor/Admin)
+router.put('/:id/publish', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check authorization
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to publish this course' });
+    }
+
+    const { isPublished } = req.body;
+
+    course.isPublished = isPublished;
+    course.status = isPublished ? 'published' : 'draft';
+    if (isPublished && !course.publishedAt) {
+      course.publishedAt = new Date();
+    }
+
+    await course.save();
+
+    res.json({
+      message: `Course ${isPublished ? 'published' : 'unpublished'} successfully`,
+      course: {
+        _id: course._id,
+        title: course.title,
+        isPublished: course.isPublished,
+        status: course.status,
+        publishedAt: course.publishedAt
+      }
+    });
+  } catch (error) {
+    console.error('Course publish error:', error);
+    res.status(500).json({ 
+      message: 'Server error publishing course',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Get course analytics
+// @route   GET /api/courses/:id/analytics
+// @access  Private (Course Instructor/Admin)
+router.get('/:id/analytics', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id)
+      .populate('enrolledStudents.student', 'name email avatar createdAt');
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check authorization
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to view analytics for this course' });
+    }
+
+    // Calculate analytics
+    const totalStudents = course.enrolledStudents.length;
+    const completedStudents = course.enrolledStudents.filter(s => s.progress === 100).length;
+    const averageProgress = totalStudents > 0 
+      ? course.enrolledStudents.reduce((acc, s) => acc + s.progress, 0) / totalStudents 
+      : 0;
+
+    // Monthly enrollment data
+    const monthlyEnrollments = {};
+    course.enrolledStudents.forEach(enrollment => {
+      const month = new Date(enrollment.enrolledAt).toISOString().slice(0, 7);
+      monthlyEnrollments[month] = (monthlyEnrollments[month] || 0) + 1;
+    });
+
+    // Progress distribution
+    const progressRanges = {
+      '0-25': 0,
+      '26-50': 0,
+      '51-75': 0,
+      '76-100': 0
+    };
+
+    course.enrolledStudents.forEach(student => {
+      const progress = student.progress;
+      if (progress <= 25) progressRanges['0-25']++;
+      else if (progress <= 50) progressRanges['26-50']++;
+      else if (progress <= 75) progressRanges['51-75']++;
+      else progressRanges['76-100']++;
+    });
+
+    const analytics = {
+      overview: {
+        totalStudents,
+        completedStudents,
+        completionRate: totalStudents > 0 ? (completedStudents / totalStudents * 100).toFixed(1) : 0,
+        averageProgress: averageProgress.toFixed(1),
+        totalRating: course.rating.average || 0,
+        totalReviews: course.rating.count || 0,
+        totalRevenue: totalStudents * (course.discountPrice || course.price || 0)
+      },
+      enrollments: {
+        monthly: monthlyEnrollments,
+        recent: course.enrolledStudents
+          .sort((a, b) => new Date(b.enrolledAt) - new Date(a.enrolledAt))
+          .slice(0, 10)
+      },
+      progress: {
+        distribution: progressRanges,
+        details: course.enrolledStudents.map(s => ({
+          student: s.student,
+          progress: s.progress,
+          lastActivity: s.lastActivity,
+          completedLessons: s.completedLessons.length
+        }))
+      },
+      engagement: {
+        totalDiscussions: course.discussions.length,
+        activeSessions: course.liveSessions.filter(s => s.status === 'scheduled').length,
+        completedSessions: course.liveSessions.filter(s => s.status === 'completed').length
+      }
+    };
+
+    res.json(analytics);
+  } catch (error) {
+    console.error('Course analytics error:', error);
+    res.status(500).json({ 
+      message: 'Server error fetching course analytics',
       error: error.message 
     });
   }
