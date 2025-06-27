@@ -77,7 +77,11 @@ const Navbar = () => {
   ];
 
   const userNavItems = user ? [
-    { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
+    { 
+      name: 'Dashboard', 
+      href: user.role === 'instructor' ? '/instructor/dashboard' : '/dashboard', 
+      icon: BarChart3 
+    },
     { name: 'My Courses', href: '/my-courses', icon: BookOpen },
     { name: 'Certificates', href: '/certificates', icon: Award },
     ...(user.role === 'instructor' || user.role === 'admin' 
@@ -92,20 +96,22 @@ const Navbar = () => {
     <motion.nav 
       initial={{ y: -100 }}
       animate={{ y: 0 }}
-      className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-gray-200/80"
+      transition={{ duration: 0.5 }}
+      className="sticky top-0 z-50 bg-white border-b border-gray-200"
     >
       <div className="flex justify-between items-center h-16 px-4 sm:px-6 lg:px-8">
           {/* Logo */}
           <motion.div
             whileHover={{ scale: 1.02 }}
+            transition={{ duration: 0.2 }}
             className="flex items-center space-x-3"
           >
             <Link to="/" className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
+              <div className="w-8 h-8 bg-purple-600 flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">EduCharity</h1>
+                <h1 className="text-xl font-bold text-black">EduCharity</h1>
               </div>
             </Link>
           </motion.div>
@@ -127,13 +133,14 @@ const Navbar = () => {
                     <motion.div
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
+                      transition={{ duration: 0.2 }}
                     >
                       <Link
                         to={item.href}
                         className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium transition-all duration-200 ${
                           isActive
-                            ? 'bg-gray-900 text-white'
-                            : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                            ? 'bg-black text-white'
+                            : 'text-gray-700 hover:bg-gray-100 hover:text-black'
                         }`}
                       >
                         <Icon className="w-4 h-4" />
@@ -155,7 +162,7 @@ const Navbar = () => {
                           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                             {/* Header */}
                             <div className="text-center mb-12">
-                              <h3 className="text-3xl font-bold text-gray-900 mb-4">Explore Our Course Categories</h3>
+                              <h3 className="text-3xl font-bold text-black mb-4 font-serif">Explore Our Course Categories</h3>
                               <p className="text-lg text-gray-600 max-w-3xl mx-auto">Choose from thousands of expertly designed courses across multiple disciplines to accelerate your career</p>
                             </div>
                             
@@ -164,17 +171,16 @@ const Navbar = () => {
                               {courseCategories.map((category, index) => (
                                 <motion.div
                                   key={category.name}
-                                  initial={{ opacity: 0, y: 30 }}
+                                  initial={{ opacity: 0, y: 20 }}
                                   animate={{ opacity: 1, y: 0 }}
-                                  transition={{ delay: index * 0.1 }}
-                                  className="group text-center p-6 bg-gray-50 hover:bg-white hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-100 hover:border-indigo-200"
+                                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                                  className="group text-center p-6 bg-gray-50 hover:bg-white hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-100 hover:border-purple-200"
                                 >
-                                  <div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300">{category.icon}</div>
-                                  <h4 className="text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors mb-2">
+                                  <h4 className="text-lg font-bold text-black group-hover:text-purple-600 transition-colors mb-2">
                                     {category.name}
                                   </h4>
                                   <p className="text-sm text-gray-600 mb-4">{category.description}</p>
-                                  <div className="text-xs text-indigo-600 font-medium">
+                                  <div className="text-xs text-purple-600 font-medium">
                                     {category.courses.length} courses available
                                   </div>
                                 </motion.div>
@@ -185,14 +191,14 @@ const Navbar = () => {
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
                               {/* Popular Courses */}
                               <div>
-                                <h4 className="text-xl font-bold text-gray-900 mb-6">Most Popular This Week</h4>
+                                <h4 className="text-xl font-bold text-black mb-6">Most Popular This Week</h4>
                                 <div className="space-y-4">
-                                  <div className="flex items-center space-x-4 p-4 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
-                                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
+                                  <div className="flex items-center space-x-4 p-4 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-100">
+                                    <div className="w-12 h-12 bg-purple-600 flex items-center justify-center text-white font-bold">
                                       JS
                                     </div>
                                     <div className="flex-1">
-                                      <div className="font-semibold text-gray-900">Complete JavaScript Course</div>
+                                      <div className="font-semibold text-black">Complete JavaScript Course</div>
                                       <div className="text-sm text-gray-600">Build real projects • 15.2k students</div>
                                     </div>
                                     <div className="text-right">
@@ -200,12 +206,12 @@ const Navbar = () => {
                                       <div className="text-xs text-gray-500">4.8 ⭐</div>
                                     </div>
                                   </div>
-                                  <div className="flex items-center space-x-4 p-4 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
-                                    <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                                  <div className="flex items-center space-x-4 p-4 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-100">
+                                    <div className="w-12 h-12 bg-purple-600 flex items-center justify-center text-white font-bold">
                                       PY
                                     </div>
                                     <div className="flex-1">
-                                      <div className="font-semibold text-gray-900">Python for Data Science</div>
+                                      <div className="font-semibold text-black">Python for Data Science</div>
                                       <div className="text-sm text-gray-600">From basics to advanced • 12.8k students</div>
                                     </div>
                                     <div className="text-right">
@@ -213,12 +219,12 @@ const Navbar = () => {
                                       <div className="text-xs text-gray-500">4.9 ⭐</div>
                                     </div>
                                   </div>
-                                  <div className="flex items-center space-x-4 p-4 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
-                                    <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
+                                  <div className="flex items-center space-x-4 p-4 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-100">
+                                    <div className="w-12 h-12 bg-purple-600 flex items-center justify-center text-white font-bold">
                                       UX
                                     </div>
                                     <div className="flex-1">
-                                      <div className="font-semibold text-gray-900">UI/UX Design Masterclass</div>
+                                      <div className="font-semibold text-black">UI/UX Design Masterclass</div>
                                       <div className="text-sm text-gray-600">Design thinking + tools • 9.4k students</div>
                                     </div>
                                     <div className="text-right">
@@ -231,26 +237,26 @@ const Navbar = () => {
                               
                               {/* Learning Paths */}
                               <div>
-                                <h4 className="text-xl font-bold text-gray-900 mb-6">Recommended Learning Paths</h4>
+                                <h4 className="text-xl font-bold text-black mb-6">Recommended Learning Paths</h4>
                                 <div className="space-y-4">
-                                  <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200">
-                                    <div className="font-semibold text-gray-900 mb-2">🚀 Full Stack Developer</div>
+                                  <div className="p-4 bg-purple-50 border border-purple-200">
+                                    <div className="font-semibold text-black mb-2">Full Stack Developer</div>
                                     <div className="text-sm text-gray-600 mb-3">HTML, CSS, JavaScript, React, Node.js, MongoDB</div>
                                     <div className="flex items-center justify-between">
-                                      <div className="text-xs text-indigo-600">6 courses • 120 hours</div>
-                                      <div className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1">Beginner friendly</div>
+                                      <div className="text-xs text-purple-600">6 courses • 120 hours</div>
+                                      <div className="text-xs bg-purple-100 text-purple-800 px-2 py-1">Beginner friendly</div>
                                     </div>
                                   </div>
-                                  <div className="p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200">
-                                    <div className="font-semibold text-gray-900 mb-2">📊 Data Scientist</div>
+                                  <div className="p-4 bg-gray-50 border border-gray-200">
+                                    <div className="font-semibold text-black mb-2">Data Scientist</div>
                                     <div className="text-sm text-gray-600 mb-3">Python, Statistics, Machine Learning, Data Viz</div>
                                     <div className="flex items-center justify-between">
-                                      <div className="text-xs text-green-600">8 courses • 150 hours</div>
-                                      <div className="text-xs bg-green-100 text-green-800 px-2 py-1">High demand</div>
+                                      <div className="text-xs text-purple-600">8 courses • 150 hours</div>
+                                      <div className="text-xs bg-gray-100 text-gray-800 px-2 py-1">High demand</div>
                                     </div>
                                   </div>
-                                  <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200">
-                                    <div className="font-semibold text-gray-900 mb-2">🎨 Digital Marketer</div>
+                                  <div className="p-4 bg-purple-50 border border-purple-200">
+                                    <div className="font-semibold text-black mb-2">Digital Marketer</div>
                                     <div className="text-sm text-gray-600 mb-3">SEO, Social Media, Analytics, Content Strategy</div>
                                     <div className="flex items-center justify-between">
                                       <div className="text-xs text-purple-600">5 courses • 80 hours</div>
@@ -266,14 +272,14 @@ const Navbar = () => {
                               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                                 <Link 
                                   to="/courses"
-                                  className="inline-flex items-center px-8 py-3 text-white bg-gray-900 hover:bg-gray-800 font-medium transition-colors"
+                                  className="inline-flex items-center px-8 py-3 text-white bg-black hover:bg-gray-800 font-medium transition-colors"
                                 >
                                   Browse All Courses
                                   <ArrowRight className="ml-2 w-4 h-4" />
                                 </Link>
                                 <Link 
                                   to="/learning-paths"
-                                  className="inline-flex items-center px-8 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium transition-colors"
+                                  className="inline-flex items-center px-8 py-3 text-black bg-gray-100 hover:bg-gray-200 font-medium transition-colors"
                                 >
                                   View Learning Paths
                                 </Link>
@@ -295,13 +301,14 @@ const Navbar = () => {
                   key={item.name}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
                 >
                   <Link
                     to={item.href}
                     className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium transition-all duration-200 ${
                       isActive
-                        ? 'bg-gray-900 text-white'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                        ? 'bg-black text-white'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-black'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -319,7 +326,7 @@ const Navbar = () => {
               <input
                 type="text"
                 placeholder="Search courses..."
-                className="w-full pl-10 pr-4 py-2 bg-gray-50 border-0 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:bg-white transition-all duration-200 text-gray-900 placeholder-gray-500 text-sm"
+                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600 focus:bg-white transition-all duration-200 text-gray-900 placeholder-gray-500 text-sm"
               />
             </div>
           </div>
@@ -352,13 +359,13 @@ const Navbar = () => {
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
                     className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    <div className="w-7 h-7 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
+                    <div className="w-7 h-7 bg-purple-600 rounded-lg flex items-center justify-center">
                       <span className="text-white text-sm font-medium">
                         {user.name.charAt(0).toUpperCase()}
                       </span>
                     </div>
                     <div className="hidden sm:block text-left">
-                      <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                      <p className="text-sm font-medium text-black">{user.name}</p>
                     </div>
                     <ChevronDown className="w-4 h-4 text-gray-400" />
                   </motion.button>
@@ -367,17 +374,17 @@ const Navbar = () => {
                   <AnimatePresence>
                     {isProfileOpen && (
                       <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute right-0 mt-2 w-56 bg-white shadow-xl border border-gray-200 py-2 z-50"
                       >
                         {/* User Info */}
-                        <div className="px-3 py-2 border-b border-gray-100">
-                          <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                        <div className="px-4 py-3 border-b border-gray-100">
+                          <p className="text-sm font-medium text-black">{user.name}</p>
                           <p className="text-xs text-gray-500">{user.email}</p>
-                          <span className="inline-block mt-1 px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-md capitalize">
+                          <span className="inline-block mt-1 px-2 py-1 bg-purple-100 text-purple-700 text-xs capitalize">
                             {user.role}
                           </span>
                         </div>
@@ -431,7 +438,7 @@ const Navbar = () => {
                 >
                   <Link
                     to="/login"
-                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-black transition-colors"
                   >
                     Sign In
                   </Link>
@@ -439,10 +446,11 @@ const Navbar = () => {
                 <motion.div
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
                 >
                   <Link
                     to="/register"
-                    className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-white bg-black hover:bg-gray-800 rounded-lg transition-colors"
                   >
                     Get Started
                   </Link>
@@ -481,9 +489,9 @@ const Navbar = () => {
                       key={item.name}
                       to={item.href}
                       onClick={() => setIsMenuOpen(false)}
-                      className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all ${
+                      className={`flex items-center space-x-3 px-4 py-3 text-base font-medium transition-all duration-200 ${
                         isActive
-                          ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white'
+                          ? 'bg-purple-600 text-white'
                           : 'text-gray-700 hover:bg-gray-100'
                       }`}
                     >
@@ -502,7 +510,7 @@ const Navbar = () => {
                           key={item.name}
                           to={item.href}
                           onClick={() => setIsMenuOpen(false)}
-                          className="flex items-center space-x-3 px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+                          className="flex items-center space-x-3 px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-100 transition-colors"
                         >
                           <Icon className="w-5 h-5" />
                           <span>{item.name}</span>

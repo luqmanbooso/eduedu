@@ -120,12 +120,12 @@ const CourseDetail = () => {
 
   if (!course) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-2xl font-bold text-black mb-2">
             Course Not Found
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600">
             The course you're looking for doesn't exist.
           </p>
         </div>
@@ -134,7 +134,7 @@ const CourseDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
@@ -144,7 +144,8 @@ const CourseDetail = () => {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-lg"
+                transition={{ duration: 0.6 }}
+                className="bg-white border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200"
               >
                 <VideoPlayer
                   src={currentLesson.videoUrl}
@@ -153,20 +154,22 @@ const CourseDetail = () => {
                 />
                 <div className="p-6">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    <h2 className="text-xl font-semibold text-black">
                       {currentLesson.title}
                     </h2>
                     {enrolled && !isLessonCompleted(currentLesson._id) && (
-                      <button
+                      <motion.button
                         onClick={() => markLessonComplete(currentLesson._id)}
-                        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center space-x-2"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 flex items-center space-x-2 transition-colors"
                       >
                         <CheckCircle size={16} />
                         <span>Mark Complete</span>
-                      </button>
+                      </motion.button>
                     )}
                   </div>
-                  <p className="text-gray-600 dark:text-gray-400 mt-2">
+                  <p className="text-gray-600 mt-2">
                     {currentLesson.description}
                   </p>
                 </div>
@@ -177,50 +180,51 @@ const CourseDetail = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg"
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="bg-white border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow duration-200"
             >
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+              <h1 className="text-3xl font-bold text-black mb-4 font-serif">
                 {course.title}
               </h1>
               
               <div className="flex items-center space-x-6 mb-6">
                 <div className="flex items-center space-x-2">
-                  <Star className="w-5 h-5 text-yellow-500" fill="currentColor" />
-                  <span className="text-gray-600 dark:text-gray-400">
+                  <Star className="w-5 h-5 text-purple-500" fill="currentColor" />
+                  <span className="text-gray-600">
                     {course.rating?.average?.toFixed(1) || 'No ratings'} 
                     ({course.rating?.count || 0} reviews)
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Users className="w-5 h-5 text-gray-500" />
-                  <span className="text-gray-600 dark:text-gray-400">
+                  <span className="text-gray-600">
                     {course.enrolledStudents?.length || 0} students
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Clock className="w-5 h-5 text-gray-500" />
-                  <span className="text-gray-600 dark:text-gray-400">
+                  <span className="text-gray-600">
                     {course.totalDuration || 0} minutes
                   </span>
                 </div>
               </div>
 
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
+              <p className="text-gray-600 mb-6">
                 {course.description}
               </p>
 
               {/* Instructor Info */}
-              <div className="flex items-center space-x-4 mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div className="flex items-center space-x-4 mb-6 p-4 bg-gray-50 border border-gray-100">
                 <img
                   src={course.instructor?.avatar || '/api/placeholder/48/48'}
                   alt={course.instructor?.name}
-                  className="w-12 h-12 rounded-full object-cover"
+                  className="w-12 h-12 object-cover"
                 />
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                  <h3 className="font-semibold text-black">
                     {course.instructor?.name}
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  <p className="text-gray-600 text-sm">
                     Course Instructor
                   </p>
                 </div>
@@ -229,14 +233,14 @@ const CourseDetail = () => {
               {/* Learning Outcomes */}
               {course.learningOutcomes && course.learningOutcomes.length > 0 && (
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  <h3 className="text-lg font-semibold text-black mb-3">
                     What you'll learn
                   </h3>
                   <ul className="space-y-2">
                     {course.learningOutcomes.map((outcome, index) => (
                       <li key={index} className="flex items-start space-x-3">
-                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-600 dark:text-gray-400">{outcome}</span>
+                        <CheckCircle className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-600">{outcome}</span>
                       </li>
                     ))}
                   </ul>
@@ -249,7 +253,7 @@ const CourseDetail = () => {
                   {course.tags.map((tag, index) => (
                     <span
                       key={index}
-                      className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 rounded-full text-sm"
+                      className="px-3 py-1 bg-purple-100 text-purple-700 text-sm"
                     >
                       {tag}
                     </span>
@@ -268,28 +272,31 @@ const CourseDetail = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg sticky top-4"
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="bg-white border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow duration-200 sticky top-4"
             >
               <div className="text-center mb-6">
-                <span className="text-3xl font-bold text-green-600">FREE</span>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                <span className="text-3xl font-bold text-purple-600">FREE</span>
+                <p className="text-gray-600 text-sm">
                   Full lifetime access
                 </p>
               </div>
 
               {!enrolled ? (
-                <button
+                <motion.button
                   onClick={handleEnroll}
                   disabled={enrolling}
-                  className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full bg-purple-600 text-white py-3 px-4 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {enrolling ? 'Enrolling...' : 'Enroll Now'}
-                </button>
+                </motion.button>
               ) : (
                 <div className="space-y-4">
                   <div className="text-center">
-                    <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
-                    <p className="text-green-600 font-semibold">You're enrolled!</p>
+                    <CheckCircle className="w-12 h-12 text-purple-600 mx-auto mb-2" />
+                    <p className="text-purple-600 font-semibold">You're enrolled!</p>
                   </div>
                   
                   {progress && (
@@ -298,9 +305,9 @@ const CourseDetail = () => {
                         <span>Progress</span>
                         <span>{progress.progressPercentage}%</span>
                       </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div className="w-full bg-gray-200 h-2">
                         <div
-                          className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                          className="bg-purple-600 h-2 transition-all duration-500"
                           style={{ width: `${progress.progressPercentage}%` }}
                         ></div>
                       </div>
@@ -310,14 +317,20 @@ const CourseDetail = () => {
               )}
 
               <div className="flex space-x-2 mt-4">
-                <button className="flex-1 flex items-center justify-center space-x-2 py-2 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700">
+                <motion.button 
+                  whileHover={{ scale: 1.02 }}
+                  className="flex-1 flex items-center justify-center space-x-2 py-2 px-4 border border-gray-300 hover:bg-gray-50 transition-colors"
+                >
                   <Heart size={16} />
                   <span>Wishlist</span>
-                </button>
-                <button className="flex-1 flex items-center justify-center space-x-2 py-2 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700">
+                </motion.button>
+                <motion.button 
+                  whileHover={{ scale: 1.02 }}
+                  className="flex-1 flex items-center justify-center space-x-2 py-2 px-4 border border-gray-300 hover:bg-gray-50 transition-colors"
+                >
                   <Share2 size={16} />
                   <span>Share</span>
-                </button>
+                </motion.button>
               </div>
             </motion.div>
 

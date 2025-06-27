@@ -151,22 +151,27 @@ const UserProfile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-12 h-12 border-4 border-gray-200 border-t-purple-600 rounded-full"
+        />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div className="min-h-screen bg-white py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Profile Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden"
+          transition={{ duration: 0.6 }}
+          className="bg-white border border-gray-200 shadow-sm overflow-hidden"
         >
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-32"></div>
+          <div className="bg-gradient-to-r from-purple-600 to-black h-32"></div>
           <div className="px-6 pb-6">
             <div className="flex items-end space-x-6 -mt-16">
               {/* Avatar */}
@@ -174,9 +179,9 @@ const UserProfile = () => {
                 <img
                   src={profileData?.avatar || '/api/placeholder/128/128'}
                   alt={profileData?.name}
-                  className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover"
+                  className="w-32 h-32 border-4 border-white shadow-lg object-cover"
                 />
-                <label className="absolute bottom-2 right-2 bg-blue-500 p-2 rounded-full cursor-pointer hover:bg-blue-600 transition-colors">
+                <label className="absolute bottom-2 right-2 bg-purple-600 p-2 cursor-pointer hover:bg-purple-700 transition-colors">
                   <Camera size={16} className="text-white" />
                   <input
                     type="file"
@@ -187,7 +192,7 @@ const UserProfile = () => {
                   />
                 </label>
                 {uploading && (
-                  <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
                   </div>
                 )}
@@ -197,48 +202,50 @@ const UserProfile = () => {
               <div className="flex-1 pt-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <h1 className="text-2xl font-bold text-black font-serif">
                       {profileData?.name}
                     </h1>
-                    <p className="text-gray-600 dark:text-gray-400 capitalize">
+                    <p className="text-gray-600 capitalize">
                       {profileData?.role}
                     </p>
                     {profileData?.location && (
-                      <p className="text-gray-500 dark:text-gray-400 flex items-center mt-1">
+                      <p className="text-gray-500 flex items-center mt-1">
                         <MapPin size={16} className="mr-1" />
                         {profileData.location}
                       </p>
                     )}
                   </div>
-                  <button
+                  <motion.button
                     onClick={() => setIsEditing(!isEditing)}
-                    className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors ${
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`px-4 py-2 flex items-center space-x-2 transition-colors ${
                       isEditing 
-                        ? 'bg-gray-300 text-gray-700 hover:bg-gray-400' 
-                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                        ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' 
+                        : 'bg-purple-600 text-white hover:bg-purple-700'
                     }`}
                   >
                     {isEditing ? <X size={16} /> : <Edit3 size={16} />}
                     <span>{isEditing ? 'Cancel' : 'Edit Profile'}</span>
-                  </button>
+                  </motion.button>
                 </div>
 
                 {/* Stats */}
                 {stats && (
-                  <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-200">
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-blue-600">{stats.general.coursesCompleted}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
+                      <p className="text-2xl font-bold text-purple-600">{stats.general.coursesCompleted}</p>
+                      <p className="text-sm text-gray-600">Completed</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-green-600">{stats.general.certificatesEarned}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Certificates</p>
+                      <p className="text-2xl font-bold text-black">{stats.general.certificatesEarned}</p>
+                      <p className="text-sm text-gray-600">Certificates</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-purple-600">
+                      <p className="text-2xl font-bold text-purple-500">
                         {Math.round(stats.general.totalLearningTime / 60)}h
                       </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Learning Time</p>
+                      <p className="text-sm text-gray-600">Learning Time</p>
                     </div>
                   </div>
                 )}
@@ -249,23 +256,25 @@ const UserProfile = () => {
 
         {/* Tabs */}
         <div className="mt-8">
-          <div className="border-b border-gray-200 dark:border-gray-700">
+          <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
-                  <button
+                  <motion.button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    whileHover={{ y: -2 }}
+                    transition={{ duration: 0.2 }}
+                    className={`flex items-center space-x-2 py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 ${
                       activeTab === tab.id
-                        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                        ? 'border-purple-600 text-purple-600'
+                        : 'border-transparent text-gray-500 hover:text-black hover:border-gray-300'
                     }`}
                   >
                     <Icon size={16} />
                     <span>{tab.label}</span>
-                  </button>
+                  </motion.button>
                 );
               })}
             </nav>
