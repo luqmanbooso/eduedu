@@ -30,7 +30,7 @@ const Login = () => {
       const result = await login(formData.email, formData.password);
       if (result.success) {
         toast.success('Welcome back!');
-        navigate('/dashboard');
+        navigate('/dashboard'); // Dashboard component will handle role-based redirects
       } else {
         toast.error(result.error || 'Login failed');
       }

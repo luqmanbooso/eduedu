@@ -170,7 +170,7 @@ const CourseCard = ({ course, index = 0 }) => {
                 whileHover={{ scale: 1.05 }}
               >
                 <Star className="h-4 w-4 mr-1 text-yellow-400 fill-current" />
-                <span className="font-medium">{course.rating || '4.5'}</span>
+                <span className="font-medium">{course.rating?.average || '4.5'}</span>
               </motion.div>
             </div>
 

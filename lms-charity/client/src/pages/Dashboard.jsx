@@ -26,9 +26,13 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Redirect instructors to their specialized dashboard
+  // Redirect users to their role-specific dashboards
   if (user && user.role === 'instructor') {
     return <Navigate to="/instructor/dashboard" replace />;
+  }
+  
+  if (user && user.role === 'admin') {
+    return <Navigate to="/admin" replace />;
   }
 
   useEffect(() => {

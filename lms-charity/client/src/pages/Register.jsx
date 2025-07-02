@@ -28,7 +28,7 @@ const Register = () => {
     });
     
     if (result.success) {
-      navigate('/dashboard');
+      navigate('/dashboard'); // Dashboard component will handle role-based redirects
     } else {
       setError(result.error);
     }

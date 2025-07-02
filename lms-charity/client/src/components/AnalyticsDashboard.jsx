@@ -20,6 +20,7 @@ import {
   Tooltip, 
   ResponsiveContainer,
   PieChart as RechartsPieChart,
+  Pie,
   Cell,
   BarChart,
   Bar
@@ -27,18 +28,27 @@ import {
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
-const AnalyticsDashboard = ({ type = 'student' }) => {
-  const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
+const AnalyticsDashboard = ({ type = 'student', dashboardData }) => {
+  const [analytics, setAnalytics] = useState(dashboardData || null);
+  const [loading, setLoading] = useState(!dashboardData);
   const [timeRange, setTimeRange] = useState('7d');
   const { user } = useAuth();
 
   useEffect(() => {
-    fetchAnalytics();
-  }, [timeRange, type]);
+    if (!dashboardData) {
+      fetchAnalytics();
+    }
+  }, [timeRange, type, dashboardData]);
 
   const fetchAnalytics = async () => {
+    if (dashboardData) {
+      setAnalytics(dashboardData);
+      setLoading(false);
+      return;
+    }
+
     try {
+      setLoading(true);
       const endpoint = type === 'student' 
         ? '/api/progress/analytics/user'
         : `/api/progress/analytics/course/${user.courseId}`;
@@ -117,11 +127,13 @@ const AnalyticsDashboard = ({ type = 'student' }) => {
     { name: 'Sun', hours: 2.3 }
   ];
 
-  const categoryData = Object.entries(analytics.categoryStats || {}).map(([name, stats]) => ({
-    name,
-    value: stats.completed,
-    total: stats.total
-  }));
+  const categoryData = analytics && analytics.categoryStats 
+    ? Object.entries(analytics.categoryStats).map(([name, stats]) => ({
+        name,
+        value: typeof stats === 'object' && stats !== null && stats.completed !== undefined ? stats.completed : 0,
+        total: typeof stats === 'object' && stats !== null && stats.total !== undefined ? stats.total : 0
+      }))
+    : [];
 
   const COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#F97316'];
 

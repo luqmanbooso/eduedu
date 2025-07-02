@@ -22,7 +22,8 @@ const Login = () => {
     const result = await login(data.email, data.password);
     
     if (result.success) {
-      navigate('/dashboard');
+      // Redirect based on user role - the user data will be available in the AuthContext
+      navigate('/dashboard'); // Dashboard component will handle role-based redirects
     } else {
       setError(result.error);
     }

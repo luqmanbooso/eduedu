@@ -259,6 +259,123 @@ router.put('/courses/:id/featured', async (req, res) => {
   }
 });
 
+// @desc    Update course status (approve/reject)
+// @route   PUT /api/admin/courses/:id/status
+// @access  Private (Admin)
+router.put('/courses/:id/status', async (req, res) => {
+  try {
+    const { status, rejectionReason } = req.body;
+
+    if (!['draft', 'review', 'published', 'archived'].includes(status)) {
+      return res.status(400).json({ 
+        message: 'Invalid status. Must be one of: draft, review, published, archived' 
+      });
+    }
+
+    const course = await Course.findById(req.params.id)
+      .populate('instructor', 'name email');
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    const previousStatus = course.status;
+    course.status = status;
+
+    // If publishing, set published date and isPublished flag
+    if (status === 'published') {
+      course.isPublished = true;
+      course.publishedAt = new Date();
+    } else {
+      course.isPublished = false;
+    }
+
+    // Add rejection reason if provided
+    if (status === 'draft' && rejectionReason) {
+      course.rejectionReason = rejectionReason;
+    }
+
+    await course.save();
+
+    // Create notification for instructor
+    const Notification = (await import('../models/Notification.js')).default;
+    let notificationMessage = '';
+    
+    switch (status) {
+      case 'published':
+        notificationMessage = `Your course "${course.title}" has been approved and published!`;
+        break;
+      case 'draft':
+        notificationMessage = `Your course "${course.title}" needs revisions.${rejectionReason ? ' Reason: ' + rejectionReason : ''}`;
+        break;
+      case 'archived':
+        notificationMessage = `Your course "${course.title}" has been archived.`;
+        break;
+    }
+
+    if (notificationMessage) {
+      await Notification.create({
+        user: course.instructor._id,
+        title: 'Course Status Update',
+        message: notificationMessage,
+        type: 'course_status',
+        relatedCourse: course._id
+      });
+    }
+
+    res.json({
+      message: `Course status updated from ${previousStatus} to ${status}`,
+      course: {
+        _id: course._id,
+        title: course.title,
+        status: course.status,
+        isPublished: course.isPublished,
+        publishedAt: course.publishedAt
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ 
+      message: 'Server error updating course status',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Get courses pending review
+// @route   GET /api/admin/courses/pending
+// @access  Private (Admin)
+router.get('/courses/pending', async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      sort = '-createdAt'
+    } = req.query;
+
+    const courses = await Course.find({ status: 'review' })
+      .populate('instructor', 'name email profile.avatar')
+      .sort(sort)
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Course.countDocuments({ status: 'review' });
+
+    res.json({
+      courses,
+      totalPages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+      total
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ 
+      message: 'Server error fetching pending courses',
+      error: error.message 
+    });
+  }
+});
+
 // @desc    Get dashboard statistics
 // @route   GET /api/admin/stats
 // @access  Private (Admin)
@@ -308,6 +425,161 @@ router.get('/stats', async (req, res) => {
     console.error(error);
     res.status(500).json({ 
       message: 'Server error fetching statistics',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Update user status
+// @route   PATCH /api/admin/users/:id
+// @access  Private (Admin)
+router.patch('/users/:id', async (req, res) => {
+  try {
+    const { action } = req.body;
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    switch (action) {
+      case 'activate':
+        user.isActive = true;
+        break;
+      case 'deactivate':
+        user.isActive = false;
+        break;
+      default:
+        return res.status(400).json({ message: 'Invalid action' });
+    }
+
+    await user.save();
+
+    res.json({
+      message: `User ${action}d successfully`,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ 
+      message: 'Server error updating user status',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Update course status
+// @route   PATCH /api/admin/courses/:id
+// @access  Private (Admin)
+router.patch('/courses/:id', async (req, res) => {
+  try {
+    const { action } = req.body;
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    switch (action) {
+      case 'publish':
+        course.isPublished = true;
+        course.status = 'published';
+        break;
+      case 'unpublish':
+        course.isPublished = false;
+        course.status = 'draft';
+        break;
+      case 'archive':
+        course.status = 'archived';
+        course.isPublished = false;
+        break;
+      default:
+        return res.status(400).json({ message: 'Invalid action' });
+    }
+
+    await course.save();
+
+    res.json({
+      message: `Course ${action}ed successfully`,
+      course: {
+        _id: course._id,
+        title: course.title,
+        status: course.status,
+        isPublished: course.isPublished
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ 
+      message: 'Server error updating course status',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Get admin notifications (system-wide activity)
+// @route   GET /api/admin/notifications
+// @access  Private (Admin)
+router.get('/notifications', async (req, res) => {
+  try {
+    const { limit = 20 } = req.query;
+
+    // Get recent system activity - recent users, courses, etc.
+    const recentUsers = await User.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('name email createdAt');
+
+    const recentCourses = await Course.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('instructor', 'name')
+      .select('title instructor createdAt isPublished');
+
+    // Generate activity notifications
+    const notifications = [];
+
+    // Add user registrations
+    recentUsers.forEach(user => {
+      notifications.push({
+        id: `user-${user._id}`,
+        message: `New user registered: ${user.name}`,
+        time: user.createdAt.toLocaleString(),
+        type: 'user',
+        timestamp: user.createdAt
+      });
+    });
+
+    // Add course activities
+    recentCourses.forEach(course => {
+      const action = course.isPublished ? 'published' : 'created';
+      notifications.push({
+        id: `course-${course._id}`,
+        message: `Course ${action}: ${course.title} by ${course.instructor?.name || 'Unknown'}`,
+        time: course.createdAt.toLocaleString(),
+        type: 'course',
+        timestamp: course.createdAt
+      });
+    });
+
+    // Sort by timestamp and limit
+    notifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const limitedNotifications = notifications.slice(0, parseInt(limit));
+
+    res.json({
+      notifications: limitedNotifications,
+      total: notifications.length
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ 
+      message: 'Server error fetching notifications',
       error: error.message 
     });
   }

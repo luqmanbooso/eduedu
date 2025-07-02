@@ -49,8 +49,6 @@ const InstructorNavbar = () => {
     { name: 'Dashboard', href: '/instructor/dashboard', icon: BarChart3 },
     { name: 'My Courses', href: '/instructor/courses', icon: BookOpen, hasDropdown: true },
     { name: 'Students', href: '/instructor/students', icon: Users },
-    { name: 'Analytics', href: '/instructor/analytics', icon: TrendingUp },
-    { name: 'Resources', href: '/instructor/resources', icon: FileText },
   ];
 
   // Course management dropdown items
@@ -60,17 +58,16 @@ const InstructorNavbar = () => {
       items: [
         { name: 'All Courses', href: '/instructor/courses', icon: BookOpen, description: 'View and manage all your courses' },
         { name: 'Create Course', href: '/create-course', icon: PlusCircle, description: 'Build a new course from scratch' },
-        { name: 'Draft Courses', href: '/instructor/drafts', icon: Edit, description: 'Work on unpublished courses' },
-        { name: 'Course Analytics', href: '/instructor/analytics', icon: BarChart3, description: 'Track course performance' }
+        { name: 'Draft Courses', href: '/instructor/drafts', icon: Edit, description: 'Work on unpublished courses' }
       ]
     },
     {
-      title: 'Content & Resources',
+      title: 'Content & Management',
       items: [
         { name: 'Video Library', href: '/instructor/videos', icon: Upload, description: 'Manage your video content' },
         { name: 'Assignments', href: '/instructor/assignments', icon: FileText, description: 'Create and grade assignments' },
         { name: 'Certificates', href: '/instructor/certificates', icon: Award, description: 'Manage course certificates' },
-        { name: 'Resource Library', href: '/instructor/resources', icon: FileText, description: 'Course materials and downloads' }
+        { name: 'Course Materials', href: '/instructor/materials', icon: FileText, description: 'Course files and documents' }
       ]
     },
     {

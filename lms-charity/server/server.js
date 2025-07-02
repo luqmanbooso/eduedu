@@ -15,6 +15,7 @@ import notificationRoutes from './routes/notifications.js';
 import certificateRoutes from './routes/certificates.js';
 import progressRoutes from './routes/progress.js';
 import profileRoutes from './routes/profile.js';
+import discussionRoutes from './routes/discussions.js';
 
 // Load environment variables
 dotenv.config();
@@ -33,6 +34,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/courses', discussionRoutes);
 app.use('/api/lessons', lessonRoutes);
 app.use('/api/instructor', instructorRoutes);
 app.use('/api/admin', adminRoutes);

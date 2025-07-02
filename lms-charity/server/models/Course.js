@@ -338,6 +338,10 @@ const courseSchema = new mongoose.Schema({
     enum: ['draft', 'review', 'published', 'archived'],
     default: 'draft'
   },
+  rejectionReason: {
+    type: String,
+    trim: true
+  },
   isPublished: {
     type: Boolean,
     default: false

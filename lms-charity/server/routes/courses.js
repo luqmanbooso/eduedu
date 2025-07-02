@@ -98,8 +98,11 @@ router.get('/', async (req, res) => {
       sort = '-createdAt'
     } = req.query;
 
-    // Build query
-    let query = { isPublished: true };
+    // Build query - only show published courses to the public
+    let query = { 
+      isPublished: true,
+      status: 'published' 
+    };
 
     if (search) {
       query.$or = [
@@ -343,8 +346,8 @@ router.delete('/:id', protect, async (req, res) => {
 
 // @desc    Publish/Unpublish course
 // @route   PATCH /api/courses/:id/publish
-// @access  Private (Course Instructor/Admin)
-router.patch('/:id/publish', protect, async (req, res) => {
+// @access  Private (Admin only)
+router.patch('/:id/publish', protect, restrictTo('admin'), async (req, res) => {
   try {
     const course = await Course.findById(req.params.id);
 
@@ -352,23 +355,108 @@ router.patch('/:id/publish', protect, async (req, res) => {
       return res.status(404).json({ message: 'Course not found' });
     }
 
-    // Check if user is course instructor or admin
-    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to publish this course' });
+    // Toggle published status and update course status
+    if (course.isPublished) {
+      course.isPublished = false;
+      course.status = 'draft';
+    } else {
+      course.isPublished = true;
+      course.status = 'published';
+      course.publishedAt = new Date();
     }
-
-    // Toggle published status
-    course.isPublished = !course.isPublished;
+    
     await course.save();
 
     res.json({
       message: `Course ${course.isPublished ? 'published' : 'unpublished'} successfully`,
-      course
+      course: {
+        _id: course._id,
+        title: course.title,
+        status: course.status,
+        isPublished: course.isPublished,
+        publishedAt: course.publishedAt
+      }
     });
   } catch (error) {
     console.error('Course publish error:', error);
     res.status(500).json({ 
       message: 'Server error publishing course',
+      error: error.message 
+    });
+  }
+});
+
+// @desc    Submit course for review
+// @route   PATCH /api/courses/:id/submit-review
+// @access  Private (Course Instructor)
+router.patch('/:id/submit-review', protect, restrictTo('instructor'), async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check if user is course instructor
+    if (course.instructor.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to submit this course' });
+    }
+
+    // Validate course has required content
+    if (!course.modules || course.modules.length === 0) {
+      return res.status(400).json({ 
+        message: 'Course must have at least one module before submitting for review' 
+      });
+    }
+
+    const totalLessons = course.modules.reduce((acc, module) => 
+      acc + (module.lessons ? module.lessons.length : 0), 0
+    );
+
+    if (totalLessons === 0) {
+      return res.status(400).json({ 
+        message: 'Course must have at least one lesson before submitting for review' 
+      });
+    }
+
+    if (!course.thumbnail || !course.thumbnail.url) {
+      return res.status(400).json({ 
+        message: 'Course must have a thumbnail before submitting for review' 
+      });
+    }
+
+    // Update status to review
+    course.status = 'review';
+    course.isPublished = false; // Ensure it's not published until approved
+    await course.save();
+
+    // Create notification for admins
+    const Notification = (await import('../models/Notification.js')).default;
+    const admins = await User.find({ role: 'admin' });
+    
+    for (const admin of admins) {
+      await Notification.create({
+        user: admin._id,
+        title: 'New Course Pending Review',
+        message: `"${course.title}" by ${req.user.name} has been submitted for review.`,
+        type: 'admin_alert',
+        relatedCourse: course._id
+      });
+    }
+
+    res.json({
+      message: 'Course submitted for review successfully',
+      course: {
+        _id: course._id,
+        title: course.title,
+        status: course.status,
+        isPublished: course.isPublished
+      }
+    });
+  } catch (error) {
+    console.error('Course submit review error:', error);
+    res.status(500).json({ 
+      message: 'Server error submitting course for review',
       error: error.message 
     });
   }

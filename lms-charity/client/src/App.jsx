@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ModernNavbar from './components/ModernNavbar';
 import InstructorNavbar from './components/InstructorNavbar';
 import HomePage from './pages/HomePage';
@@ -14,13 +14,19 @@ import CourseList from './pages/CourseList';
 import CourseDetail from './pages/CourseDetail';
 import CourseCreate from './pages/CourseCreate';
 import UserProfile from './pages/UserProfile';
-import AdminPanel from './pages/AdminPanel';
+import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Component to conditionally render the appropriate navbar
 const ConditionalNavbar = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  
+  // Don't render navbar for admin dashboard
+  if (location.pathname.startsWith('/admin')) {
+    return null;
+  }
   
   // Render InstructorNavbar for instructors, ModernNavbar for everyone else
   if (user && user.role === 'instructor') {
@@ -114,7 +120,7 @@ function App() {
                 path="/admin" 
                 element={
                   <ProtectedRoute requiredRole="admin">
-                    <AdminPanel />
+                    <AdminDashboard />
                   </ProtectedRoute>
                 } 
               />
