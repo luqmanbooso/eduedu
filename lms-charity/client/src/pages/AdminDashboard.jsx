@@ -40,7 +40,17 @@ import {
   Star,
   AlertTriangle,
   PieChart,
-  Layers
+  Layers,
+  GraduationCap,
+  Sparkles,
+  Target,
+  Heart,
+  Zap,
+  ChevronDown,
+  UserPlus,
+  BookPlus,
+  BarChart2,
+  Cog
 } from 'lucide-react';
 import { adminAPI } from '../services/api';
 
@@ -189,13 +199,13 @@ const AdminDashboard = () => {
   };
 
   const tabs = [
-    { id: 'overview', label: 'Dashboard', icon: BarChart3 },
-    { id: 'users', label: 'Users', icon: Users, count: users.length },
-    { id: 'courses', label: 'Courses', icon: BookOpen, count: courses.length },
+    { id: 'overview', label: 'Dashboard', icon: BarChart2 },
+    { id: 'users', label: 'Users', icon: UserPlus, count: users.length },
+    { id: 'courses', label: 'Courses', icon: GraduationCap, count: courses.length },
     { id: 'pending', label: 'Pending Review', icon: Clock, count: pendingCourses.length },
-    { id: 'content', label: 'Content', icon: FileText },
-    { id: 'reports', label: 'Reports', icon: TrendingUp },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'content', label: 'Content', icon: Layers },
+    { id: 'reports', label: 'Analytics', icon: TrendingUp },
+    { id: 'settings', label: 'Settings', icon: Cog },
   ];
 
   const filteredUsers = users.filter(user => {
@@ -217,102 +227,103 @@ const AdminDashboard = () => {
   const renderOverview = () => (
     <div className="space-y-8">
       {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-8 shadow-sm">
+      <div className="bg-white border-l-4 border-purple-600 p-8 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name}!</h1>
-            <p className="text-indigo-100 text-lg">Here's what's happening with your platform today.</p>
+            <h1 className="text-4xl font-bold text-black mb-3 font-serif">Welcome Back</h1>
+            <p className="text-gray-600 text-lg font-medium font-serif">Manage your platform efficiently</p>
           </div>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 px-4 py-2 text-white transition-colors"
-          >
-            <Home className="w-4 h-4" />
-            <span>Back to Site</span>
-          </button>
+          <div className="text-right">
+            <p className="text-sm font-semibold text-purple-600 font-serif">Admin Dashboard</p>
+            <p className="text-xs text-gray-500 font-serif">EduCharity Platform</p>
+          </div>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white p-6 shadow-sm border border-gray-100"
+          className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Users</p>
-              <p className="text-3xl font-bold text-gray-900">{adminStats?.totalUsers || 0}</p>
+              <p className="text-sm font-semibold text-gray-600 mb-1 font-serif">Total Users</p>
+              <p className="text-3xl font-bold text-gray-900 font-serif">{adminStats?.totalUsers || 0}</p>
             </div>
-            <div className="w-12 h-12 bg-blue-50 flex items-center justify-center">
-              <Users className="w-6 h-6 text-blue-600" />
+            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+              <UserPlus className="w-6 h-6 text-blue-600" />
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">
-            <span className="text-green-600 font-medium">+{adminStats?.recentUsers || 0}</span> this month
-          </p>
+          <div className="mt-4 flex items-center">
+            <span className="text-green-600 font-bold text-sm font-serif">+{adminStats?.recentUsers || 0}</span>
+            <span className="text-gray-500 text-sm ml-1 font-serif">this month</span>
+          </div>
         </motion.div>
 
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white p-6 shadow-sm border border-gray-100"
+          className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Courses</p>
-              <p className="text-3xl font-bold text-gray-900">{adminStats?.totalCourses || 0}</p>
+              <p className="text-sm font-semibold text-gray-600 mb-1 font-serif">Total Courses</p>
+              <p className="text-3xl font-bold text-gray-900 font-serif">{adminStats?.totalCourses || 0}</p>
             </div>
-            <div className="w-12 h-12 bg-green-50 flex items-center justify-center">
-              <BookOpen className="w-6 h-6 text-green-600" />
+            <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center">
+              <GraduationCap className="w-6 h-6 text-purple-600" />
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">
-            <span className="text-blue-600 font-medium">{adminStats?.publishedCourses || 0}</span> published
-          </p>
+          <div className="mt-4 flex items-center">
+            <span className="text-purple-600 font-bold text-sm font-serif">{adminStats?.publishedCourses || 0}</span>
+            <span className="text-gray-500 text-sm ml-1 font-serif">published</span>
+          </div>
         </motion.div>
 
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white p-6 shadow-sm border border-gray-100"
+          className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Students</p>
-              <p className="text-3xl font-bold text-gray-900">{adminStats?.totalStudents || 0}</p>
+              <p className="text-sm font-semibold text-gray-600 mb-1 font-serif">Students</p>
+              <p className="text-3xl font-bold text-gray-900 font-serif">{adminStats?.totalStudents || 0}</p>
             </div>
-            <div className="w-12 h-12 bg-purple-50 flex items-center justify-center">
-              <UserCheck className="w-6 h-6 text-purple-600" />
+            <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
+              <Target className="w-6 h-6 text-green-600" />
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">
-            <span className="text-green-600 font-medium">{Math.round(((adminStats?.totalStudents || 0) / (adminStats?.totalUsers || 1)) * 100)}%</span> of total users
-          </p>
+          <div className="mt-4 flex items-center">
+            <span className="text-green-600 font-bold text-sm font-serif">{Math.round(((adminStats?.totalStudents || 0) / (adminStats?.totalUsers || 1)) * 100)}%</span>
+            <span className="text-gray-500 text-sm ml-1 font-serif">of users</span>
+          </div>
         </motion.div>
 
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-white p-6 shadow-sm border border-gray-100"
+          className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Instructors</p>
-              <p className="text-3xl font-bold text-gray-900">{adminStats?.totalInstructors || 0}</p>
+              <p className="text-sm font-semibold text-gray-600 mb-1 font-serif">Instructors</p>
+              <p className="text-3xl font-bold text-gray-900 font-serif">{adminStats?.totalInstructors || 0}</p>
             </div>
-            <div className="w-12 h-12 bg-orange-50 flex items-center justify-center">
+            <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
               <Crown className="w-6 h-6 text-orange-600" />
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">
-            <span className="text-blue-600 font-medium">{Math.round(((adminStats?.totalInstructors || 0) / (adminStats?.totalUsers || 1)) * 100)}%</span> of total users
-          </p>
+          <div className="mt-4 flex items-center">
+            <span className="text-orange-600 font-bold text-sm font-serif">{Math.round(((adminStats?.totalInstructors || 0) / (adminStats?.totalUsers || 1)) * 100)}%</span>
+            <span className="text-gray-500 text-sm ml-1 font-serif">of users</span>
+          </div>
         </motion.div>
       </div>
 
@@ -323,27 +334,27 @@ const AdminDashboard = () => {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.5 }}
-          className="bg-white p-6 shadow-sm border border-gray-100"
+          className="bg-white p-6 rounded-xl shadow-sm border border-gray-100"
         >
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
-            <button className="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+            <h3 className="text-xl font-bold text-gray-900 font-serif">Recent Activity</h3>
+            <button className="text-purple-600 hover:text-purple-800 text-sm font-semibold px-3 py-1 rounded-lg hover:bg-purple-50 transition-all font-serif">
               View All
             </button>
           </div>
           <div className="space-y-4">
             {Array.isArray(notifications) && notifications.length > 0 ? notifications.slice(0, 5).map((notification, index) => (
-              <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 transition-colors">
-                <div className="w-2 h-2 bg-indigo-500 flex-shrink-0"></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900 truncate">{notification.message || 'System activity'}</p>
-                  <p className="text-xs text-gray-500">{notification.time || 'Recently'}</p>
+              <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                <div className="w-2 h-2 bg-purple-600 rounded-full flex-shrink-0 mt-2"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-gray-900 font-serif">{notification.message || 'System activity'}</p>
+                  <p className="text-xs text-gray-500 mt-1 font-serif">{notification.time || 'Recently'}</p>
                 </div>
               </div>
             )) : (
-              <div className="text-center py-4 text-gray-500">
+              <div className="text-center py-8 text-gray-500">
                 <Activity className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                <p className="text-sm">No recent activity</p>
+                <p className="text-sm font-serif">No recent activity</p>
               </div>
             )}
           </div>
@@ -354,39 +365,40 @@ const AdminDashboard = () => {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.6 }}
-          className="bg-white p-6 shadow-sm border border-gray-100"
+          className="bg-white p-6 rounded-xl shadow-sm border border-gray-100"
         >
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Pending Actions</h3>
+            <h3 className="text-xl font-bold text-gray-900 font-serif">Pending Actions</h3>
             <button
               onClick={() => setActiveTab('pending')}
-              className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+              className="text-purple-600 hover:text-purple-800 text-sm font-semibold px-3 py-1 rounded-lg hover:bg-purple-50 transition-all font-serif"
             >
               Review All
             </button>
           </div>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 hover:bg-yellow-100 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <AlertCircle className="w-5 h-5 text-yellow-600" />
-                <div>
-                  <span className="text-sm font-medium text-gray-900">Courses pending review</span>
-                  <p className="text-xs text-gray-500">Awaiting admin approval</p>
+            {pendingCourses.length > 0 ? pendingCourses.slice(0, 3).map((course, index) => (
+              <div key={index} className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 hover:bg-yellow-100 rounded-lg transition-colors cursor-pointer">
+                <div className="flex items-center space-x-3">
+                  <GraduationCap className="w-5 h-5 text-yellow-600" />
+                  <div>
+                    <span className="text-sm font-semibold text-gray-900 font-serif">{course.title}</span>
+                    <p className="text-xs text-gray-500 font-serif">Course pending review</p>
+                  </div>
                 </div>
+                <button
+                  onClick={() => setActiveTab('pending')}
+                  className="text-xs bg-yellow-600 text-white px-3 py-1 rounded-full hover:bg-yellow-700 transition-colors font-medium font-serif"
+                >
+                  Review
+                </button>
               </div>
-              <span className="text-sm font-bold text-yellow-600">{pendingCourses.length}</span>
-            </div>
-            
-            <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <Users className="w-5 h-5 text-blue-600" />
-                <div>
-                  <span className="text-sm font-medium text-gray-900">New user registrations</span>
-                  <p className="text-xs text-gray-500">This week</p>
-                </div>
+            )) : (
+              <div className="text-center py-8 text-gray-500">
+                <Clock className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm font-serif">No pending actions</p>
               </div>
-              <span className="text-sm font-bold text-blue-600">{adminStats?.recentUsers || 0}</span>
-            </div>
+            )}
           </div>
         </motion.div>
       </div>
@@ -1037,14 +1049,14 @@ const AdminDashboard = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading admin dashboard...</p>
+          <p className="text-gray-600 font-serif">Loading admin dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Loading Overlay */}
       <AnimatePresence>
         {actionLoading && (
@@ -1055,8 +1067,8 @@ const AdminDashboard = () => {
             className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-40"
           >
             <div className="bg-white p-6 shadow-lg text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Processing...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+              <p className="text-gray-600 font-serif">Processing...</p>
             </div>
           </motion.div>
         )}
@@ -1071,22 +1083,29 @@ const AdminDashboard = () => {
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
+            {/* Logo & Title */}
             <div className="flex items-center space-x-4">
-              <div className="w-8 h-8 bg-indigo-600 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full flex items-center justify-center shadow-sm">
+                <Sparkles className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
+              <div>
+                <h1 className="text-xl font-bold text-black font-serif">EduCharity</h1>
+                <p className="text-xs text-gray-500 -mt-0.5 font-serif">Admin Panel</p>
+              </div>
             </div>
+
+            {/* Right Side */}
             <div className="flex items-center space-x-4">
+              {/* Notifications */}
               <div className="relative">
                 <button 
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className="p-2 text-gray-400 hover:text-gray-500 relative"
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all relative"
                 >
                   <Bell className="w-5 h-5" />
                   {notifications.length > 0 && (
-                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs flex items-center justify-center">
-                      {notifications.length}
+                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-semibold">
+                      {notifications.length > 9 ? '9+' : notifications.length}
                     </span>
                   )}
                 </button>
@@ -1094,42 +1113,51 @@ const AdminDashboard = () => {
                 <AnimatePresence>
                   {showNotifications && (
                     <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="absolute right-0 mt-2 w-80 bg-white shadow-lg border border-gray-200 z-50"
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 mt-2 w-80 bg-white shadow-xl border border-gray-100 rounded-xl z-50 overflow-hidden"
                     >
-                      <div className="p-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Notifications</h3>
-                        <div className="space-y-2 max-h-64 overflow-y-auto">
-                          {notifications.length > 0 ? notifications.map((notification, index) => (
-                            <div key={index} className="p-2 hover:bg-gray-50 text-sm">
-                              <p className="text-gray-900">{notification.message}</p>
-                              <p className="text-gray-500 text-xs">{notification.time}</p>
+                      <div className="p-4 border-b border-gray-100">
+                        <h3 className="text-lg font-bold text-gray-900">Notifications</h3>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {notifications.length > 0 ? notifications.map((notification, index) => (
+                          <div key={index} className="p-3 hover:bg-gray-50 border-b border-gray-50 last:border-b-0 transition-colors">
+                            <div className="flex items-start space-x-3">
+                              <div className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0 mt-2"></div>
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold text-gray-900">{notification.message}</p>
+                                <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                              </div>
                             </div>
-                          )) : (
+                          </div>
+                        )) : (
+                          <div className="p-6 text-center">
+                            <Bell className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                             <p className="text-gray-500 text-sm">No notifications</p>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
               
-              <div className="flex items-center space-x-3">
-                <img
-                  className="h-8 w-8 object-cover"
-                  src={user?.avatar || '/api/placeholder/32/32'}
-                  alt=""
-                />
-                <div className="text-sm">
-                  <p className="font-medium text-gray-900">{user?.name}</p>
-                  <p className="text-gray-500 capitalize">{user?.role}</p>
+              {/* User Profile */}
+              <div className="flex items-center space-x-3 pl-3 border-l border-gray-200">
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">
+                    {user?.name?.charAt(0)?.toUpperCase() || 'A'}
+                  </span>
+                </div>
+                <div className="hidden sm:block text-left">
+                  <p className="text-sm font-bold text-black font-serif">{user?.name || 'Admin User'}</p>
+                  <p className="text-xs text-gray-500 font-serif">{user?.email || 'admin@educarity.com'}</p>
                 </div>
                 <button 
                   onClick={logout}
-                  className="text-gray-400 hover:text-gray-500 ml-2"
+                  className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all"
                   title="Logout"
                 >
                   <LogOut className="w-4 h-4" />
@@ -1140,26 +1168,31 @@ const AdminDashboard = () => {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Tab Navigation */}
         <div className="border-b border-gray-200 mb-8">
-          <nav className="-mb-px flex space-x-8 overflow-x-auto">
+          <nav className="-mb-px flex space-x-1 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`${
-                    activeTab === tab.id
-                      ? 'border-indigo-500 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 transition-colors`}
+                    isActive
+                      ? 'border-purple-600 text-purple-600 bg-purple-50'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                  } whitespace-nowrap py-3 px-4 border-b-2 font-bold text-sm flex items-center space-x-2 transition-all font-serif`}
                 >
                   <Icon className="w-4 h-4" />
                   <span>{tab.label}</span>
                   {tab.count !== undefined && tab.count > 0 && (
-                    <span className="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2 text-xs font-medium">
+                    <span className={`ml-2 py-0.5 px-2 text-xs font-bold rounded-full ${
+                      isActive 
+                        ? 'bg-purple-200 text-purple-800' 
+                        : 'bg-gray-200 text-gray-700'
+                    }`}>
                       {tab.count}
                     </span>
                   )}

@@ -317,9 +317,11 @@ router.put('/courses/:id/status', async (req, res) => {
       await Notification.create({
         user: course.instructor._id,
         title: 'Course Status Update',
+        title: `Course ${status}`,
         message: notificationMessage,
-        type: 'course_status',
-        relatedCourse: course._id
+        type: 'course_update',
+        relatedCourse: course._id,
+        recipient: course.instructor
       });
     }
 
