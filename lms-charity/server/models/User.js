@@ -103,6 +103,10 @@ const userSchema = new mongoose.Schema({
       ref: 'Lesson'
     }]
   }],
+  wishlist: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course'
+  }],
   createdCourses: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Course'

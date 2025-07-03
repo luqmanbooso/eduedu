@@ -624,4 +624,130 @@ function generateCompletionEmailHTML(userName, courseTitle, certificateId) {
   `;
 }
 
+// @desc    Get user's enrolled courses (simplified for My Learning page)
+// @route   GET /api/enrollment/enrolled-courses
+// @access  Private
+router.get('/enrolled-courses', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Get all progress records with course details
+    const enrolledCourses = await Progress.find({ user: userId })
+      .populate({
+        path: 'course',
+        select: 'title description thumbnail instructor category level estimatedDuration isPublished modules',
+        populate: {
+          path: 'instructor',
+          select: 'name avatar'
+        }
+      })
+      .sort({ lastAccessed: -1 });
+
+    // Filter out unpublished courses and format response
+    const courses = enrolledCourses
+      .filter(enrollment => enrollment.course && enrollment.course.isPublished)
+      .map(enrollment => ({
+        courseId: enrollment.course._id,
+        title: enrollment.course.title,
+        description: enrollment.course.description,
+        thumbnail: enrollment.course.thumbnail,
+        instructor: enrollment.course.instructor,
+        category: enrollment.course.category,
+        level: enrollment.course.level,
+        estimatedDuration: enrollment.course.estimatedDuration,
+        totalLessons: enrollment.course.modules ? 
+          enrollment.course.modules.reduce((total, module) => total + (module.lessons?.length || 0), 0) : 0,
+        progress: {
+          percentage: enrollment.progressPercentage,
+          completedLessons: enrollment.completedLessons.length,
+          totalTimeSpent: enrollment.totalTimeSpent,
+          lastAccessed: enrollment.lastAccessed,
+          isCompleted: enrollment.isCompleted,
+          currentLesson: enrollment.currentLesson
+        }
+      }));
+
+    res.json({
+      success: true,
+      data: courses
+    });
+
+  } catch (error) {
+    console.error('Error fetching enrolled courses:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching enrolled courses'
+    });
+  }
+});
+
+// @desc    Get user's completed courses
+// @route   GET /api/enrollment/completed-courses
+// @access  Private
+router.get('/completed-courses', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Get completed courses with certificates
+    const completedCourses = await Progress.find({ 
+      user: userId, 
+      isCompleted: true 
+    })
+      .populate({
+        path: 'course',
+        select: 'title description thumbnail instructor category level',
+        populate: {
+          path: 'instructor',
+          select: 'name avatar'
+        }
+      })
+      .sort({ completedAt: -1 });
+
+    // Get certificates for completed courses
+    const courseIds = completedCourses.map(c => c.course._id);
+    const certificates = await Certificate.find({
+      user: userId,
+      course: { $in: courseIds }
+    });
+
+    const courses = completedCourses
+      .filter(enrollment => enrollment.course && enrollment.course.isPublished)
+      .map(enrollment => {
+        const certificate = certificates.find(cert => 
+          cert.course.toString() === enrollment.course._id.toString()
+        );
+
+        return {
+          courseId: enrollment.course._id,
+          title: enrollment.course.title,
+          description: enrollment.course.description,
+          thumbnail: enrollment.course.thumbnail,
+          instructor: enrollment.course.instructor,
+          category: enrollment.course.category,
+          level: enrollment.course.level,
+          completedAt: enrollment.completedAt,
+          totalTimeSpent: enrollment.totalTimeSpent,
+          certificate: certificate ? {
+            certificateId: certificate.certificateId,
+            downloadUrl: certificate.certificateUrl,
+            grade: certificate.grade,
+            score: certificate.score
+          } : null
+        };
+      });
+
+    res.json({
+      success: true,
+      data: courses
+    });
+
+  } catch (error) {
+    console.error('Error fetching completed courses:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching completed courses'
+    });
+  }
+});
+
 export default router;

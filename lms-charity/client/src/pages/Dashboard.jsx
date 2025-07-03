@@ -179,6 +179,46 @@ const Dashboard = () => {
               </div>
             )}
 
+            {/* Quick Actions for Students */}
+            {user.role === 'student' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="bg-gradient-to-r from-purple-600 to-purple-700 p-8 text-white"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold mb-2">Continue Your Learning Journey</h2>
+                    <p className="text-purple-100 mb-6">
+                      Pick up where you left off and track your progress across all courses
+                    </p>
+                    <div className="flex flex-wrap gap-4">
+                      <Link
+                        to="/my-learning"
+                        className="inline-flex items-center px-6 py-3 bg-white text-purple-600 font-medium hover:bg-gray-50 transition-colors duration-200"
+                      >
+                        <BookOpen className="w-5 h-5 mr-2" />
+                        My Learning
+                      </Link>
+                      <Link
+                        to="/courses"
+                        className="inline-flex items-center px-6 py-3 bg-purple-800 text-white font-medium hover:bg-purple-900 transition-colors duration-200"
+                      >
+                        <Plus className="w-5 h-5 mr-2" />
+                        Browse Courses
+                      </Link>
+                    </div>
+                  </div>
+                  <div className="hidden lg:block">
+                    <div className="w-32 h-32 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                      <GraduationCap className="w-16 h-16 text-white" />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <motion.div
@@ -192,10 +232,10 @@ const Dashboard = () => {
                     Recent Learning
                   </h2>
                   <Link
-                    to="/courses"
+                    to="/my-learning"
                     className="text-purple-600 hover:text-purple-700 text-sm font-medium transition-colors"
                   >
-                    View all courses
+                    View My Learning
                   </Link>
                 </div>
                 
@@ -244,7 +284,7 @@ const Dashboard = () => {
                           </div>
                         </div>
                         <Link
-                          to={`/courses/${progress.course._id}`}
+                          to={progress.isCompleted ? `/learn/${progress.course._id}` : `/learn/${progress.course._id}`}
                           className="p-2 text-purple-600 hover:bg-purple-50 transition-colors"
                         >
                           {progress.progressPercentage === 100 ? (

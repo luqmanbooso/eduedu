@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, Users, Clock, BookOpen, Heart, Bookmark } from 'lucide-react';
+import { Star, Users, Clock, BookOpen, Heart, Bookmark, Play } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
-const CourseCard = ({ course, index = 0 }) => {
+const CourseCard = ({ course, index = 0, showProgress = false, progressData = null }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Check if user is enrolled
+  const isEnrolled = user && course.enrolledStudents?.some(e => e.student === user._id);
+  const progress = progressData ? progressData.progressPercentage : 0;
 
   const handleLike = (e) => {
     e.preventDefault();
@@ -32,6 +37,24 @@ const CourseCard = ({ course, index = 0 }) => {
     toast.success(isBookmarked ? 'Removed from bookmarks' : 'Added to bookmarks');
   };
 
+  const handleActionClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    if (isEnrolled) {
+      // Navigate to learning page
+      navigate(`/learn/${course._id}`);
+    } else {
+      // Navigate to course detail for enrollment
+      navigate(`/courses/${course._id}`);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 50 }}
@@ -44,12 +67,13 @@ const CourseCard = ({ course, index = 0 }) => {
       whileHover={{ y: -8, scale: 1.02 }}
       className="group"
     >
-      <Link to={`/courses/${course._id}`} className="block">
+      <div className="block cursor-pointer">
         <motion.div 
           className="card hover:shadow-2xl transition-all duration-300 overflow-hidden bg-white dark:bg-gray-800 border-0 shadow-lg"
           whileHover={{ 
             boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" 
           }}
+          onClick={() => navigate(`/courses/${course._id}`)}
         >
           {/* Thumbnail with overlay */}
           <div className="relative h-48 overflow-hidden">
@@ -175,17 +199,17 @@ const CourseCard = ({ course, index = 0 }) => {
             </div>
 
             {/* Progress bar for enrolled students */}
-            {user && course.enrolledStudents?.some(e => e.student === user._id) && (
+            {isEnrolled && showProgress && progressData && (
               <div className="mb-4">
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-gray-600 dark:text-gray-300">Progress</span>
-                  <span className="text-blue-600 dark:text-blue-400 font-medium">75%</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">{Math.round(progress)}%</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <motion.div 
                     className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
                     initial={{ width: 0 }}
-                    animate={{ width: '75%' }}
+                    animate={{ width: `${progress}%` }}
                     transition={{ duration: 1, ease: "easeOut" }}
                   />
                 </div>
@@ -194,18 +218,30 @@ const CourseCard = ({ course, index = 0 }) => {
 
             {/* Action button */}
             <motion.button
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-3 px-4 rounded-lg transition-all duration-300 transform"
+              onClick={handleActionClick}
+              className={`w-full font-medium py-3 px-4 rounded-lg transition-all duration-300 transform flex items-center justify-center space-x-2 ${
+                isEnrolled 
+                  ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white'
+                  : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white'
+              }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              {user && course.enrolledStudents?.some(e => e.student === user._id) 
-                ? 'Continue Learning' 
-                : 'Start Learning'
-              }
+              {isEnrolled ? (
+                <>
+                  <Play className="h-4 w-4" />
+                  <span>Continue Learning</span>
+                </>
+              ) : (
+                <>
+                  <BookOpen className="h-4 w-4" />
+                  <span>View Course</span>
+                </>
+              )}
             </motion.button>
           </div>
         </motion.div>
-      </Link>
+      </div>
     </motion.div>
   );
 };

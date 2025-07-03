@@ -15,6 +15,8 @@ import CourseDetail from './pages/CourseDetail';
 import CourseCreate from './pages/CourseCreate';
 import UserProfile from './pages/UserProfile';
 import AdminDashboard from './pages/AdminDashboard';
+import MyLearningEnhanced from './pages/MyLearningEnhanced';
+import CourseLearnEnhanced from './pages/CourseLearnEnhanced';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
@@ -52,6 +54,22 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/courses" element={<CourseList />} />
               <Route path="/courses/:id" element={<CourseDetail />} />
+              <Route 
+                path="/my-learning" 
+                element={
+                  <ProtectedRoute>
+                    <MyLearningEnhanced />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/learn/:courseId" 
+                element={
+                  <ProtectedRoute>
+                    <CourseLearnEnhanced />
+                  </ProtectedRoute>
+                } 
+              />
               <Route 
                 path="/dashboard" 
                 element={

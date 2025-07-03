@@ -123,6 +123,36 @@ export const courseAPI = {
   replyToDiscussion: async (courseId, discussionId, replyData) => {
     const response = await api.post(`/courses/${courseId}/discussions/${discussionId}/replies`, replyData);
     return response.data;
+  },
+
+  // Get enrolled courses
+  getEnrolledCourses: async () => {
+    const response = await api.get('/courses/enrolled');
+    return response.data;
+  },
+
+  // Get completed courses
+  getCompletedCourses: async () => {
+    const response = await api.get('/courses/completed');
+    return response.data;
+  },
+
+  // Get wishlisted courses
+  getWishlistedCourses: async () => {
+    const response = await api.get('/courses/wishlist');
+    return response.data;
+  },
+
+  // Add to wishlist
+  addToWishlist: async (courseId) => {
+    const response = await api.post(`/courses/${courseId}/wishlist`);
+    return response.data;
+  },
+
+  // Remove from wishlist
+  removeFromWishlist: async (courseId) => {
+    const response = await api.delete(`/courses/${courseId}/wishlist`);
+    return response.data;
   }
 };
 
@@ -146,9 +176,15 @@ export const enrollmentAPI = {
     return response.data;
   },
 
-  // Get user's enrolled courses
+  // Get user's enrolled courses (with progress)
   getEnrolledCourses: async (params = {}) => {
-    const response = await api.get('/enrollment/my-courses', { params });
+    const response = await api.get('/enrollment/enrolled-courses', { params });
+    return response.data;
+  },
+
+  // Get user's completed courses
+  getCompletedCourses: async () => {
+    const response = await api.get('/enrollment/completed-courses');
     return response.data;
   },
 
@@ -207,25 +243,51 @@ export const certificateAPI = {
 
 // Progress API functions  
 export const progressAPI = {
-  // Get course progress
+  // Get course progress for a user
   getCourseProgress: async (courseId) => {
     const response = await api.get(`/progress/course/${courseId}`);
     return response.data;
   },
 
-  // Update lesson completion
-  updateProgress: async (courseId, lessonId, progressData) => {
-    const response = await api.post(`/progress/update`, {
-      courseId,
-      lessonId,
-      ...progressData
-    });
+  // Get lesson progress
+  getLessonProgress: async (courseId, lessonId) => {
+    const response = await api.get(`/progress/course/${courseId}/lesson/${lessonId}`);
     return response.data;
   },
 
-  // Get learning analytics
-  getLearningAnalytics: async (timeRange = '30d') => {
-    const response = await api.get(`/progress/analytics`, { params: { timeRange } });
+  // Update lesson progress
+  updateLessonProgress: async (courseId, progressData) => {
+    const response = await api.post(`/progress/course/${courseId}/lesson`, progressData);
+    return response.data;
+  },
+
+  // Mark lesson as complete
+  markLessonComplete: async (courseId, lessonId) => {
+    const response = await api.post(`/progress/course/${courseId}/lesson/${lessonId}/complete`);
+    return response.data;
+  },
+
+  // Complete entire course
+  completeCourse: async (courseId) => {
+    const response = await api.post(`/progress/course/${courseId}/complete`);
+    return response.data;
+  },
+
+  // Add bookmark
+  addBookmark: async (courseId, bookmarkData) => {
+    const response = await api.post(`/progress/course/${courseId}/bookmark`, bookmarkData);
+    return response.data;
+  },
+
+  // Add note
+  addNote: async (courseId, noteData) => {
+    const response = await api.post(`/progress/course/${courseId}/note`, noteData);
+    return response.data;
+  },
+
+  // Get all user progress
+  getUserProgress: async () => {
+    const response = await api.get('/progress/user');
     return response.data;
   }
 };
@@ -491,6 +553,33 @@ export const adminAPI = {
       console.log('Send notification endpoint not available');
       return { success: false };
     }
+  }
+};
+
+// Wishlist API functions
+export const wishlistAPI = {
+  // Add course to wishlist
+  addToWishlist: async (courseId) => {
+    const response = await api.post(`/wishlist/add/${courseId}`);
+    return response.data;
+  },
+
+  // Remove course from wishlist
+  removeFromWishlist: async (courseId) => {
+    const response = await api.delete(`/wishlist/remove/${courseId}`);
+    return response.data;
+  },
+
+  // Get user's wishlist
+  getWishlist: async () => {
+    const response = await api.get('/wishlist');
+    return response.data;
+  },
+
+  // Check if course is in wishlist
+  checkWishlist: async (courseId) => {
+    const response = await api.get(`/wishlist/check/${courseId}`);
+    return response.data;
   }
 };
 

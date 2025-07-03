@@ -82,7 +82,7 @@ const Navbar = () => {
       href: user.role === 'instructor' ? '/instructor/dashboard' : '/dashboard', 
       icon: BarChart3 
     },
-    { name: 'My Courses', href: '/my-courses', icon: BookOpen },
+    { name: 'My Learning', href: '/my-learning', icon: BookOpen },
     { name: 'Certificates', href: '/certificates', icon: Award },
     ...(user.role === 'instructor' || user.role === 'admin' 
       ? [{ name: 'Create Course', href: '/create-course', icon: PlusCircle }] 
