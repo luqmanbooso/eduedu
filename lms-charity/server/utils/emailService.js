@@ -152,3 +152,25 @@ export const sendPasswordChangeConfirmation = async (email, userName) => {
     return { success: false, error: error.message };
   }
 };
+
+// General email sending function
+export const sendEmail = async ({ email, subject, html, text }) => {
+  try {
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || '"EduCharity" <noreply@educarity.com>',
+      to: email,
+      subject,
+      html,
+      text
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully:', result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('Error sending email:', error);
+    throw new Error(`Failed to send email: ${error.message}`);
+  }
+};

@@ -1,10 +1,46 @@
 import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
 import { protect, restrictTo } from '../middleware/auth.js';
 import { uploadVideo, uploadImage, uploadDocument, uploadAny, uploadToCloudinary } from '../utils/cloudinary.js';
 
 const router = express.Router();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = file.mimetype.startsWith('image/') ? 
+      path.join('uploads', 'images') : 
+      path.join('uploads', 'videos');
+    
+    // Create directory if it doesn't exist
+    fs.mkdirSync(uploadPath, { recursive: true });
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image and video files are allowed!'), false);
+  }
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 500 * 1024 * 1024 // 500MB limit for videos
+  }
+});
 
 // @desc    Upload file (video, image, document)
 // @route   POST /api/courses/upload
@@ -82,6 +118,38 @@ router.post('/upload', protect, restrictTo('instructor', 'admin'), (req, res) =>
   });
 });
 
+// @desc    Upload course files (images/videos)
+// @route   POST /api/courses/upload
+// @access  Private
+router.post('/upload', protect, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${
+      req.file.mimetype.startsWith('image/') ? 'images' : 'videos'
+    }/${req.file.filename}`;
+
+    res.json({
+      message: 'File uploaded successfully',
+      data: {
+        url: fileUrl,
+        filename: req.file.filename,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        duration: req.body.duration || null // For videos, can be set by frontend
+      }
+    });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ 
+      message: 'Server error uploading file',
+      error: error.message 
+    });
+  }
+});
+
 // @desc    Get all courses
 // @route   GET /api/courses
 // @access  Public
@@ -143,8 +211,14 @@ router.get('/', async (req, res) => {
     const coursesWithStats = courses.map(course => ({
       ...course,
       enrolledStudents: course.enrolledStudents.length,
-      totalDuration: course.lessons.reduce((acc, lesson) => acc + lesson.duration, 0),
-      totalLessons: course.lessons.length
+      totalDuration: course.modules ? course.modules.reduce((total, module) => {
+        return total + (module.lessons ? module.lessons.reduce((lessonTotal, lesson) => {
+          return lessonTotal + (lesson.videoDuration || 0);
+        }, 0) : 0);
+      }, 0) / 3600 : 0, // Convert seconds to hours
+      totalLessons: course.modules ? course.modules.reduce((total, module) => {
+        return total + (module.lessons ? module.lessons.length : 0);
+      }, 0) : 0
     }));
 
     res.json({
@@ -167,6 +241,13 @@ router.get('/', async (req, res) => {
 // @access  Private (Instructor/Admin)
 router.post('/', protect, restrictTo('instructor', 'admin'), async (req, res) => {
   try {
+    console.log('=== Course Creation Request ===');
+    console.log('User:', req.user?._id, req.user?.role);
+    console.log('Body keys:', Object.keys(req.body));
+    console.log('Title:', req.body.title);
+    console.log('Category:', req.body.category);
+    console.log('Level:', req.body.level);
+    
     const {
       title,
       description,
@@ -184,15 +265,21 @@ router.post('/', protect, restrictTo('instructor', 'admin'), async (req, res) =>
       price,
       discountPrice,
       currency,
+      estimatedDuration,
       estimatedCompletionTime,
+      modules,
+      certificate,
+      settings,
       difficulty,
       isFeatured
     } = req.body;
 
     // Validate required fields
     if (!title || !description || !category || !level) {
+      console.log('Validation failed - missing required fields');
       return res.status(400).json({ 
-        message: 'Please provide title, description, category, and level' 
+        message: 'Please provide title, description, category, and level',
+        received: { title: !!title, description: !!description, category: !!category, level: !!level }
       });
     }
 
@@ -207,11 +294,11 @@ router.post('/', protect, restrictTo('instructor', 'admin'), async (req, res) =>
       price: parseFloat(price) || 0,
       discountPrice: discountPrice ? parseFloat(discountPrice) : undefined,
       currency: currency || 'USD',
-      thumbnail: {
+      thumbnail: typeof thumbnail === 'object' ? thumbnail : {
         url: thumbnail || '',
         publicId: ''
       },
-      previewVideo: {
+      previewVideo: typeof previewVideo === 'object' ? previewVideo : {
         url: previewVideo || '',
         publicId: '',
         duration: 0
@@ -221,43 +308,109 @@ router.post('/', protect, restrictTo('instructor', 'admin'), async (req, res) =>
       requirements: Array.isArray(requirements) ? requirements : [],
       targetAudience: Array.isArray(targetAudience) ? targetAudience : [],
       language: language || 'English',
+      estimatedDuration: estimatedDuration || '',
       estimatedCompletionTime: estimatedCompletionTime || '',
       difficulty: difficulty || 'Medium',
       instructor: req.user._id,
       isFeatured: isFeatured || false,
       isPublished: false,
       status: 'draft',
-      modules: [],
+      
+      // Handle the new modular structure
+      modules: Array.isArray(modules) ? modules.map((module, moduleIndex) => ({
+        title: module.title || `Module ${moduleIndex + 1}`,
+        description: module.description || '',
+        estimatedDuration: parseFloat(module.estimatedDuration) || 0,
+        order: module.order || moduleIndex + 1,
+        lessons: Array.isArray(module.lessons) ? module.lessons.map((lesson, lessonIndex) => ({
+          title: lesson.title || `Lesson ${lessonIndex + 1}`,
+          description: lesson.description || '',
+          type: lesson.type || 'video',
+          content: lesson.content || '',
+          videoUrl: lesson.videoUrl || '',
+          videoDuration: parseInt(lesson.videoDuration) || 0,
+          order: lesson.order || lessonIndex + 1,
+          isPreview: lesson.isPreview || false,
+          quiz: lesson.quiz || {
+            questions: [],
+            timeLimit: 30,
+            passingScore: 70,
+            attemptsAllowed: 3
+          },
+          assignment: lesson.assignment || {
+            title: '',
+            description: '',
+            instructions: '',
+            maxScore: 100,
+            dueDate: null,
+            submissionType: 'both'
+          },
+          resources: Array.isArray(lesson.resources) ? lesson.resources : []
+        })) : []
+      })) : [],
+      
+      // Certificate settings
+      certificate: certificate || {
+        isAvailable: true,
+        requirements: {
+          minimumScore: 70,
+          completionPercentage: 100
+        }
+      },
+      
+      // Course settings
+      settings: settings || {
+        allowDiscussions: true,
+        allowDownloads: true,
+        allowReviews: true,
+        maxStudents: null,
+        enrollmentDeadline: null,
+        startDate: null,
+        endDate: null
+      },
+      
       liveSessions: [],
       discussions: [],
       enrolledStudents: []
     };
 
+    console.log('Course data prepared, creating course...');
+    console.log('Modules count:', courseData.modules.length);
+
     // Create the course
     const course = await Course.create(courseData);
+    console.log('Course created with ID:', course._id);
 
     // Add course to instructor's created courses
     await User.findByIdAndUpdate(req.user._id, {
       $push: { createdCourses: course._id }
     });
+    console.log('Added course to instructor profile');
 
     // Populate instructor info before sending response
     const populatedCourse = await Course.findById(course._id)
       .populate('instructor', 'name avatar email');
+
+    console.log('Course creation successful');
 
     res.status(201).json({
       message: 'Course created successfully',
       course: populatedCourse
     });
   } catch (error) {
-    console.error('Course creation error:', error);
+    console.error('=== Course Creation Error ===');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Stack trace:', error.stack);
     
     // Handle Mongoose validation errors
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(err => err.message);
+      console.log('Validation errors:', messages);
       return res.status(400).json({ 
         message: 'Validation Error',
-        errors: messages
+        errors: messages,
+        details: error.errors
       });
     }
     
@@ -510,8 +663,14 @@ router.get('/:id', async (req, res) => {
 
     // Add calculated fields
     course.enrolledStudents = course.enrolledStudents.length;
-    course.totalDuration = course.lessons.reduce((acc, lesson) => acc + lesson.duration, 0);
-    course.totalLessons = course.lessons.length;
+    course.totalDuration = course.modules ? course.modules.reduce((total, module) => {
+      return total + (module.lessons ? module.lessons.reduce((lessonTotal, lesson) => {
+        return lessonTotal + (lesson.videoDuration || 0);
+      }, 0) : 0);
+    }, 0) / 3600 : 0; // Convert seconds to hours
+    course.totalLessons = course.modules ? course.modules.reduce((total, module) => {
+      return total + (module.lessons ? module.lessons.length : 0);
+    }, 0) : 0;
 
     res.json(course);
   } catch (error) {
@@ -571,38 +730,16 @@ router.post('/:id/enroll', protect, async (req, res) => {
   }
 });
 
-// @desc    Add lesson to course
+// @desc    Add lesson to course (DEPRECATED - Use module-based lessons instead)
 // @route   POST /api/courses/:id/lessons
 // @access  Private (Course Instructor/Admin)
+/* 
 router.post('/:id/lessons', protect, async (req, res) => {
   try {
-    const course = await Course.findById(req.params.id);
-
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
-
-    // Check if user is course instructor or admin
-    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to add lessons to this course' });
-    }
-
-    const { title, description, videoUrl, duration, resources, quiz } = req.body;
-
-    const newLesson = {
-      title,
-      description,
-      videoUrl,
-      duration,
-      order: course.lessons.length + 1,
-      resources: resources || [],
-      quiz: quiz || { questions: [], passingScore: 70 }
-    };
-
-    course.lessons.push(newLesson);
-    await course.save();
-
-    res.status(201).json(course.lessons[course.lessons.length - 1]);
+    // This route is deprecated - use module-based structure instead
+    res.status(410).json({ 
+      message: 'This endpoint is deprecated. Please use module-based lesson creation: POST /api/courses/:courseId/modules/:moduleId/lessons'
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ 
@@ -611,6 +748,7 @@ router.post('/:id/lessons', protect, async (req, res) => {
     });
   }
 });
+*/
 
 // @desc    Add module to course
 // @route   POST /api/courses/:id/modules

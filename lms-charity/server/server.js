@@ -16,6 +16,7 @@ import certificateRoutes from './routes/certificates.js';
 import progressRoutes from './routes/progress.js';
 import profileRoutes from './routes/profile.js';
 import discussionRoutes from './routes/discussions.js';
+import enrollmentRoutes from './routes/enrollment.js';
 
 // Load environment variables
 dotenv.config();
@@ -44,6 +45,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/enrollment', enrollmentRoutes);
 
 // Serve static files
 app.use('/uploads', express.static('uploads'));

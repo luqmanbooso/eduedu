@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, Heart, Reply, MoreVertical, Edit, Trash2, Flag, ChevronDown, ChevronUp } from 'lucide-react';
-import axios from 'axios';
+import { MessageCircle, Heart, Reply, MoreVertical, Edit, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
+import api from '../services/api';
 
 const CommentSection = ({ courseId, lessonId = null }) => {
   const [comments, setComments] = useState([]);
@@ -22,10 +22,12 @@ const CommentSection = ({ courseId, lessonId = null }) => {
     try {
       setLoading(true);
       const endpoint = lessonId 
-        ? `/api/comments/${courseId}/${lessonId}`
-        : `/api/comments/${courseId}`;
+        ? `/comments/${courseId}/${lessonId}`
+        : `/comments/${courseId}`;
       
-      const response = await axios.get(`${endpoint}?sortBy=${sortBy}&limit=50`);
+      console.log('Fetching comments from:', endpoint);
+      const response = await api.get(`${endpoint}?sortBy=${sortBy}&limit=50`);
+      console.log('Comments response:', response.data);
       setComments(response.data.comments);
     } catch (error) {
       console.error('Error fetching comments:', error);
@@ -47,13 +49,14 @@ const CommentSection = ({ courseId, lessonId = null }) => {
 
     try {
       setSubmitting(true);
-      const response = await axios.post('/api/comments', {
+      const response = await api.post('/comments', {
         content: newComment,
         course: courseId,
         lesson: lessonId
       });
 
-      setComments(prev => [response.data, ...prev]);
+      // Refresh comments list to ensure proper population
+      await fetchComments();
       setNewComment('');
       toast.success('Comment posted successfully!');
     } catch (error) {
@@ -69,22 +72,15 @@ const CommentSection = ({ courseId, lessonId = null }) => {
 
     try {
       setSubmitting(true);
-      const response = await axios.post('/api/comments', {
+      const response = await api.post('/comments', {
         content: replyContent,
         course: courseId,
         lesson: lessonId,
         parentComment: parentId
       });
 
-      // Add reply to parent comment
-      setComments(prev =>
-        prev.map(comment =>
-          comment._id === parentId
-            ? { ...comment, replies: [...(comment.replies || []), response.data] }
-            : comment
-        )
-      );
-
+      // Refresh comments list to ensure proper population
+      await fetchComments();
       setReplyTo(null);
       setReplyContent('');
       toast.success('Reply posted successfully!');
@@ -100,7 +96,7 @@ const CommentSection = ({ courseId, lessonId = null }) => {
     if (!editContent.trim()) return;
 
     try {
-      const response = await axios.put(`/api/comments/${commentId}`, {
+      const response = await api.put(`/comments/${commentId}`, {
         content: editContent
       });
 
@@ -123,7 +119,7 @@ const CommentSection = ({ courseId, lessonId = null }) => {
     if (!window.confirm('Are you sure you want to delete this comment?')) return;
 
     try {
-      await axios.delete(`/api/comments/${commentId}`);
+      await api.delete(`/comments/${commentId}`);
       setComments(prev => prev.filter(comment => comment._id !== commentId));
       toast.success('Comment deleted successfully!');
     } catch (error) {
@@ -136,7 +132,7 @@ const CommentSection = ({ courseId, lessonId = null }) => {
     if (!user) return;
 
     try {
-      const response = await axios.post(`/api/comments/${commentId}/like`);
+      const response = await api.post(`/comments/${commentId}/like`);
       
       setComments(prev =>
         prev.map(comment =>
@@ -178,41 +174,39 @@ const CommentSection = ({ courseId, lessonId = null }) => {
       className={`${isReply ? 'ml-12 border-l-2 border-gray-200 pl-4' : ''} py-4`}
     >
       <div className="flex space-x-3">
-        <img
-          src={comment.author.avatar || '/api/placeholder/40/40'}
-          alt={comment.author.name}
-          className="w-10 h-10 rounded-full object-cover"
-        />
+        <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white font-serif font-bold">
+          {comment.author?.name?.charAt(0)?.toUpperCase() || 'U'}
+        </div>
         
         <div className="flex-1">
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+          <div className="bg-gray-50 p-3">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="font-medium text-gray-900 dark:text-white">
-                {comment.author.name}
+              <h4 className="font-serif font-semibold text-black">
+                {comment.author?.name || 'Anonymous'}
               </h4>
               <div className="flex items-center space-x-2">
-                <span className="text-xs text-gray-500 dark:text-gray-400">
+                <span className="text-xs text-gray-500 font-serif">
                   {new Date(comment.createdAt).toLocaleDateString()}
                 </span>
-                {(comment.author._id === user?._id || user?.role === 'admin') && (
+                {(comment.author?._id === user?._id || user?.role === 'admin') && (
                   <div className="relative group">
                     <button className="text-gray-400 hover:text-gray-600">
                       <MoreVertical size={16} />
                     </button>
-                    <div className="absolute right-0 mt-1 w-32 bg-white dark:bg-gray-700 rounded-md shadow-lg border border-gray-200 dark:border-gray-600 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                    <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
                       <button
                         onClick={() => {
                           setEditingComment(comment._id);
                           setEditContent(comment.content);
                         }}
-                        className="flex items-center w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
+                        className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 font-serif"
                       >
                         <Edit size={14} className="mr-2" />
                         Edit
                       </button>
                       <button
                         onClick={() => deleteComment(comment._id)}
-                        className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-600"
+                        className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100 font-serif"
                       >
                         <Trash2 size={14} className="mr-2" />
                         Delete
@@ -228,13 +222,13 @@ const CommentSection = ({ courseId, lessonId = null }) => {
                 <textarea
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full p-2 border border-gray-300 resize-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 font-serif"
                   rows={3}
                 />
                 <div className="flex space-x-2">
                   <button
                     onClick={() => updateComment(comment._id)}
-                    className="px-3 py-1 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600"
+                    className="px-3 py-1 bg-purple-600 text-white text-sm hover:bg-purple-700 font-serif font-semibold transition-all"
                   >
                     Save
                   </button>
@@ -243,14 +237,14 @@ const CommentSection = ({ courseId, lessonId = null }) => {
                       setEditingComment(null);
                       setEditContent('');
                     }}
-                    className="px-3 py-1 bg-gray-300 text-gray-700 rounded-md text-sm hover:bg-gray-400"
+                    className="px-3 py-1 bg-gray-300 text-gray-700 text-sm hover:bg-gray-400 font-serif font-semibold transition-all"
                   >
                     Cancel
                   </button>
                 </div>
               </div>
             ) : (
-              <p className="text-gray-700 dark:text-gray-300">
+              <p className="text-gray-700 font-serif">
                 {comment.content}
               </p>
             )}
@@ -260,7 +254,7 @@ const CommentSection = ({ courseId, lessonId = null }) => {
           <div className="flex items-center space-x-4 mt-2">
             <button
               onClick={() => toggleLike(comment._id)}
-              className={`flex items-center space-x-1 text-sm ${
+              className={`flex items-center space-x-1 text-sm font-serif transition-colors ${
                 isLiked(comment)
                   ? 'text-red-500'
                   : 'text-gray-500 hover:text-red-500'
@@ -273,7 +267,7 @@ const CommentSection = ({ courseId, lessonId = null }) => {
             {!isReply && (
               <button
                 onClick={() => setReplyTo(comment._id)}
-                className="flex items-center space-x-1 text-sm text-gray-500 hover:text-blue-500"
+                className="flex items-center space-x-1 text-sm text-gray-500 hover:text-purple-600 font-serif transition-colors"
               >
                 <Reply size={16} />
                 <span>Reply</span>
@@ -283,7 +277,7 @@ const CommentSection = ({ courseId, lessonId = null }) => {
             {!isReply && comment.replies?.length > 0 && (
               <button
                 onClick={() => toggleReplies(comment._id)}
-                className="flex items-center space-x-1 text-sm text-gray-500 hover:text-blue-500"
+                className="flex items-center space-x-1 text-sm text-gray-500 hover:text-purple-600 font-serif transition-colors"
               >
                 {expandedReplies.has(comment._id) ? (
                   <ChevronUp size={16} />
@@ -301,36 +295,34 @@ const CommentSection = ({ courseId, lessonId = null }) => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="mt-3"
+              className="mt-4"
             >
               <div className="flex space-x-3">
-                <img
-                  src={user?.avatar || '/api/placeholder/32/32'}
-                  alt={user?.name}
-                  className="w-8 h-8 rounded-full object-cover"
-                />
+                <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white font-serif font-bold text-sm">
+                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                </div>
                 <div className="flex-1">
                   <textarea
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
                     placeholder="Write a reply..."
-                    className="w-full p-2 border border-gray-300 rounded-md resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-2 border border-gray-300 resize-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 font-serif"
                     rows={2}
                   />
                   <div className="flex space-x-2 mt-2">
                     <button
                       onClick={() => submitReply(comment._id)}
-                      disabled={submitting}
-                      className="px-3 py-1 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600 disabled:opacity-50"
+                      disabled={submitting || !replyContent.trim()}
+                      className="px-3 py-1 bg-purple-600 text-white text-sm hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-serif font-semibold transition-all"
                     >
-                      {submitting ? 'Posting...' : 'Reply'}
+                      {submitting ? 'Replying...' : 'Reply'}
                     </button>
                     <button
                       onClick={() => {
                         setReplyTo(null);
                         setReplyContent('');
                       }}
-                      className="px-3 py-1 bg-gray-300 text-gray-700 rounded-md text-sm hover:bg-gray-400"
+                      className="px-3 py-1 bg-gray-300 text-gray-700 text-sm hover:bg-gray-400 font-serif font-semibold transition-all"
                     >
                       Cancel
                     </button>
@@ -342,11 +334,15 @@ const CommentSection = ({ courseId, lessonId = null }) => {
           
           {/* Replies */}
           {!isReply && expandedReplies.has(comment._id) && comment.replies?.length > 0 && (
-            <div className="mt-4 space-y-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="mt-4 space-y-4"
+            >
               {comment.replies.map((reply) => (
                 <CommentItem key={reply._id} comment={reply} isReply={true} />
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
@@ -355,9 +351,9 @@ const CommentSection = ({ courseId, lessonId = null }) => {
 
   if (!user) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
+      <div className="bg-white border border-gray-200 p-6 text-center">
         <MessageCircle size={48} className="mx-auto mb-4 text-gray-400" />
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-gray-600 font-serif">
           Please log in to view and post comments
         </p>
       </div>
@@ -365,16 +361,16 @@ const CommentSection = ({ courseId, lessonId = null }) => {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-6">
+    <div className="bg-white border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+        <h3 className="text-xl font-serif font-bold text-black">
           Comments ({comments.length})
         </h3>
         
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
-          className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-1 border border-gray-300 text-sm focus:ring-1 focus:ring-purple-500 focus:border-purple-500 font-serif"
         >
           <option value="createdAt">Newest First</option>
           <option value="likes">Most Liked</option>
@@ -384,17 +380,15 @@ const CommentSection = ({ courseId, lessonId = null }) => {
       {/* New Comment Form */}
       <form onSubmit={submitComment} className="mb-6">
         <div className="flex space-x-3">
-          <img
-            src={user.avatar || '/api/placeholder/40/40'}
-            alt={user.name}
-            className="w-10 h-10 rounded-full object-cover"
-          />
+          <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white font-serif font-bold">
+            {user.name?.charAt(0)?.toUpperCase() || 'U'}
+          </div>
           <div className="flex-1">
             <textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="Write a comment..."
-              className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 resize-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 font-serif"
               rows={3}
             />
             <div className="flex justify-end mt-2">
@@ -403,7 +397,7 @@ const CommentSection = ({ courseId, lessonId = null }) => {
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={submitting || !newComment.trim()}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-serif font-semibold transition-all"
               >
                 {submitting ? 'Posting...' : 'Post Comment'}
               </motion.button>
@@ -420,8 +414,8 @@ const CommentSection = ({ courseId, lessonId = null }) => {
               <div className="flex space-x-3">
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
                 <div className="flex-1">
-                  <div className="h-4 bg-gray-300 rounded w-1/4 mb-2"></div>
-                  <div className="h-16 bg-gray-300 rounded"></div>
+                  <div className="h-4 bg-gray-300 w-1/4 mb-2"></div>
+                  <div className="h-16 bg-gray-300"></div>
                 </div>
               </div>
             </div>
@@ -430,7 +424,7 @@ const CommentSection = ({ courseId, lessonId = null }) => {
       ) : comments.length === 0 ? (
         <div className="text-center py-8">
           <MessageCircle size={48} className="mx-auto mb-4 text-gray-400" />
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 font-serif">
             No comments yet. Be the first to comment!
           </p>
         </div>

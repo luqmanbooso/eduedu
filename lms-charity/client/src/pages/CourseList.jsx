@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Filter, Star, Users, Clock, PlayCircle, BookOpen, TrendingUp } from 'lucide-react';
-import axios from 'axios';
+import { courseAPI } from '../services/api';
 
 const CourseList = () => {
   const [courses, setCourses] = useState([]);
@@ -16,10 +16,13 @@ const CourseList = () => {
 
   const fetchCourses = async () => {
     try {
-      const response = await axios.get('/courses');
-      setCourses(response.data.courses || []);
+      setLoading(true);
+      const response = await courseAPI.getAllCourses();
+      setCourses(response.courses || []);
     } catch (error) {
       console.error('Error fetching courses:', error);
+      // Handle the error gracefully
+      setCourses([]);
     } finally {
       setLoading(false);
     }

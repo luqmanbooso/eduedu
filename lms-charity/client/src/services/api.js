@@ -67,8 +67,20 @@ export const courseAPI = {
 
   // Create course
   createCourse: async (courseData) => {
-    const response = await api.post('/courses', courseData);
-    return response.data;
+    console.log('=== API Service Create Course ===');
+    console.log('Course data being sent:', courseData);
+    console.log('API Base URL:', API_BASE_URL);
+    console.log('Token:', localStorage.getItem('token') ? 'Present' : 'Missing');
+    
+    try {
+      const response = await api.post('/courses', courseData);
+      console.log('API Response received:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API Service Error:', error);
+      console.error('API Error Response:', error.response?.data);
+      throw error;
+    }
   },
 
   // Update course
@@ -114,36 +126,211 @@ export const courseAPI = {
   }
 };
 
-// Progress API functions
+// Enrollment API functions
+export const enrollmentAPI = {
+  // Enroll in a course
+  enrollInCourse: async (courseId) => {
+    const response = await api.post(`/enrollment/enroll/${courseId}`);
+    return response.data;
+  },
+
+  // Get enrollment status for a course
+  getEnrollmentStatus: async (courseId) => {
+    const response = await api.get(`/enrollment/status/${courseId}`);
+    return response.data;
+  },
+
+  // Update lesson progress
+  updateLessonProgress: async (courseId, lessonId, progressData) => {
+    const response = await api.post(`/enrollment/progress/${courseId}/lesson/${lessonId}`, progressData);
+    return response.data;
+  },
+
+  // Get user's enrolled courses
+  getEnrolledCourses: async (params = {}) => {
+    const response = await api.get('/enrollment/my-courses', { params });
+    return response.data;
+  },
+
+  // Get learning dashboard stats
+  getLearningStats: async () => {
+    const response = await api.get('/enrollment/stats');
+    return response.data;
+  }
+};
+
+// Certificate API functions
+export const certificateAPI = {
+  // Generate certificate for completed course
+  generateCertificate: async (courseId, score = null) => {
+    const response = await api.post('/certificates/generate', { courseId, score });
+    return response.data;
+  },
+
+  // Get user's certificates
+  getMyCertificates: async () => {
+    const response = await api.get('/certificates/my-certificates');
+    return response.data;
+  },
+
+  // Download certificate PDF
+  downloadCertificate: async (certificateId) => {
+    const response = await api.get(`/certificates/download/${certificateId}`, {
+      responseType: 'blob'
+    });
+    
+    // Create download link
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `certificate-${certificateId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    
+    return { success: true };
+  },
+
+  // Verify certificate
+  verifyCertificate: async (certificateId, verificationCode) => {
+    const response = await api.get(`/certificates/verify/${certificateId}/${verificationCode}`);
+    return response.data;
+  },
+
+  // Get certificate preview data
+  getCertificatePreview: async (certificateId) => {
+    const response = await api.get(`/certificates/preview/${certificateId}`);
+    return response.data;
+  }
+};
+
+// Progress API functions  
 export const progressAPI = {
-  // Get user's progress for specific course
+  // Get course progress
   getCourseProgress: async (courseId) => {
-    const response = await api.get(`/progress/${courseId}`);
+    const response = await api.get(`/progress/course/${courseId}`);
     return response.data;
   },
 
-  // Get all user's progress
-  getAllProgress: async () => {
-    const response = await api.get('/progress/user/all');
+  // Update lesson completion
+  updateProgress: async (courseId, lessonId, progressData) => {
+    const response = await api.post(`/progress/update`, {
+      courseId,
+      lessonId,
+      ...progressData
+    });
     return response.data;
   },
 
-  // Start course progress
-  startCourse: async (courseId) => {
-    const response = await api.post(`/progress/start/${courseId}`);
+  // Get learning analytics
+  getLearningAnalytics: async (timeRange = '30d') => {
+    const response = await api.get(`/progress/analytics`, { params: { timeRange } });
     return response.data;
+  }
+};
+
+// Enhanced Course API with enrollment checks
+export const enhancedCourseAPI = {
+  // Get course with enrollment status
+  getCourseWithEnrollment: async (courseId) => {
+    try {
+      const [courseResponse, enrollmentResponse] = await Promise.all([
+        api.get(`/courses/${courseId}`),
+        api.get(`/enrollment/status/${courseId}`)
+      ]);
+      
+      return {
+        ...courseResponse.data,
+        enrollment: enrollmentResponse.data.data
+      };
+    } catch (error) {
+      // If enrollment check fails, still return course data
+      if (error.response?.status === 401) {
+        const courseResponse = await api.get(`/courses/${courseId}`);
+        return {
+          ...courseResponse.data,
+          enrollment: { isEnrolled: false, canEnroll: true }
+        };
+      }
+      throw error;
+    }
   },
 
-  // Complete lesson
-  completeLesson: async (progressData) => {
-    const response = await api.post('/progress/complete-lesson', progressData);
-    return response.data;
+  // Get learning dashboard data
+  getLearningDashboard: async () => {
+    try {
+      const [enrolledCoursesResponse, certificatesResponse] = await Promise.all([
+        enrollmentAPI.getEnrolledCourses({ limit: 6 }),
+        certificateAPI.getMyCertificates()
+      ]);
+
+      return {
+        enrolledCourses: enrolledCoursesResponse.data.courses,
+        certificates: certificatesResponse.data.certificates,
+        stats: {
+          totalEnrolled: enrolledCoursesResponse.data.pagination.total,
+          totalCompleted: enrolledCoursesResponse.data.pagination.completed,
+          totalCertificates: certificatesResponse.data.totalCertificates,
+          totalCredits: certificatesResponse.data.totalCredits
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching learning dashboard:', error);
+      return {
+        enrolledCourses: [],
+        certificates: [],
+        stats: { totalEnrolled: 0, totalCompleted: 0, totalCertificates: 0, totalCredits: 0 }
+      };
+    }
+  }
+};
+
+// Notification helpers for enrollment
+export const notificationHelpers = {
+  // Show enrollment success notification
+  showEnrollmentSuccess: (courseTitle) => {
+    if (window.showNotification) {
+      window.showNotification({
+        type: 'success',
+        title: 'Enrollment Successful!',
+        message: `You are now enrolled in "${courseTitle}". Start learning!`,
+        action: {
+          label: 'Start Learning',
+          onClick: () => window.location.href = '/my-courses'
+        }
+      });
+    }
   },
 
-  // Update progress
-  updateProgress: async (courseId, progressData) => {
-    const response = await api.put(`/progress/${courseId}`, progressData);
-    return response.data;
+  // Show course completion notification
+  showCourseCompletion: (courseTitle, certificateId) => {
+    if (window.showNotification) {
+      window.showNotification({
+        type: 'success',
+        title: 'Course Completed! 🎉',
+        message: `Congratulations! You've completed "${courseTitle}" and earned a certificate.`,
+        action: {
+          label: 'View Certificate',
+          onClick: () => window.location.href = `/certificates/${certificateId}`
+        }
+      });
+    }
+  },
+
+  // Show certificate download success
+  showCertificateDownload: (certificateId) => {
+    if (window.showNotification) {
+      window.showNotification({
+        type: 'info',
+        title: 'Certificate Downloaded',
+        message: 'Your certificate has been downloaded successfully.',
+        action: {
+          label: 'View All Certificates',
+          onClick: () => window.location.href = '/my-certificates'
+        }
+      });
+    }
   }
 };
 
@@ -170,29 +357,6 @@ export const notificationAPI = {
   // Delete notification
   deleteNotification: async (notificationId) => {
     const response = await api.delete(`/notifications/${notificationId}`);
-    return response.data;
-  }
-};
-
-// Certificates API functions
-export const certificateAPI = {
-  // Get user certificates
-  getCertificates: async () => {
-    const response = await api.get('/certificates');
-    return response.data;
-  },
-
-  // Download certificate
-  downloadCertificate: async (certificateId) => {
-    const response = await api.get(`/certificates/${certificateId}/download`, {
-      responseType: 'blob'
-    });
-    return response.data;
-  },
-
-  // Verify certificate
-  verifyCertificate: async (certificateId) => {
-    const response = await api.get(`/certificates/${certificateId}/verify`);
     return response.data;
   }
 };

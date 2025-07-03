@@ -12,6 +12,8 @@ router.get('/:courseId/:lessonId?', async (req, res) => {
     const { courseId, lessonId } = req.params;
     const { page = 1, limit = 10, sortBy = 'createdAt', order = 'desc' } = req.query;
     
+    console.log('Fetching comments for:', { courseId, lessonId, sortBy, limit });
+    
     const query = {
       course: courseId,
       isDeleted: false,
@@ -21,20 +23,33 @@ router.get('/:courseId/:lessonId?', async (req, res) => {
     if (lessonId) {
       query.lesson = lessonId;
     } else {
-      query.lesson = { $exists: false }; // Course-level comments
+      query.$or = [
+        { lesson: { $exists: false } },
+        { lesson: null }
+      ]; // Course-level comments (lesson field either doesn't exist or is null)
     }
+    
+    console.log('Query:', JSON.stringify(query, null, 2));
     
     const skip = (page - 1) * limit;
     const sortOrder = order === 'desc' ? -1 : 1;
     
     const comments = await Comment.find(query)
       .populate('author', 'name avatar')
-      .populate('replies')
+      .populate({
+        path: 'replies',
+        populate: {
+          path: 'author',
+          select: 'name avatar'
+        }
+      })
       .sort({ [sortBy]: sortOrder })
       .skip(skip)
       .limit(parseInt(limit));
     
     const total = await Comment.countDocuments(query);
+    
+    console.log(`Found ${comments.length} comments out of ${total} total`);
     
     res.json({
       comments,
