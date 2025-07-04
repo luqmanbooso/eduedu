@@ -30,11 +30,21 @@ import {
   X,
   GraduationCap,
   Timer,
-  PlayCircle
+  PlayCircle,
+  Lightbulb,
+  Zap,
+  Camera,
+  Edit3,
+  Gift,
+  Send,
+  Check,
+  Rocket,
+  TrendingUp,
+  Heart,
+  ThumbsUp
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { courseAPI } from '../services/api';
-import axios from 'axios';
 
 const CourseCreate = () => {
   const { user } = useAuth();
@@ -67,6 +77,15 @@ const CourseCreate = () => {
       requirements: {
         minimumScore: 70,
         completionPercentage: 100
+      },
+      template: {
+        design: 'modern',
+        backgroundColor: '#ffffff',
+        accentColor: '#8B5CF6',
+        fontStyle: 'professional',
+        includeInstructorSignature: true,
+        includeCourseLogo: true,
+        customMessage: 'This certifies that the above-named individual has successfully completed the course requirements and demonstrated proficiency in the subject matter.'
       }
     },
     pricing: {
@@ -80,7 +99,20 @@ const CourseCreate = () => {
       maxStudents: null,
       enrollmentDeadline: '',
       startDate: '',
-      endDate: ''
+      endDate: '',
+      welcomeMessage: {
+        enabled: true,
+        title: 'Welcome to Your Learning Journey!',
+        content: 'Thank you for enrolling in this course. I\'m excited to guide you through this learning experience. Feel free to ask questions and engage with fellow students in the discussion area.',
+        includeResources: true,
+        includeTips: true
+      },
+      engagement: {
+        sendReminders: true,
+        reminderFrequency: 'weekly',
+        celebrateProgress: true,
+        encourageReviews: true
+      }
     }
   });
 
@@ -159,13 +191,224 @@ const CourseCreate = () => {
   ];
 
   const steps = [
-    { id: 1, title: 'Basic Info', icon: FileText, description: 'Course details and description' },
-    { id: 2, title: 'Curriculum', icon: BookOpen, description: 'Modules and lessons' },
-    { id: 3, title: 'Content', icon: Video, description: 'Videos and materials' },
-    { id: 4, title: 'Assessment', icon: Brain, description: 'Quizzes and assignments' },
-    { id: 5, title: 'Pricing', icon: DollarSign, description: 'Course pricing and access' },
-    { id: 6, title: 'Settings', icon: Settings, description: 'Advanced options' }
+    { 
+      id: 1, 
+      title: 'Course Identity', 
+      icon: Lightbulb, 
+      description: 'Create a compelling title & choose your category',
+      motivation: 'Your title is the first impression - make it count!',
+      tips: [
+        'Use keywords your audience searches for',
+        'Make it clear and descriptive',
+        'Think about your target learners'
+      ]
+    },
+    { 
+      id: 2, 
+      title: 'Course Structure', 
+      icon: Target, 
+      description: 'Design your curriculum with clear learning paths',
+      motivation: 'Great courses have structure - guide your students step by step!',
+      tips: [
+        'Start with basics, progress to advanced',
+        'Each lesson should have a clear objective',
+        'Plan for 5-10 minutes per video'
+      ]
+    },
+    { 
+      id: 3, 
+      title: 'Content Creation', 
+      icon: Camera, 
+      description: 'Upload videos, add quizzes & provide resources',
+      motivation: 'This is where the magic happens - create engaging content!',
+      tips: [
+        'Record in high quality (1080p preferred)',
+        'Add interactive quizzes for engagement',
+        'Include downloadable resources'
+      ]
+    },
+    { 
+      id: 4, 
+      title: 'Course Landing Page', 
+      icon: Star, 
+      description: 'Create your sales pitch & course preview',
+      motivation: 'Your landing page sells your course - make it irresistible!',
+      tips: [
+        'Include a compelling promotional video',
+        'Highlight key benefits and outcomes',
+        'Show your credentials and experience'
+      ]
+    },
+    { 
+      id: 5, 
+      title: 'Pricing & Promotions', 
+      icon: Gift, 
+      description: 'Set competitive pricing & create attractive offers',
+      motivation: 'Smart pricing attracts the right students to your course!',
+      tips: [
+        'Research competitor pricing',
+        'Consider introductory discounts',
+        'Use coupons for marketing'
+      ]
+    },
+    { 
+      id: 6, 
+      title: 'Student Experience', 
+      icon: Heart, 
+      description: 'Design welcome messages & engagement strategies',
+      motivation: 'Happy students become your best advocates!',
+      tips: [
+        'Create warm welcome messages',
+        'Encourage questions and interaction',
+        'Plan for ongoing engagement'
+      ]
+    },
+    { 
+      id: 7, 
+      title: 'Launch Ready', 
+      icon: Rocket, 
+      description: 'Review, submit & prepare for success',
+      motivation: 'You\'re about to impact lives - get ready to launch!',
+      tips: [
+        'Review all content for quality',
+        'Check grammar and spelling',
+        'Ensure promotional video is compelling'
+      ]
+    }
   ];
+
+  // Helper function to get motivational messages
+  const getMotivationalMessage = (step) => {
+    const messages = {
+      1: "🎯 You're about to create something amazing! Let's start with a title that captures attention.",
+      2: "🏗️ Time to build the foundation! Structure creates clarity for your students.",
+      3: "🎬 This is where your expertise shines! Create content that transforms lives.",
+      4: "✨ Make your course irresistible! Your landing page is your first impression.",
+      5: "💰 Price it right to attract your ideal students! You deserve to be compensated for your expertise.",
+      6: "❤️ Create connections that last! Engaged students become lifelong fans.",
+      7: "🚀 You're ready to launch! Your course will impact lives around the world."
+    };
+    return messages[step] || "You're doing great! Keep going!";
+  };
+
+  // Step progress component
+  const StepProgress = ({ currentStep, totalSteps }) => (
+    <div className="mb-8">
+      <div className="flex justify-between items-center mb-4">
+        <span className="text-sm font-medium text-gray-600">
+          Step {currentStep} of {totalSteps}
+        </span>
+        <span className="text-sm font-medium text-purple-600">
+          {Math.round((currentStep / totalSteps) * 100)}% Complete
+        </span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-2">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${(currentStep / totalSteps) * 100}%` }}
+          transition={{ duration: 0.5 }}
+          className="bg-gradient-to-r from-purple-600 to-blue-600 h-2 rounded-full"
+        />
+      </div>
+    </div>
+  );
+
+  // Motivational step header
+  const StepHeader = ({ step }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      className="text-center mb-8"
+    >
+      <div className="flex items-center justify-center mb-4">
+        <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 rounded-full">
+          <step.icon className="w-8 h-8 text-white" />
+        </div>
+      </div>
+      <h2 className="text-3xl font-bold text-gray-900 mb-2">{step.title}</h2>
+      <p className="text-lg text-gray-600 mb-4">{step.description}</p>
+      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+        <p className="text-purple-800 font-medium">{getMotivationalMessage(step.id)}</p>
+      </div>
+      {step.tips && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
+            <Lightbulb className="w-4 h-4 mr-2" />
+            Pro Tips:
+          </h4>
+          <ul className="text-blue-800 text-sm space-y-1">
+            {step.tips.map((tip, index) => (
+              <li key={index} className="flex items-start">
+                <span className="text-blue-500 mr-2">•</span>
+                {tip}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </motion.div>
+  );
+
+  // Success celebration component
+  const SuccessMessage = ({ message, onClose }) => (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    >
+      <motion.div
+        initial={{ y: 50 }}
+        animate={{ y: 0 }}
+        className="bg-white rounded-lg p-8 max-w-md mx-4 text-center"
+      >
+        <div className="text-green-500 mb-4">
+          <CheckCircle className="w-16 h-16 mx-auto" />
+        </div>
+        <h3 className="text-xl font-bold mb-2">Great Job!</h3>
+        <p className="text-gray-600 mb-4">{message}</p>
+        <button
+          onClick={onClose}
+          className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+        >
+          Continue
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+
+  // Certificate preview component
+  const CertificatePreview = () => (
+    <div className="bg-white border-2 border-gray-200 rounded-lg p-8 shadow-lg">
+      <div className="text-center border-4 border-purple-600 p-8 rounded-lg bg-gradient-to-br from-purple-50 to-blue-50">
+        <div className="mb-6">
+          <Award className="w-16 h-16 mx-auto text-purple-600 mb-4" />
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">Certificate of Completion</h3>
+          <p className="text-gray-600">This certifies that</p>
+        </div>
+        <div className="my-6">
+          <div className="text-3xl font-bold text-purple-600 mb-2">[Student Name]</div>
+          <p className="text-lg text-gray-700">has successfully completed</p>
+          <div className="text-2xl font-bold text-gray-900 my-2">{courseData.title || '[Course Title]'}</div>
+        </div>
+        <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-300">
+          <div className="text-left">
+            <div className="border-t border-gray-400 pt-2">
+              <p className="text-sm text-gray-600">Instructor</p>
+              <p className="font-semibold">{user.name}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="border-t border-gray-400 pt-2">
+              <p className="text-sm text-gray-600">Date</p>
+              <p className="font-semibold">[Completion Date]</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const handleInputChange = (field, value) => {
     setCourseData(prev => ({
@@ -1593,7 +1836,7 @@ const CourseCreate = () => {
                             className="text-purple-600"
                           />
                         </label>
-
+                        
                         <label className="flex items-center justify-between">
                           <span className="text-gray-700">Allow resource downloads</span>
                           <input
@@ -1603,7 +1846,7 @@ const CourseCreate = () => {
                             className="text-purple-600"
                           />
                         </label>
-
+                        
                         <label className="flex items-center justify-between">
                           <span className="text-gray-700">Allow student reviews</span>
                           <input
@@ -1615,24 +1858,28 @@ const CourseCreate = () => {
                         </label>
                       </div>
                     </div>
-
+                    
                     <div className="border border-gray-200 rounded-lg p-6">
-                      <h3 className="font-semibold text-gray-900 mb-4">Enrollment Limits</h3>
+                      <h3 className="font-semibold text-gray-900 mb-4">Enrollment Settings</h3>
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Maximum Students</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Maximum Students (leave empty for unlimited)
+                          </label>
                           <input
                             type="number"
                             min="1"
                             value={courseData.settings.maxStudents || ''}
                             onChange={(e) => handleNestedInputChange('settings', 'maxStudents', e.target.value ? parseInt(e.target.value) : null)}
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            placeholder="Leave empty for unlimited"
+                            placeholder="100"
                           />
                         </div>
-
+                        
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Enrollment Deadline</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Enrollment Deadline (optional)
+                          </label>
                           <input
                             type="date"
                             value={courseData.settings.enrollmentDeadline}
@@ -1643,13 +1890,15 @@ const CourseCreate = () => {
                       </div>
                     </div>
                   </div>
-
+                  
                   <div className="space-y-6">
                     <div className="border border-gray-200 rounded-lg p-6">
                       <h3 className="font-semibold text-gray-900 mb-4">Course Schedule</h3>
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Course Start Date</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Course Start Date (optional)
+                          </label>
                           <input
                             type="date"
                             value={courseData.settings.startDate}
@@ -1657,9 +1906,11 @@ const CourseCreate = () => {
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
-
+                        
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Course End Date</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Course End Date (optional)
+                          </label>
                           <input
                             type="date"
                             value={courseData.settings.endDate}
@@ -1670,26 +1921,33 @@ const CourseCreate = () => {
                       </div>
                     </div>
 
-                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-lg">
-                      <h3 className="font-semibold text-gray-900 mb-3">Course Summary</h3>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Total Modules:</span>
-                          <span className="font-medium">{courseData.modules.length}</span>
+                    <div className="border border-gray-200 rounded-lg p-6">
+                      <h3 className="font-semibold text-gray-900 mb-4">Student Engagement</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Welcome Message
+                          </label>
+                          <textarea
+                            value={courseData.welcomeMessage || ''}
+                            onChange={(e) => handleInputChange('welcomeMessage', e.target.value)}
+                            rows={4}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            placeholder="Welcome to my course! Here's what you can expect..."
+                          />
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Total Lessons:</span>
-                          <span className="font-medium">
-                            {courseData.modules.reduce((total, module) => total + module.lessons.length, 0)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Pricing:</span>
-                          <span className="font-medium capitalize">{courseData.pricing.type}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Certification:</span>
-                          <span className="font-medium">{courseData.certificate.isAvailable ? 'Yes' : 'No'}</span>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Completion Message
+                          </label>
+                          <textarea
+                            value={courseData.completionMessage || ''}
+                            onChange={(e) => handleInputChange('completionMessage', e.target.value)}
+                            rows={3}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            placeholder="Congratulations on completing the course! You've learned..."
+                          />
                         </div>
                       </div>
                     </div>
@@ -1698,26 +1956,26 @@ const CourseCreate = () => {
               </motion.div>
             )}
 
-            {/* Navigation Buttons */}
-            <div className="flex items-center justify-between pt-8 border-t border-gray-200 mt-12">
+            {/* Navigation */}
+            <div className="flex justify-between items-center pt-8 border-t border-gray-200">
               <button
                 onClick={prevStep}
                 disabled={activeStep === 1}
-                className={`flex items-center space-x-2 px-6 py-3 border border-gray-300 rounded-lg font-medium transition-all duration-200 ${
+                className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
                   activeStep === 1
-                    ? 'text-gray-400 cursor-not-allowed'
-                    : 'text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Previous</span>
               </button>
 
-              <div className="flex items-center space-x-3">
-                <span className="text-sm text-gray-500">
-                  Step {activeStep} of {steps.length}
-                </span>
-                
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <span>Step {activeStep} of {steps.length}</span>
+              </div>
+
+              <div className="flex items-center space-x-4">
                 {activeStep < steps.length ? (
                   <button
                     onClick={nextStep}

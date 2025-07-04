@@ -13,9 +13,11 @@ import {
   Calendar,
   Play,
   CheckCircle,
-  Plus
+  Plus,
+  GraduationCap
 } from 'lucide-react';
 import axios from 'axios';
+import { progressAPI, enrollmentAPI } from '../services/api';
 import AnalyticsDashboard from '../components/AnalyticsDashboard';
 import CertificateManager from '../components/CertificateManager';
 
@@ -42,10 +44,20 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await axios.get('/api/profile/stats');
-      setDashboardData(response.data);
+      // Use the progress analytics endpoint
+      const response = await progressAPI.getAnalytics();
+      setDashboardData(response);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      // Set default data if API fails
+      setDashboardData({
+        courses: { enrolled: 0, created: 0 },
+        general: {
+          certificatesEarned: 0,
+          totalLearningTime: 0,
+          coursesCompleted: 0
+        }
+      });
     } finally {
       setLoading(false);
     }
@@ -53,10 +65,11 @@ const Dashboard = () => {
 
   const fetchRecentCourses = async () => {
     try {
-      const response = await axios.get('/api/progress/user/all');
-      setRecentCourses(response.data.slice(0, 5));
+      const response = await enrollmentAPI.getEnrolledCourses();
+      setRecentCourses(response.data?.slice(0, 5) || []);
     } catch (error) {
       console.error('Error fetching recent courses:', error);
+      setRecentCourses([]);
     }
   };
 
@@ -146,32 +159,32 @@ const Dashboard = () => {
         {activeTab === 'overview' && (
           <div className="space-y-8">
             {/* Stats Cards */}
-            {dashboardData && (
+            {dashboardData && dashboardData.overview && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <DashboardCard
                   title={user.role === 'student' ? 'Enrolled Courses' : 'Created Courses'}
-                  value={user.role === 'student' ? dashboardData.courses.enrolled : dashboardData.courses.created}
+                  value={user.role === 'student' ? dashboardData.overview.totalCourses : dashboardData.overview.totalCourses}
                   icon={<BookOpen className="h-6 w-6" />}
                   color="bg-purple-600"
                   change={5}
                 />
                 <DashboardCard
-                  title="Certificates Earned"
-                  value={dashboardData.general.certificatesEarned}
+                  title="Completed Courses"
+                  value={dashboardData.overview.completedCourses || 0}
                   icon={<Award className="h-6 w-6" />}
                   color="bg-black"
                   change={12}
                 />
                 <DashboardCard
                   title="Learning Hours"
-                  value={`${Math.round(dashboardData.general.totalLearningTime / 60)}h`}
+                  value={`${Math.round((dashboardData.overview.totalLearningTime || 0) / 60)}h`}
                   icon={<Clock className="h-6 w-6" />}
                   color="bg-purple-500"
                   change={8}
                 />
                 <DashboardCard
-                  title="Completed Courses"
-                  value={dashboardData.general.coursesCompleted}
+                  title="Current Streak"
+                  value={`${dashboardData.overview.currentStreak || 0} days`}
                   icon={<Target className="h-6 w-6" />}
                   color="bg-gray-800"
                   change={3}
@@ -255,39 +268,39 @@ const Dashboard = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {recentCourses.map((progress) => (
+                    {recentCourses.map((course) => (
                       <motion.div
-                        key={progress._id}
+                        key={course.courseId}
                         whileHover={{ scale: 1.02 }}
                         transition={{ duration: 0.2 }}
                         className="flex items-center space-x-4 p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
                       >
                         <img
-                          src={progress.course.thumbnail || '/api/placeholder/48/48'}
-                          alt={progress.course.title}
+                          src={course.thumbnail?.url || '/api/placeholder/48/48'}
+                          alt={course.title}
                           className="w-12 h-12 object-cover"
                         />
                         <div className="flex-1">
                           <h3 className="font-medium text-black">
-                            {progress.course.title}
+                            {course.title}
                           </h3>
                           <div className="flex items-center space-x-2 mt-1">
                             <div className="w-32 bg-gray-200 h-2">
                               <div
                                 className="bg-purple-600 h-2"
-                                style={{ width: `${progress.progressPercentage}%` }}
+                                style={{ width: `${course.progress?.percentage || 0}%` }}
                               ></div>
                             </div>
                             <span className="text-sm text-gray-600">
-                              {progress.progressPercentage}%
+                              {Math.round(course.progress?.percentage || 0)}%
                             </span>
                           </div>
                         </div>
                         <Link
-                          to={progress.isCompleted ? `/learn/${progress.course._id}` : `/learn/${progress.course._id}`}
+                          to={`/learn/${course.courseId}`}
                           className="p-2 text-purple-600 hover:bg-purple-50 transition-colors"
                         >
-                          {progress.progressPercentage === 100 ? (
+                          {course.progress?.percentage === 100 ? (
                             <CheckCircle size={16} />
                           ) : (
                             <Play size={16} />

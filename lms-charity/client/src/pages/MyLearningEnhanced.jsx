@@ -30,7 +30,7 @@ import {
   Globe
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { courseAPI, progressAPI, enrollmentAPI, wishlistAPI } from '../services/api';
+import { courseAPI, progressAPI, enrollmentAPI, wishlistAPI, certificateAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 
 const MyLearningEnhanced = () => {
@@ -281,7 +281,7 @@ const MyLearningEnhanced = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-200 group cursor-pointer"
-                  onClick={() => navigate(`/courses/${course._id}/learn`)}
+                  onClick={() => navigate(`/learn/${course.courseId || course._id}`)}
                 >
                   <div className="relative">
                     <img
@@ -441,12 +441,12 @@ const MyLearningEnhanced = () => {
               <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
                 {getFilteredCourses().map(course => (
                   <CourseCard
-                    key={course._id}
+                    key={course.courseId}
                     course={course}
                     viewMode={viewMode}
                     activeTab={activeTab}
-                    onContinue={() => navigate(`/courses/${course._id}/learn`)}
-                    onView={() => navigate(`/courses/${course._id}`)}
+                    onContinue={() => navigate(`/learn/${course.courseId}`)}
+                    onView={() => navigate(`/courses/${course.courseId}`)}
                   />
                 ))}
               </div>

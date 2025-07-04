@@ -142,6 +142,72 @@ router.post('/complete-lesson', protect, async (req, res) => {
   }
 });
 
+// @desc    Complete entire course
+// @route   POST /api/progress/complete-course
+// @access  Private
+router.post('/complete-course', protect, async (req, res) => {
+  try {
+    const { courseId } = req.body;
+    
+    if (!courseId) {
+      return res.status(400).json({ message: 'Course ID is required' });
+    }
+    
+    // Find progress record
+    const progress = await Progress.findOne({
+      user: req.user._id,
+      course: courseId
+    }).populate('course', 'title instructor');
+    
+    if (!progress) {
+      return res.status(404).json({ message: 'Progress not found' });
+    }
+    
+    // Mark course as completed
+    progress.isCompleted = true;
+    progress.completedAt = new Date();
+    progress.progressPercentage = 100;
+    await progress.save();
+    
+    // Update user's completed courses count
+    await User.findByIdAndUpdate(req.user._id, {
+      $inc: { coursesCompleted: 1 }
+    });
+    
+    // Generate certificate if available
+    const course = progress.course;
+    let certificate = null;
+    
+    try {
+      certificate = await Certificate.create({
+        user: req.user._id,
+        course: courseId,
+        certificateId: `CERT-${Date.now()}-${req.user._id}`,
+        grade: 'A', // Default grade, can be calculated based on quiz scores
+        score: 100, // Default score, can be calculated
+        completionDate: new Date(),
+        certificateUrl: `${process.env.FRONTEND_URL}/certificates/${course._id}/${req.user._id}`
+      });
+    } catch (certError) {
+      console.error('Error generating certificate:', certError);
+      // Continue without certificate
+    }
+    
+    res.json({
+      message: 'Course completed successfully!',
+      isCompleted: true,
+      certificate: certificate ? {
+        certificateId: certificate.certificateId,
+        downloadUrl: certificate.certificateUrl
+      } : null,
+      progress: 100
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error completing course' });
+  }
+});
+
 // @desc    Update current lesson
 // @route   PUT /api/progress/current-lesson
 // @access  Private

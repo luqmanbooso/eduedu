@@ -31,7 +31,7 @@ import {
   Video,
   HelpCircle
 } from 'lucide-react';
-import axios from 'axios';
+import { courseAPI, instructorAPI } from '../services/api';
 import CourseContentManager from '../components/CourseContentManager';
 import DiscussionForum from '../components/DiscussionForum';
 import GradingCenter from '../components/GradingCenter';
@@ -77,8 +77,8 @@ const InstructorDashboard = () => {
 
   const fetchInstructorData = async () => {
     try {
-      const response = await axios.get('/instructor/stats');
-      setDashboardData(response.data);
+      const data = await instructorAPI.getStats();
+      setDashboardData(data);
     } catch (error) {
       console.error('Error fetching instructor data:', error);
     } finally {
@@ -88,8 +88,8 @@ const InstructorDashboard = () => {
 
   const fetchInstructorCourses = async () => {
     try {
-      const response = await axios.get('/courses/instructor/my-courses');
-      setInstructorCourses(response.data.courses || []);
+      const data = await instructorAPI.getMyCourses();
+      setInstructorCourses(data.courses || []);
     } catch (error) {
       console.error('Error fetching instructor courses:', error);
     }
@@ -97,8 +97,8 @@ const InstructorDashboard = () => {
 
   const fetchStudents = async () => {
     try {
-      const response = await axios.get('/instructor/students');
-      setStudents(response.data.students || []);
+      const data = await instructorAPI.getStudents();
+      setStudents(data.students || []);
     } catch (error) {
       console.error('Error fetching students:', error);
       setStudents([]); // Ensure it's always an array
@@ -679,7 +679,7 @@ const CoursesTab = ({ courses, onCreateCourse, onManageContent, onRefresh }) => 
 
   const handleBulkPublish = async () => {
     try {
-      await axios.post('/api/courses/bulk-publish', { courseIds: selectedCourses });
+      await instructorAPI.bulkPublishCourses(selectedCourses);
       onRefresh();
       setSelectedCourses([]);
     } catch (error) {
@@ -689,7 +689,7 @@ const CoursesTab = ({ courses, onCreateCourse, onManageContent, onRefresh }) => 
 
   const handleBulkUnpublish = async () => {
     try {
-      await axios.post('/api/courses/bulk-unpublish', { courseIds: selectedCourses });
+      await instructorAPI.bulkUnpublishCourses(selectedCourses);
       onRefresh();
       setSelectedCourses([]);
     } catch (error) {
@@ -699,13 +699,12 @@ const CoursesTab = ({ courses, onCreateCourse, onManageContent, onRefresh }) => 
 
   const generateReport = async () => {
     try {
-      const response = await axios.post('/api/instructor/generate-report', {
-        type: 'courses',
+      const data = await instructorAPI.generateReport('courses', {
         courseIds: selectedCourses.length > 0 ? selectedCourses : courses.map(c => c._id)
       });
       
       // Create and download the report
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const blob = new Blob([data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -1297,8 +1296,8 @@ const DiscussionsTab = ({ instructorId, courses = [] }) => {
   const fetchDiscussions = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/instructor/discussions');
-      setDiscussions(response.data.discussions || []);
+      const data = await instructorAPI.getDiscussions();
+      setDiscussions(data.discussions || []);
     } catch (error) {
       console.error('Error fetching discussions:', error);
     } finally {
@@ -1460,8 +1459,8 @@ const GradingTab = ({ instructorId, courses = [] }) => {
   const fetchAssignments = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/instructor/assignments');
-      setAssignments(response.data.assignments || []);
+      const data = await instructorAPI.getAssignments();
+      setAssignments(data.assignments || []);
     } catch (error) {
       console.error('Error fetching assignments:', error);
     } finally {
@@ -1628,8 +1627,8 @@ const CertificatesTab = ({ onCreateCertificate, courses }) => {
   const fetchCertificates = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/instructor/certificates');
-      setCertificates(response.data.certificates || []);
+      const data = await instructorAPI.getCertificates();
+      setCertificates(data.certificates || []);
     } catch (error) {
       console.error('Error fetching certificates:', error);
     } finally {
@@ -1639,11 +1638,7 @@ const CertificatesTab = ({ onCreateCertificate, courses }) => {
 
   const handleIssueCertificate = async (studentId, courseId) => {
     try {
-      await axios.post('/api/certificates/issue', {
-        studentId,
-        courseId,
-        type: 'completion'
-      });
+      await instructorAPI.issueCertificate(studentId, courseId);
       // Refresh certificates or show success message
       fetchCertificates();
     } catch (error) {
@@ -1653,10 +1648,7 @@ const CertificatesTab = ({ onCreateCertificate, courses }) => {
 
   const handleBulkIssueCertificates = async (courseId) => {
     try {
-      await axios.post('/api/certificates/bulk-issue', {
-        courseId,
-        criteria: 'completion'
-      });
+      await instructorAPI.bulkIssueCertificates([courseId], courseId);
       fetchCertificates();
     } catch (error) {
       console.error('Error bulk issuing certificates:', error);
@@ -1917,8 +1909,8 @@ const CertificateCreationModal = ({ isOpen, onClose }) => {
 
     try {
       // TODO: Implement certificate creation API call
-      const response = await axios.post('/certificates', formData);
-      console.log('Certificate template created:', response.data);
+      // const data = await instructorAPI.createCertificateTemplate(formData);
+      console.log('Certificate template created:', formData);
       onClose();
       setFormData({
         name: '',
@@ -2221,7 +2213,7 @@ const CourseCreationModal = ({ isOpen, onClose, onCourseCreated }) => {
     setError('');
 
     try {
-      const response = await axios.post('/courses', {
+      const data = await courseAPI.createCourse({
         ...courseData,
         tags: courseData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
       });
@@ -2644,7 +2636,7 @@ const AnalyticsTab = ({ dashboardData, courses, students }) => {
 
   const generateFullReport = async () => {
     try {
-      const response = await axios.post('/api/instructor/analytics/export', {
+      const data = await instructorAPI.exportAnalytics('pdf', {
         timeRange,
         includeStudents: true,
         includeCourses: true,
@@ -2652,7 +2644,7 @@ const AnalyticsTab = ({ dashboardData, courses, students }) => {
       });
       
       // Create and download the report
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const blob = new Blob([data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;

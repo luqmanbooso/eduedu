@@ -42,7 +42,7 @@ import {
   FastForward
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { courseAPI, progressAPI } from '../services/api';
+import { courseAPI, progressAPI, certificateAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 
 const CourseLearnEnhanced = () => {
@@ -112,24 +112,34 @@ const CourseLearnEnhanced = () => {
   const fetchCourseData = async () => {
     try {
       setLoading(true);
-      const response = await courseAPI.getCourseById(courseId);
-      setCourse(response.course);
+      const course = await courseAPI.getCourse(courseId);
+      setCourse(course);
       
       // Get user's progress for this course
-      const progressResponse = await progressAPI.getCourseProgress(courseId);
-      setProgress(progressResponse.progress || {});
+      try {
+        const progress = await progressAPI.getCourseProgress(courseId);
+        setProgress(progress || {});
+      } catch (progressError) {
+        // If progress doesn't exist (404), that's fine - user hasn't started yet
+        console.log('No progress found for course, starting fresh');
+        setProgress({});
+      }
       
       // Load lesson progress for all lessons
       const lessonProgressData = {};
-      response.course.modules.forEach(module => {
-        module.lessons.forEach(lesson => {
-          lessonProgressData[lesson._id] = progressResponse.lessons?.[lesson._id] || {
-            completed: false,
-            watchTime: 0,
-            lastPosition: 0
-          };
+      if (course && course.modules) {
+        course.modules.forEach(module => {
+          if (module.lessons) {
+            module.lessons.forEach(lesson => {
+              lessonProgressData[lesson._id] = progress.lessons?.[lesson._id] || {
+                completed: false,
+                watchTime: 0,
+                lastPosition: 0
+              };
+            });
+          }
         });
-      });
+      }
       setLessonProgress(lessonProgressData);
       
     } catch (error) {
@@ -143,8 +153,12 @@ const CourseLearnEnhanced = () => {
 
   const loadLessonProgress = async (lessonId) => {
     try {
-      const response = await progressAPI.getLessonProgress(courseId, lessonId);
-      const progressData = response.progress || {};
+      // Get lesson progress from already loaded data
+      const progressData = lessonProgress[lessonId] || {
+        completed: false,
+        watchTime: 0,
+        lastPosition: 0
+      };
       
       setIsLessonCompleted(progressData.completed || false);
       setWatchTime(progressData.watchTime || 0);
@@ -171,7 +185,15 @@ const CourseLearnEnhanced = () => {
         totalDuration: duration
       };
 
-      await progressAPI.updateLessonProgress(courseId, progressData);
+      // Only call API when lesson is completed
+      if (isLessonCompleted && !lessonProgress[currentLesson._id]?.completed) {
+        await progressAPI.markLessonComplete(
+          courseId, 
+          currentLesson._id, 
+          currentTime, 
+          null // no quiz score
+        );
+      }
       
       // Update local state
       setLessonProgress(prev => ({
@@ -241,12 +263,25 @@ const CourseLearnEnhanced = () => {
   const handleCourseCompletion = async () => {
     try {
       await progressAPI.completeCourse(courseId);
-      toast.success('🎉 Congratulations! You completed the course!');
+      
+      // Generate certificate if available
+      if (course.certificate?.isAvailable) {
+        try {
+          await certificateAPI.generateCertificate(courseId);
+          toast.success('🎉 Congratulations! You completed the course and earned a certificate!');
+        } catch (certError) {
+          console.error('Error generating certificate:', certError);
+          toast.success('🎉 Congratulations! You completed the course!');
+        }
+      } else {
+        toast.success('🎉 Congratulations! You completed the course!');
+      }
       
       // Show completion modal or redirect
       navigate('/my-learning?completed=true');
     } catch (error) {
       console.error('Error completing course:', error);
+      toast.error('Failed to complete course');
     }
   };
 

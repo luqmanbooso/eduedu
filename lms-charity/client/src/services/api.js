@@ -4,7 +4,7 @@ import axios from 'axios';
 // Using import.meta.env for Vite instead of process.env
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Create axios instance with default config
+// Create axios instance with default configuration
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -123,36 +123,6 @@ export const courseAPI = {
   replyToDiscussion: async (courseId, discussionId, replyData) => {
     const response = await api.post(`/courses/${courseId}/discussions/${discussionId}/replies`, replyData);
     return response.data;
-  },
-
-  // Get enrolled courses
-  getEnrolledCourses: async () => {
-    const response = await api.get('/courses/enrolled');
-    return response.data;
-  },
-
-  // Get completed courses
-  getCompletedCourses: async () => {
-    const response = await api.get('/courses/completed');
-    return response.data;
-  },
-
-  // Get wishlisted courses
-  getWishlistedCourses: async () => {
-    const response = await api.get('/courses/wishlist');
-    return response.data;
-  },
-
-  // Add to wishlist
-  addToWishlist: async (courseId) => {
-    const response = await api.post(`/courses/${courseId}/wishlist`);
-    return response.data;
-  },
-
-  // Remove from wishlist
-  removeFromWishlist: async (courseId) => {
-    const response = await api.delete(`/courses/${courseId}/wishlist`);
-    return response.data;
   }
 };
 
@@ -198,45 +168,28 @@ export const enrollmentAPI = {
 // Certificate API functions
 export const certificateAPI = {
   // Generate certificate for completed course
-  generateCertificate: async (courseId, score = null) => {
-    const response = await api.post('/certificates/generate', { courseId, score });
+  generateCertificate: async (courseId) => {
+    const response = await api.post('/certificates/generate', { courseId });
     return response.data;
   },
 
   // Get user's certificates
-  getMyCertificates: async () => {
-    const response = await api.get('/certificates/my-certificates');
+  getUserCertificates: async () => {
+    const response = await api.get('/certificates/user');
     return response.data;
   },
 
-  // Download certificate PDF
+  // Get specific certificate
+  getCertificate: async (certificateId) => {
+    const response = await api.get(`/certificates/${certificateId}`);
+    return response.data;
+  },
+
+  // Download certificate as PDF
   downloadCertificate: async (certificateId) => {
-    const response = await api.get(`/certificates/download/${certificateId}`, {
+    const response = await api.get(`/certificates/${certificateId}/download`, {
       responseType: 'blob'
     });
-    
-    // Create download link
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `certificate-${certificateId}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-    
-    return { success: true };
-  },
-
-  // Verify certificate
-  verifyCertificate: async (certificateId, verificationCode) => {
-    const response = await api.get(`/certificates/verify/${certificateId}/${verificationCode}`);
-    return response.data;
-  },
-
-  // Get certificate preview data
-  getCertificatePreview: async (certificateId) => {
-    const response = await api.get(`/certificates/preview/${certificateId}`);
     return response.data;
   }
 };
@@ -245,31 +198,30 @@ export const certificateAPI = {
 export const progressAPI = {
   // Get course progress for a user
   getCourseProgress: async (courseId) => {
-    const response = await api.get(`/progress/course/${courseId}`);
+    const response = await api.get(`/progress/${courseId}`);
     return response.data;
   },
 
-  // Get lesson progress
-  getLessonProgress: async (courseId, lessonId) => {
-    const response = await api.get(`/progress/course/${courseId}/lesson/${lessonId}`);
-    return response.data;
-  },
+  // Get lesson progress - this route doesn't exist, removing
+  // Use getCourseProgress instead which includes all lesson progress
 
-  // Update lesson progress
-  updateLessonProgress: async (courseId, progressData) => {
-    const response = await api.post(`/progress/course/${courseId}/lesson`, progressData);
-    return response.data;
-  },
+  // Update lesson progress - this route doesn't exist in backend
+  // Use markLessonComplete or other specific endpoints instead
 
   // Mark lesson as complete
-  markLessonComplete: async (courseId, lessonId) => {
-    const response = await api.post(`/progress/course/${courseId}/lesson/${lessonId}/complete`);
+  markLessonComplete: async (courseId, lessonId, timeSpent = 0, quizScore = null) => {
+    const response = await api.post('/progress/complete-lesson', {
+      courseId,
+      lessonId,
+      timeSpent,
+      quizScore
+    });
     return response.data;
   },
 
   // Complete entire course
   completeCourse: async (courseId) => {
-    const response = await api.post(`/progress/course/${courseId}/complete`);
+    const response = await api.post('/progress/complete-course', { courseId });
     return response.data;
   },
 
@@ -287,7 +239,13 @@ export const progressAPI = {
 
   // Get all user progress
   getUserProgress: async () => {
-    const response = await api.get('/progress/user');
+    const response = await api.get('/progress/user/all');
+    return response.data;
+  },
+
+  // Get analytics for dashboard
+  getAnalytics: async () => {
+    const response = await api.get('/progress/analytics/user');
     return response.data;
   }
 };
@@ -579,6 +537,99 @@ export const wishlistAPI = {
   // Check if course is in wishlist
   checkWishlist: async (courseId) => {
     const response = await api.get(`/wishlist/check/${courseId}`);
+    return response.data;
+  }
+};
+
+// Instructor API functions
+export const instructorAPI = {
+  // Get instructor dashboard stats
+  getStats: async () => {
+    const response = await api.get('/instructor/stats');
+    return response.data;
+  },
+
+  // Get instructor courses
+  getMyCourses: async () => {
+    const response = await api.get('/courses/instructor/my-courses');
+    return response.data;
+  },
+
+  // Get instructor students
+  getStudents: async () => {
+    const response = await api.get('/instructor/students');
+    return response.data;
+  },
+
+  // Get instructor discussions
+  getDiscussions: async () => {
+    const response = await api.get('/instructor/discussions');
+    return response.data;
+  },
+
+  // Get instructor assignments
+  getAssignments: async () => {
+    const response = await api.get('/instructor/assignments');
+    return response.data;
+  },
+
+  // Get instructor certificates
+  getCertificates: async () => {
+    const response = await api.get('/instructor/certificates');
+    return response.data;
+  },
+
+  // Issue certificate
+  issueCertificate: async (studentId, courseId) => {
+    const response = await api.post('/certificates/issue', {
+      studentId,
+      courseId
+    });
+    return response.data;
+  },
+
+  // Bulk issue certificates
+  bulkIssueCertificates: async (studentIds, courseId) => {
+    const response = await api.post('/certificates/bulk-issue', {
+      studentIds,
+      courseId
+    });
+    return response.data;
+  },
+
+  // Generate report
+  generateReport: async (reportType, dateRange) => {
+    const response = await api.post('/instructor/generate-report', {
+      reportType,
+      dateRange
+    });
+    return response.data;
+  },
+
+  // Bulk publish courses
+  bulkPublishCourses: async (courseIds) => {
+    const response = await api.post('/courses/bulk-publish', { courseIds });
+    return response.data;
+  },
+
+  // Bulk unpublish courses
+  bulkUnpublishCourses: async (courseIds) => {
+    const response = await api.post('/courses/bulk-unpublish', { courseIds });
+    return response.data;
+  },
+
+  // Export analytics
+  exportAnalytics: async (format, dateRange) => {
+    const response = await api.post('/instructor/analytics/export', {
+      format,
+      dateRange
+    });
+    return response.data;
+  },
+
+  // Bulk enrollment
+  bulkEnrollment: async (enrollmentData) => {
+    const response = await api.post('/instructor/bulk-enrollment', enrollmentData);
     return response.data;
   }
 };
