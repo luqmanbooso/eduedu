@@ -507,6 +507,161 @@ router.get('/my-courses', protect, async (req, res) => {
   }
 });
 
+// @desc    Get user's enrolled courses (with progress)
+// @route   GET /api/enrollment/enrolled-courses
+// @access  Private
+router.get('/enrolled-courses', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    console.log('=== Fetching Enrolled Courses ===');
+    console.log('User ID:', userId);
+
+    // Get all progress records with course details
+    const enrolledCourses = await Progress.find({ user: userId })
+      .populate({
+        path: 'course',
+        select: 'title description thumbnail instructor category level estimatedDuration isPublished modules',
+        populate: {
+          path: 'instructor',
+          select: 'name avatar'
+        }
+      })
+      .sort({ lastAccessed: -1 });
+
+    console.log('Raw enrolled courses count:', enrolledCourses.length);
+    console.log('Raw enrolled courses:', enrolledCourses.map(e => ({
+      courseId: e.course?._id,
+      title: e.course?.title,
+      isPublished: e.course?.isPublished,
+      progressPercentage: e.progressPercentage
+    })));
+
+    // Filter out unpublished courses and format response
+    const courses = enrolledCourses
+      .filter(enrollment => enrollment.course && enrollment.course.isPublished)
+      .map(enrollment => {
+        // Calculate total lessons from modules
+        const totalLessons = enrollment.course.modules ? 
+          enrollment.course.modules.reduce((total, module) => total + (module.lessons?.length || 0), 0) : 0;
+
+        return {
+          courseId: enrollment.course._id,
+          title: enrollment.course.title,
+          description: enrollment.course.description,
+          thumbnail: enrollment.course.thumbnail,
+          instructor: enrollment.course.instructor,
+          category: enrollment.course.category,
+          level: enrollment.course.level,
+          estimatedDuration: enrollment.course.estimatedDuration,
+          totalLessons: totalLessons,
+          enrolledAt: enrollment.startedAt,
+          lastAccessed: enrollment.lastAccessed,
+          progress: {
+            percentage: enrollment.progressPercentage,
+            completedLessons: enrollment.completedLessons.length,
+            totalTimeSpent: enrollment.totalTimeSpent,
+            isCompleted: enrollment.isCompleted,
+            currentLesson: enrollment.currentLesson
+          }
+        };
+      });
+
+    console.log('Filtered enrolled courses count:', courses.length);
+    console.log('Filtered enrolled courses:', courses.map(c => ({
+      courseId: c.courseId,
+      title: c.title,
+      progressPercentage: c.progress.percentage
+    })));
+
+    res.json({
+      success: true,
+      data: courses
+    });
+
+  } catch (error) {
+    console.error('Error fetching enrolled courses:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching enrolled courses'
+    });
+  }
+});
+
+// @desc    Get user's completed courses
+// @route   GET /api/enrollment/completed-courses
+// @access  Private
+router.get('/completed-courses', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    console.log('=== Fetching Completed Courses ===');
+    console.log('User ID:', userId);
+
+    // Get completed progress records with course details
+    const completedCourses = await Progress.find({ 
+      user: userId, 
+      isCompleted: true 
+    })
+      .populate({
+        path: 'course',
+        select: 'title description thumbnail instructor category level estimatedDuration isPublished modules',
+        populate: {
+          path: 'instructor',
+          select: 'name avatar'
+        }
+      })
+      .sort({ completedAt: -1 });
+
+    console.log('Raw completed courses count:', completedCourses.length);
+
+    // Filter out unpublished courses and format response
+    const courses = completedCourses
+      .filter(enrollment => enrollment.course && enrollment.course.isPublished)
+      .map(enrollment => {
+        // Calculate total lessons from modules
+        const totalLessons = enrollment.course.modules ? 
+          enrollment.course.modules.reduce((total, module) => total + (module.lessons?.length || 0), 0) : 0;
+
+        return {
+          courseId: enrollment.course._id,
+          title: enrollment.course.title,
+          description: enrollment.course.description,
+          thumbnail: enrollment.course.thumbnail,
+          instructor: enrollment.course.instructor,
+          category: enrollment.course.category,
+          level: enrollment.course.level,
+          estimatedDuration: enrollment.course.estimatedDuration,
+          totalLessons: totalLessons,
+          enrolledAt: enrollment.startedAt,
+          completedAt: enrollment.completedAt,
+          lastAccessed: enrollment.lastAccessed,
+          progress: {
+            percentage: enrollment.progressPercentage,
+            completedLessons: enrollment.completedLessons.length,
+            totalTimeSpent: enrollment.totalTimeSpent,
+            isCompleted: enrollment.isCompleted,
+            currentLesson: enrollment.currentLesson
+          }
+        };
+      });
+
+    console.log('Filtered completed courses count:', courses.length);
+
+    res.json({
+      success: true,
+      data: courses
+    });
+
+  } catch (error) {
+    console.error('Error fetching completed courses:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching completed courses'
+    });
+  }
+});
+
 // Helper function to generate certificate on course completion
 async function generateCourseCompletionCertificate(userId, courseId, progress) {
   const course = await Course.findById(courseId).populate('instructor', 'name');
@@ -623,131 +778,5 @@ function generateCompletionEmailHTML(userName, courseTitle, certificateId) {
     </div>
   `;
 }
-
-// @desc    Get user's enrolled courses (simplified for My Learning page)
-// @route   GET /api/enrollment/enrolled-courses
-// @access  Private
-router.get('/enrolled-courses', protect, async (req, res) => {
-  try {
-    const userId = req.user._id;
-
-    // Get all progress records with course details
-    const enrolledCourses = await Progress.find({ user: userId })
-      .populate({
-        path: 'course',
-        select: 'title description thumbnail instructor category level estimatedDuration isPublished modules',
-        populate: {
-          path: 'instructor',
-          select: 'name avatar'
-        }
-      })
-      .sort({ lastAccessed: -1 });
-
-    // Filter out unpublished courses and format response
-    const courses = enrolledCourses
-      .filter(enrollment => enrollment.course && enrollment.course.isPublished)
-      .map(enrollment => ({
-        courseId: enrollment.course._id,
-        title: enrollment.course.title,
-        description: enrollment.course.description,
-        thumbnail: enrollment.course.thumbnail,
-        instructor: enrollment.course.instructor,
-        category: enrollment.course.category,
-        level: enrollment.course.level,
-        estimatedDuration: enrollment.course.estimatedDuration,
-        totalLessons: enrollment.course.modules ? 
-          enrollment.course.modules.reduce((total, module) => total + (module.lessons?.length || 0), 0) : 0,
-        progress: {
-          percentage: enrollment.progressPercentage,
-          completedLessons: enrollment.completedLessons.length,
-          totalTimeSpent: enrollment.totalTimeSpent,
-          lastAccessed: enrollment.lastAccessed,
-          isCompleted: enrollment.isCompleted,
-          currentLesson: enrollment.currentLesson
-        }
-      }));
-
-    res.json({
-      success: true,
-      data: courses
-    });
-
-  } catch (error) {
-    console.error('Error fetching enrolled courses:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching enrolled courses'
-    });
-  }
-});
-
-// @desc    Get user's completed courses
-// @route   GET /api/enrollment/completed-courses
-// @access  Private
-router.get('/completed-courses', protect, async (req, res) => {
-  try {
-    const userId = req.user._id;
-
-    // Get completed courses with certificates
-    const completedCourses = await Progress.find({ 
-      user: userId, 
-      isCompleted: true 
-    })
-      .populate({
-        path: 'course',
-        select: 'title description thumbnail instructor category level',
-        populate: {
-          path: 'instructor',
-          select: 'name avatar'
-        }
-      })
-      .sort({ completedAt: -1 });
-
-    // Get certificates for completed courses
-    const courseIds = completedCourses.map(c => c.course._id);
-    const certificates = await Certificate.find({
-      user: userId,
-      course: { $in: courseIds }
-    });
-
-    const courses = completedCourses
-      .filter(enrollment => enrollment.course && enrollment.course.isPublished)
-      .map(enrollment => {
-        const certificate = certificates.find(cert => 
-          cert.course.toString() === enrollment.course._id.toString()
-        );
-
-        return {
-          courseId: enrollment.course._id,
-          title: enrollment.course.title,
-          description: enrollment.course.description,
-          thumbnail: enrollment.course.thumbnail,
-          instructor: enrollment.course.instructor,
-          category: enrollment.course.category,
-          level: enrollment.course.level,
-          completedAt: enrollment.completedAt,
-          totalTimeSpent: enrollment.totalTimeSpent,
-          certificate: certificate ? {
-            certificateId: certificate.certificateId,
-            downloadUrl: certificate.certificateUrl,
-            grade: certificate.grade,
-            score: certificate.score
-          } : null
-        };
-      });
-
-    res.json({
-      success: true,
-      data: courses
-    });
-
-  } catch (error) {
-    console.error('Error fetching completed courses:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching completed courses'
-    });
-  }
-});
 
 export default router;

@@ -46,16 +46,21 @@ const Dashboard = () => {
     try {
       // Use the progress analytics endpoint
       const response = await progressAPI.getAnalytics();
+      console.log('=== Dashboard Analytics Response ===');
+      console.log('Response:', response);
+      console.log('Total courses:', response.overview?.totalCourses || 0);
+      console.log('Completed courses:', response.overview?.completedCourses || 0);
+      console.log('In progress courses:', response.overview?.inProgressCourses || 0);
       setDashboardData(response);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       // Set default data if API fails
       setDashboardData({
-        courses: { enrolled: 0, created: 0 },
-        general: {
-          certificatesEarned: 0,
+        overview: {
+          totalCourses: 0,
+          completedCourses: 0,
           totalLearningTime: 0,
-          coursesCompleted: 0
+          currentStreak: 0
         }
       });
     } finally {

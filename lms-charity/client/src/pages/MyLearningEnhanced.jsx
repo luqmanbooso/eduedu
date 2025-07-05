@@ -58,17 +58,42 @@ const MyLearningEnhanced = () => {
     try {
       setLoading(true);
       
+      console.log('=== Fetching My Learning Data ===');
+      
+      // First, clean up any orphaned progress records
+      try {
+        const cleanupResponse = await progressAPI.cleanupProgress();
+        console.log('Cleanup response:', cleanupResponse);
+      } catch (cleanupError) {
+        console.error('Cleanup error (non-fatal):', cleanupError);
+      }
+      
       // Fetch enrolled courses with progress
       const enrolledResponse = await enrollmentAPI.getEnrolledCourses();
+      console.log('Enrolled courses response:', enrolledResponse);
+      console.log('Enrolled courses count:', enrolledResponse.data?.length || 0);
       setEnrolledCourses(enrolledResponse.data || []);
       
       // Fetch completed courses
       const completedResponse = await enrollmentAPI.getCompletedCourses();
+      console.log('Completed courses response:', completedResponse);
+      console.log('Completed courses count:', completedResponse.data?.length || 0);
       setCompletedCourses(completedResponse.data || []);
       
       // Fetch wishlisted courses
       const wishlistResponse = await wishlistAPI.getWishlist();
+      console.log('Wishlist response:', wishlistResponse);
+      console.log('Wishlist count:', wishlistResponse.data?.length || 0);
       setWishlistedCourses(wishlistResponse.data || []);
+      
+      // Additional debugging - let's also check analytics
+      try {
+        const analyticsResponse = await progressAPI.getAnalytics();
+        console.log('Analytics response:', analyticsResponse);
+        console.log('Analytics total courses:', analyticsResponse.data?.totalCourses || 0);
+      } catch (analyticsError) {
+        console.error('Analytics error:', analyticsError);
+      }
       
     } catch (error) {
       console.error('Error fetching learning data:', error);
@@ -226,7 +251,7 @@ const MyLearningEnhanced = () => {
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center">
                 <div className="p-3 bg-green-100 rounded-lg">
-                  <Trophy className="w-6 h-6 text-green-600" />
+                  <Award className="w-6 h-6 text-green-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm text-gray-600">Completed</p>
@@ -241,10 +266,9 @@ const MyLearningEnhanced = () => {
                   <Clock className="w-6 h-6 text-purple-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm text-gray-600">Hours Learned</p>
+                  <p className="text-sm text-gray-600">In Progress</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {Math.round(enrolledCourses.reduce((total, course) => 
-                      total + (course.progress?.timeSpent || 0), 0) / 60)}h
+                    {enrolledCourses.filter(course => course.progress?.percentage < 100).length}
                   </p>
                 </div>
               </div>
@@ -253,15 +277,33 @@ const MyLearningEnhanced = () => {
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center">
                 <div className="p-3 bg-yellow-100 rounded-lg">
-                  <Flame className="w-6 h-6 text-yellow-600" />
+                  <BookmarkPlus className="w-6 h-6 text-yellow-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm text-gray-600">Learning Streak</p>
-                  <p className="text-2xl font-bold text-gray-900">7 days</p>
+                  <p className="text-sm text-gray-600">Wishlist</p>
+                  <p className="text-2xl font-bold text-gray-900">{wishlistedCourses.length}</p>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Data Consistency Indicator */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center">
+                <BarChart3 className="w-5 h-5 text-blue-600 mr-2" />
+                <h4 className="font-medium text-blue-900">Data Consistency Check</h4>
+              </div>
+              <div className="mt-2 text-sm text-blue-800">
+                <p>Enrolled courses shown: {enrolledCourses.length}</p>
+                <p>Completed courses shown: {completedCourses.length}</p>
+                <p>Wishlist items shown: {wishlistedCourses.length}</p>
+                <p className="mt-2 text-xs text-blue-600">
+                  If numbers don't match dashboard, orphaned progress records were cleaned up automatically.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Continue Watching Section */}

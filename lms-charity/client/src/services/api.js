@@ -243,6 +243,12 @@ export const progressAPI = {
     return response.data;
   },
 
+  // Clean up orphaned progress records
+  cleanupProgress: async () => {
+    const response = await api.delete('/progress/cleanup');
+    return response.data;
+  },
+
   // Get analytics for dashboard
   getAnalytics: async () => {
     const response = await api.get('/progress/analytics/user');

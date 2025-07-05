@@ -248,23 +248,30 @@ router.get('/analytics/user', protect, async (req, res) => {
   try {
     const userId = req.user._id;
     
-    // Get all user progress
+    // Get all user progress with published courses only
     const allProgress = await Progress.find({ user: userId })
-      .populate('course', 'title category');
+      .populate({
+        path: 'course',
+        select: 'title category isPublished',
+        match: { isPublished: true } // Only include published courses
+      });
+    
+    // Filter out progress records where course is null (unpublished/deleted courses)
+    const validProgress = allProgress.filter(p => p.course !== null);
     
     // Calculate analytics
-    const totalCourses = allProgress.length;
-    const completedCourses = allProgress.filter(p => p.isCompleted).length;
+    const totalCourses = validProgress.length;
+    const completedCourses = validProgress.filter(p => p.isCompleted).length;
     const inProgressCourses = totalCourses - completedCourses;
     
-    const totalLearningTime = allProgress.reduce((sum, p) => sum + p.totalTimeSpent, 0);
+    const totalLearningTime = validProgress.reduce((sum, p) => sum + p.totalTimeSpent, 0);
     const averageProgress = totalCourses > 0 
-      ? allProgress.reduce((sum, p) => sum + p.progressPercentage, 0) / totalCourses 
+      ? validProgress.reduce((sum, p) => sum + p.progressPercentage, 0) / totalCourses 
       : 0;
     
     // Learning by category
     const categoryStats = {};
-    allProgress.forEach(p => {
+    validProgress.forEach(p => {
       const category = p.course.category;
       if (!categoryStats[category]) {
         categoryStats[category] = { total: 0, completed: 0, timeSpent: 0 };
@@ -399,6 +406,56 @@ router.delete('/:courseId/reset', protect, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error resetting progress' });
+  }
+});
+
+// @desc    Clean up orphaned progress records
+// @route   DELETE /api/progress/cleanup
+// @access  Private
+router.delete('/cleanup', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    console.log('=== Cleaning Up Progress Records ===');
+    console.log('User ID:', userId);
+    
+    // Get all progress records for the user
+    const allProgress = await Progress.find({ user: userId })
+      .populate('course', '_id isPublished');
+    
+    // Find orphaned progress records (where course is null or unpublished)
+    const orphanedProgress = allProgress.filter(p => 
+      !p.course || !p.course.isPublished
+    );
+    
+    console.log('Total progress records:', allProgress.length);
+    console.log('Orphaned progress records:', orphanedProgress.length);
+    
+    if (orphanedProgress.length > 0) {
+      const orphanedIds = orphanedProgress.map(p => p._id);
+      
+      // Remove orphaned progress records
+      await Progress.deleteMany({ _id: { $in: orphanedIds } });
+      
+      console.log('Removed orphaned progress records:', orphanedIds.length);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Progress cleanup completed',
+      data: {
+        totalRecords: allProgress.length,
+        orphanedRecords: orphanedProgress.length,
+        remainingRecords: allProgress.length - orphanedProgress.length
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error cleaning up progress:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error cleaning up progress records'
+    });
   }
 });
 
