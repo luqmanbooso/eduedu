@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import axios from 'axios';
+import LessonCreationModal from '../components/LessonCreationModal';
+import CompletionRequirementsModal from '../components/CompletionRequirementsModal';
 import { 
   BookOpen, 
   Upload, 
@@ -41,10 +45,26 @@ import {
   Rocket,
   TrendingUp,
   Heart,
-  ThumbsUp
+  ThumbsUp,
+  Download,
+  Share,
+  AlertCircle,
+  CheckSquare,
+  XCircle,
+  Info,
+  BookOpenCheck,
+  PenTool,
+  Presentation,
+  ChevronRight,
+  ChevronDown,
+  ExternalLink,
+  Clock3,
+  Trophy,
+  Medal,
+  Crown,
+  Flame,
+  Sparkles
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
-import { courseAPI } from '../services/api';
 
 const CourseCreate = () => {
   const { user } = useAuth();
@@ -100,18 +120,40 @@ const CourseCreate = () => {
       enrollmentDeadline: '',
       startDate: '',
       endDate: '',
+      completionRequirements: {
+        watchAllVideos: true,
+        completeAllQuizzes: true,
+        submitAllAssignments: true,
+        minimumQuizScore: 70,
+        minimumAssignmentScore: 70,
+        participateInDiscussions: false,
+        timeBasedCompletion: false,
+        minimumTimeSpent: 0 // in minutes
+      },
       welcomeMessage: {
         enabled: true,
         title: 'Welcome to Your Learning Journey!',
         content: 'Thank you for enrolling in this course. I\'m excited to guide you through this learning experience. Feel free to ask questions and engage with fellow students in the discussion area.',
         includeResources: true,
-        includeTips: true
+        includeTips: true,
+        videoWelcomeMessage: ''
       },
       engagement: {
         sendReminders: true,
         reminderFrequency: 'weekly',
         celebrateProgress: true,
-        encourageReviews: true
+        encourageReviews: true,
+        milestoneRewards: true,
+        progressEmails: true
+      },
+      assessments: {
+        enableSectionQuizzes: true,
+        enableFinalExam: false,
+        finalExamWeight: 30,
+        quizRetakePolicy: 'unlimited',
+        showCorrectAnswers: 'after_completion',
+        randomizeQuestions: true,
+        preventSkipping: false
       }
     }
   });
@@ -129,13 +171,19 @@ const CourseCreate = () => {
     type: 'video',
     videoUrl: '',
     videoDuration: '',
+    videoThumbnail: '',
+    videoUploadTitle: '',
+    videoUploadDescription: '',
     content: '',
     resources: [],
+    notes: '',
+    transcript: '',
     quiz: {
       questions: [],
       timeLimit: 30,
       passingScore: 70,
-      attemptsAllowed: 3
+      attemptsAllowed: 3,
+      isRequired: false
     },
     assignment: {
       title: '',
@@ -143,14 +191,45 @@ const CourseCreate = () => {
       instructions: '',
       maxScore: 100,
       dueDate: '',
-      submissionType: 'both'
+      submissionType: 'both',
+      isRequired: false
     },
-    isPreview: false
+    isPreview: false,
+    isCompleted: false,
+    completionCriteria: {
+      watchTime: 80, // percentage of video to watch
+      requireQuizPass: false,
+      requireAssignmentSubmission: false
+    }
   });
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [showLessonModal, setShowLessonModal] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [showCertificatePreview, setShowCertificatePreview] = useState(false);
   const [selectedModuleIndex, setSelectedModuleIndex] = useState(null);
+  const [selectedLessonIndex, setSelectedLessonIndex] = useState(null);
+  const [currentQuiz, setCurrentQuiz] = useState({
+    title: '',
+    description: '',
+    questions: [],
+    timeLimit: 30,
+    passingScore: 70,
+    attemptsAllowed: 3,
+    isRequired: false,
+    showResults: 'after_completion'
+  });
+  const [currentAssignment, setCurrentAssignment] = useState({
+    title: '',
+    description: '',
+    instructions: '',
+    maxScore: 100,
+    dueDate: '',
+    submissionType: 'both',
+    isRequired: false,
+    rubric: []
+  });
 
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [uploadingPreview, setUploadingPreview] = useState(false);
@@ -197,6 +276,13 @@ const CourseCreate = () => {
       icon: Lightbulb, 
       description: 'Create a compelling title & choose your category',
       motivation: 'Your title is the first impression - make it count!',
+      videoUploadTitle: 'Creating Your Course Title and Selecting a Category',
+      videoUploadDescription: 'Choosing a compelling title is the first step to attracting the right audience. Your title should be clear, descriptive, and engaging. Make use of keywords related to your subject area to improve discoverability. Selecting the correct category is equally important, as it ensures your course reaches the most relevant audience. Categories help users find your course through filters, so pick one that best matches your course content.',
+      notes: [
+        'Use tools like ChatGPT to generate course title ideas or keywords',
+        'Think about your target audience (e.g., beginners, advanced learners) and tailor the title accordingly',
+        'Double-check spelling and grammar for clarity'
+      ],
       tips: [
         'Use keywords your audience searches for',
         'Make it clear and descriptive',
@@ -209,6 +295,14 @@ const CourseCreate = () => {
       icon: Target, 
       description: 'Design your curriculum with clear learning paths',
       motivation: 'Great courses have structure - guide your students step by step!',
+      videoUploadTitle: 'Structuring Your Course Curriculum',
+      videoUploadDescription: 'Structure your course with a clear outline. Break the content into sections (major themes) and lectures (specific topics). Plan for a smooth progression, starting from basic concepts and gradually moving to advanced topics.',
+      notes: [
+        'Ensure each lesson has a clear objective that aligns with the overall course goals',
+        'Keep videos short and engaging (typically 5–10 minutes per video)',
+        'Use videos to explain concepts visually and incorporate quizzes to reinforce learning',
+        'Add downloadable resources like PDFs, templates, or slides for further reading'
+      ],
       tips: [
         'Start with basics, progress to advanced',
         'Each lesson should have a clear objective',
@@ -221,6 +315,13 @@ const CourseCreate = () => {
       icon: Camera, 
       description: 'Upload videos, add quizzes & provide resources',
       motivation: 'This is where the magic happens - create engaging content!',
+      videoUploadTitle: 'Adding Videos, Quizzes, and Resources',
+      videoUploadDescription: 'Videos are the primary medium for teaching on Udemy. You can upload videos directly through the course creation dashboard. Ensure the videos are of high quality (at least 720p, ideally 1080p for better visuals). Add relevant quizzes and assignments after each section to ensure students engage with the content and test their understanding. Provide downloadable resources such as PDFs, recipes, cheat sheets, etc., to supplement the lessons.',
+      notes: [
+        'For courses like cooking, record step-by-step processes with clear visuals',
+        'Include interactive quizzes at key points to gauge learner understanding',
+        'Provide bonus materials like recipe cards, shopping lists, or checklists for better engagement'
+      ],
       tips: [
         'Record in high quality (1080p preferred)',
         'Add interactive quizzes for engagement',
@@ -233,6 +334,14 @@ const CourseCreate = () => {
       icon: Star, 
       description: 'Create your sales pitch & course preview',
       motivation: 'Your landing page sells your course - make it irresistible!',
+      videoUploadTitle: 'Creating an Engaging Course Landing Page',
+      videoUploadDescription: 'The course landing page is your sales pitch to potential students. It should clearly describe what the course offers and highlight its key features. Include a promotional video that briefly explains what students will learn and how it will benefit them.',
+      notes: [
+        'Use a professional profile picture and an informative course description',
+        'Showcase your credentials and experience in the course introduction',
+        'Highlight the course benefits, such as skills learners will gain and practical applications',
+        'Consider offering a sample lesson to provide a preview of the content'
+      ],
       tips: [
         'Include a compelling promotional video',
         'Highlight key benefits and outcomes',
@@ -245,6 +354,13 @@ const CourseCreate = () => {
       icon: Gift, 
       description: 'Set competitive pricing & create attractive offers',
       motivation: 'Smart pricing attracts the right students to your course!',
+      videoUploadTitle: 'Pricing Your Course and Setting Up Promotions',
+      videoUploadDescription: 'Set a competitive price that aligns with the value of your course. Pricing can impact course enrollment, so consider starting with an affordable price and offering discounts through coupons. Promotions are essential for attracting students, especially when starting out. Udemy provides options to create discount coupons to encourage enrollment.',
+      notes: [
+        'Consider offering free courses or low-cost introductory offers to attract initial students',
+        'Use coupons to increase visibility and boost enrollment',
+        'Regularly update pricing based on market trends and competition'
+      ],
       tips: [
         'Research competitor pricing',
         'Consider introductory discounts',
@@ -257,6 +373,13 @@ const CourseCreate = () => {
       icon: Heart, 
       description: 'Design welcome messages & engagement strategies',
       motivation: 'Happy students become your best advocates!',
+      videoUploadTitle: 'Engaging Students with Welcome Messages',
+      videoUploadDescription: 'Once students enroll, sending a welcome message is a great way to create a positive first impression and help them feel welcomed and motivated to start the course. Encourage them to ask questions and interact within the course forum.',
+      notes: [
+        'Introduce yourself and thank students for joining in the welcome message',
+        'Provide an overview of what to expect and how to navigate the course',
+        'Invite students to leave comments or ask questions in the course discussion area to foster engagement'
+      ],
       tips: [
         'Create warm welcome messages',
         'Encourage questions and interaction',
@@ -269,10 +392,35 @@ const CourseCreate = () => {
       icon: Rocket, 
       description: 'Review, submit & prepare for success',
       motivation: 'You\'re about to impact lives - get ready to launch!',
+      videoUploadTitle: 'Submitting Your Course for Review',
+      videoUploadDescription: 'After finalizing your course, submit it for review to ensure it meets Udemy\'s quality standards. Udemy will check the course for content quality, video resolution, and teaching effectiveness. Once approved, your course will be published and available to students worldwide.',
+      notes: [
+        'Ensure that all course sections are complete with videos, quizzes, and assignments',
+        'Double-check your course description, spelling, and grammar for professionalism',
+        'Ensure the promotional video clearly communicates the course value'
+      ],
       tips: [
         'Review all content for quality',
         'Check grammar and spelling',
         'Ensure promotional video is compelling'
+      ]
+    },
+    { 
+      id: 8, 
+      title: 'Post-Publication Updates', 
+      icon: TrendingUp, 
+      description: 'Maintain & update your course after launch',
+      motivation: 'Keep your course fresh and engaging for continued success!',
+      videoUploadTitle: 'Updating and Maintaining Your Course',
+      videoUploadDescription: 'After your course is published, it\'s important to monitor feedback from students and regularly update the content to keep it relevant. Respond to questions, comments, and reviews promptly to maintain a good relationship with students.',
+      notes: [
+        'Regularly update videos with new content, ensuring they reflect any changes in the industry or teaching methods',
+        'Add new sections or more advanced content as needed to keep the course fresh and engaging'
+      ],
+      tips: [
+        'Monitor student feedback regularly',
+        'Update content to stay current',
+        'Respond to questions promptly'
       ]
     }
   ];
@@ -286,7 +434,8 @@ const CourseCreate = () => {
       4: "✨ Make your course irresistible! Your landing page is your first impression.",
       5: "💰 Price it right to attract your ideal students! You deserve to be compensated for your expertise.",
       6: "❤️ Create connections that last! Engaged students become lifelong fans.",
-      7: "🚀 You're ready to launch! Your course will impact lives around the world."
+      7: "🚀 You're ready to launch! Your course will impact lives around the world.",
+      8: "📈 Keep evolving! Great courses grow with time and feedback."
     };
     return messages[step] || "You're doing great! Keep going!";
   };
@@ -331,6 +480,36 @@ const CourseCreate = () => {
       <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
         <p className="text-purple-800 font-medium">{getMotivationalMessage(step.id)}</p>
       </div>
+      
+      {/* Video Upload Instructions */}
+      {step.videoUploadTitle && step.videoUploadDescription && (
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-6 mb-4">
+          <h4 className="font-semibold text-indigo-900 mb-3 flex items-center">
+            <Video className="w-5 h-5 mr-2" />
+            {step.videoUploadTitle}
+          </h4>
+          <p className="text-indigo-800 text-sm leading-relaxed mb-4">
+            {step.videoUploadDescription}
+          </p>
+          {step.notes && step.notes.length > 0 && (
+            <div className="bg-white bg-opacity-60 rounded-lg p-4 mb-4">
+              <h5 className="font-medium text-indigo-900 mb-2 flex items-center">
+                <Info className="w-4 h-4 mr-2" />
+                Important Notes:
+              </h5>
+              <ul className="text-indigo-800 text-sm space-y-2">
+                {step.notes.map((note, index) => (
+                  <li key={index} className="flex items-start">
+                    <span className="text-indigo-500 mr-2 mt-1">•</span>
+                    <span>{note}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       {step.tips && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
@@ -391,6 +570,10 @@ const CourseCreate = () => {
           <div className="text-3xl font-bold text-purple-600 mb-2">[Student Name]</div>
           <p className="text-lg text-gray-700">has successfully completed</p>
           <div className="text-2xl font-bold text-gray-900 my-2">{courseData.title || '[Course Title]'}</div>
+          <div className="text-sm text-gray-600 mt-4">
+            <p>Course completed with {courseData.certificate.requirements.minimumScore}% minimum score</p>
+            <p>Total course completion: {courseData.certificate.requirements.completionPercentage}%</p>
+          </div>
         </div>
         <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-300">
           <div className="text-left">
@@ -399,11 +582,32 @@ const CourseCreate = () => {
               <p className="font-semibold">{user.name}</p>
             </div>
           </div>
+          <div className="text-center">
+            <div className="w-20 h-20 border-2 border-purple-600 rounded-full flex items-center justify-center">
+              <GraduationCap className="w-10 h-10 text-purple-600" />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Certified</p>
+          </div>
           <div className="text-right">
             <div className="border-t border-gray-400 pt-2">
               <p className="text-sm text-gray-600">Date</p>
               <p className="font-semibold">[Completion Date]</p>
             </div>
+          </div>
+        </div>
+        <div className="mt-6 text-center">
+          <p className="text-xs text-gray-500 max-w-md mx-auto">
+            {courseData.certificate.template.customMessage}
+          </p>
+          <div className="mt-4 flex justify-center space-x-4">
+            <button className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+              <Download className="w-4 h-4" />
+              <span>Download PDF</span>
+            </button>
+            <button className="flex items-center space-x-2 px-4 py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors">
+              <Share className="w-4 h-4" />
+              <span>Share Certificate</span>
+            </button>
           </div>
         </div>
       </div>
@@ -495,17 +699,49 @@ const CourseCreate = () => {
 
   const addLessonToModule = (moduleIndex) => {
     if (newLesson.title.trim()) {
+      // Clean up the lesson data before adding it
+      const cleanLesson = {
+        ...newLesson,
+        id: Date.now(),
+        order: courseData.modules[moduleIndex].lessons.length + 1
+      };
+      
+      console.log('Original lesson before cleanup:', {
+        quiz: cleanLesson.quiz,
+        assignment: cleanLesson.assignment
+      });
+      
+      // Remove empty quiz if it has no valid questions
+      if (!cleanLesson.quiz || 
+          !cleanLesson.quiz.questions || 
+          cleanLesson.quiz.questions.length === 0 ||
+          !cleanLesson.quiz.questions.some(q => q && q.question && q.question.trim())) {
+        delete cleanLesson.quiz;
+        console.log('Removed empty quiz');
+      }
+      
+      // Remove empty assignment if it has no title or description
+      if (!cleanLesson.assignment || 
+          !cleanLesson.assignment.title || 
+          !cleanLesson.assignment.title.trim() ||
+          !cleanLesson.assignment.description || 
+          !cleanLesson.assignment.description.trim()) {
+        delete cleanLesson.assignment;
+        console.log('Removed empty assignment');
+      }
+      
+      console.log('Cleaned lesson:', {
+        quiz: cleanLesson.quiz,
+        assignment: cleanLesson.assignment
+      });
+      
       setCourseData(prev => ({
         ...prev,
         modules: prev.modules.map((module, index) => 
           index === moduleIndex
             ? {
                 ...module,
-                lessons: [...module.lessons, { 
-                  ...newLesson, 
-                  id: Date.now(),
-                  order: module.lessons.length + 1
-                }]
+                lessons: [...module.lessons, cleanLesson]
               }
             : module
         )
@@ -516,13 +752,19 @@ const CourseCreate = () => {
         type: 'video',
         videoUrl: '',
         videoDuration: '',
+        videoThumbnail: '',
+        videoUploadTitle: '',
+        videoUploadDescription: '',
         content: '',
         resources: [],
+        notes: '',
+        transcript: '',
         quiz: {
           questions: [],
           timeLimit: 30,
           passingScore: 70,
-          attemptsAllowed: 3
+          attemptsAllowed: 3,
+          isRequired: false
         },
         assignment: {
           title: '',
@@ -530,9 +772,16 @@ const CourseCreate = () => {
           instructions: '',
           maxScore: 100,
           dueDate: '',
-          submissionType: 'both'
+          submissionType: 'both',
+          isRequired: false
         },
-        isPreview: false
+        isPreview: false,
+        isCompleted: false,
+        completionCriteria: {
+          watchTime: 80, // percentage of video to watch
+          requireQuizPass: false,
+          requireAssignmentSubmission: false
+        }
       });
       setShowLessonModal(false);
     }
@@ -620,20 +869,52 @@ const CourseCreate = () => {
           description: module.description,
           estimatedDuration: parseFloat(module.estimatedDuration) || 0,
           order: module.order,
-          lessons: module.lessons.map(lesson => ({
-            title: lesson.title,
-            description: lesson.description,
-            type: lesson.type,
-            content: lesson.content || '',
-            videoUrl: lesson.videoUrl || '',
-            videoDuration: lesson.videoDuration || 0,
-            order: lesson.order,
-            isPreview: lesson.isPreview || false,
-            quiz: lesson.type === 'quiz' ? lesson.quiz : undefined,
-            assignment: lesson.type === 'assignment' ? lesson.assignment : undefined,
-            resources: lesson.resources || []
-          }))
-        })),
+          lessons: module.lessons.map(lesson => {
+            const lessonData = {
+              title: lesson.title,
+              description: lesson.description,
+              type: lesson.type,
+              content: lesson.content || '',
+              videoUrl: lesson.videoUrl || '',
+              videoDuration: lesson.videoDuration || 0,
+              order: lesson.order,
+              isPreview: lesson.isPreview || false,
+              resources: lesson.resources || []
+            };
+            
+            // Only include quiz if it has valid questions with complete content
+            if (lesson.quiz && lesson.quiz.questions && Array.isArray(lesson.quiz.questions) && lesson.quiz.questions.length > 0) {
+              // Filter out empty questions and ensure all required fields are present
+              const validQuestions = lesson.quiz.questions.filter(q => {
+                if (!q || typeof q !== 'object') return false;
+                if (!q.question || typeof q.question !== 'string' || !q.question.trim()) return false;
+                if (!q.options || !Array.isArray(q.options) || q.options.length < 2) return false;
+                return q.options.every(opt => opt && typeof opt === 'string' && opt.trim());
+              });
+              
+              if (validQuestions.length > 0) {
+                lessonData.quiz = {
+                  ...lesson.quiz,
+                  questions: validQuestions
+                };
+              }
+            }
+            
+            // Only include assignment if it has complete required fields
+            if (lesson.assignment && 
+                typeof lesson.assignment === 'object' &&
+                lesson.assignment.title && 
+                typeof lesson.assignment.title === 'string' && 
+                lesson.assignment.title.trim() && 
+                lesson.assignment.description && 
+                typeof lesson.assignment.description === 'string' && 
+                lesson.assignment.description.trim()) {
+              lessonData.assignment = lesson.assignment;
+            }
+            
+            return lessonData;
+          }).filter(lesson => lesson.title && lesson.title.trim()) // Remove any lessons without titles
+        })).filter(module => module.title && module.title.trim() && module.lessons.length > 0), // Remove empty modules
         certificate: {
           isAvailable: courseData.certificate.isAvailable,
           requirements: {
@@ -647,9 +928,35 @@ const CourseCreate = () => {
       };
 
       console.log('Submission data prepared:', submissionData);
+      console.log('Modules with lessons:', submissionData.modules.map(m => ({
+        title: m.title,
+        lessons: m.lessons.map(l => ({
+          title: l.title,
+          hasQuiz: !!l.quiz,
+          hasAssignment: !!l.assignment,
+          quizQuestions: l.quiz?.questions?.length || 0,
+          assignmentTitle: l.assignment?.title || 'none',
+          rawQuiz: l.quiz,
+          rawAssignment: l.assignment
+        }))
+      })));
+      console.log('Raw courseData.modules:', courseData.modules.map(m => ({
+        title: m.title,
+        lessons: m.lessons.map(l => ({
+          title: l.title,
+          quiz: l.quiz,
+          assignment: l.assignment
+        }))
+      })));
       console.log('Making API call...');
 
-      const response = await courseAPI.createCourse(submissionData);
+      const response = await axios.post('/api/courses', submissionData, {
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        baseURL: 'http://localhost:5000'
+      });
       console.log('API Response:', response);
       
       toast.success('Course created successfully!');
@@ -683,29 +990,493 @@ const CourseCreate = () => {
   const getStepValidation = (step) => {
     switch (step) {
       case 1:
-        return courseData.title && courseData.description && courseData.category;
+        return {
+          isValid: courseData.title && courseData.category && courseData.shortDescription,
+          errors: [
+            !courseData.title && 'Course title is required',
+            !courseData.category && 'Category selection is required',
+            !courseData.shortDescription && 'Short description is required'
+          ].filter(Boolean)
+        };
       case 2:
-        return courseData.modules.length > 0;
+        const hasModules = courseData.modules.length > 0;
+        const hasLessonsInModules = courseData.modules.some(module => module.lessons.length > 0);
+        return {
+          isValid: hasModules && hasLessonsInModules,
+          errors: [
+            !hasModules && 'At least one module is required',
+            !hasLessonsInModules && 'Each module must have at least one lesson',
+            ...validateContentStructure()
+          ].filter(Boolean)
+        };
       case 3:
-        return true; // Optional
+        const hasBasicContent = courseData.modules.length > 0 && 
+                               courseData.modules.some(module => module.lessons.length > 0);
+        const hasValidModulesAndLessons = courseData.modules.every(module => 
+          module.title && module.title.trim() && 
+          module.lessons.every(lesson => lesson.title && lesson.title.trim())
+        );
+        return {
+          isValid: hasBasicContent && hasValidModulesAndLessons,
+          errors: [
+            !hasBasicContent && 'Please add at least one module with one lesson',
+            !hasValidModulesAndLessons && 'All modules and lessons must have titles'
+          ].filter(Boolean)
+        };
       case 4:
-        return true; // Optional
+        return {
+          isValid: courseData.description && courseData.description.trim(),
+          errors: [
+            !courseData.description && 'Detailed description is required'
+          ].filter(Boolean)
+        };
       case 5:
-        return true; // Optional
+        return {
+          isValid: courseData.pricing.type && (courseData.pricing.type === 'free' || courseData.price > 0),
+          errors: [
+            !courseData.pricing.type && 'Pricing type is required',
+            courseData.pricing.type === 'paid' && courseData.price <= 0 && 'Price must be greater than 0 for paid courses'
+          ].filter(Boolean)
+        };
       case 6:
-        return true; // Optional
+        return {
+          isValid: courseData.settings.welcomeMessage.enabled,
+          errors: []
+        };
+      case 7:
+        return {
+          isValid: validateFinalSubmission(),
+          errors: getFinalValidationErrors()
+        };
       default:
-        return true;
+        return { isValid: true, errors: [] };
     }
+  };
+
+  const validateContentStructure = () => {
+    const errors = [];
+    courseData.modules.forEach((module, moduleIndex) => {
+      if (!module.title) {
+        errors.push(`Module ${moduleIndex + 1}: Title is required`);
+      }
+      if (!module.description) {
+        errors.push(`Module ${moduleIndex + 1}: Description is required`);
+      }
+      if (module.lessons.length === 0) {
+        errors.push(`Module ${moduleIndex + 1}: At least one lesson is required`);
+      }
+      
+      module.lessons.forEach((lesson, lessonIndex) => {
+        if (!lesson.title) {
+          errors.push(`Module ${moduleIndex + 1}, Lesson ${lessonIndex + 1}: Title is required`);
+        }
+        if (!lesson.videoUploadTitle) {
+          errors.push(`Module ${moduleIndex + 1}, Lesson ${lessonIndex + 1}: Video upload title is required`);
+        }
+        if (!lesson.videoUploadDescription) {
+          errors.push(`Module ${moduleIndex + 1}, Lesson ${lessonIndex + 1}: Video upload description is required`);
+        }
+      });
+    });
+    return errors;
+  };
+
+  const validateContentCompletion = () => {
+    // More lenient validation - just check that modules and lessons have basic info
+    return courseData.modules.length > 0 && 
+           courseData.modules.every(module => 
+             module.title && module.title.trim() && 
+             module.lessons.length > 0 &&
+             module.lessons.every(lesson => lesson.title && lesson.title.trim())
+           );
+  };
+
+  const getContentValidationErrors = () => {
+    const errors = [];
+    if (courseData.modules.length === 0) {
+      errors.push('Please add at least one module');
+      return errors;
+    }
+    
+    courseData.modules.forEach((module, moduleIndex) => {
+      if (!module.title || !module.title.trim()) {
+        errors.push(`Module ${moduleIndex + 1}: Title is required`);
+      }
+      if (module.lessons.length === 0) {
+        errors.push(`Module ${moduleIndex + 1}: At least one lesson is required`);
+      }
+      
+      module.lessons.forEach((lesson, lessonIndex) => {
+        if (!lesson.title || !lesson.title.trim()) {
+          errors.push(`Module ${moduleIndex + 1}, Lesson ${lessonIndex + 1}: Title is required`);
+        }
+      });
+    });
+    return errors;
+  };
+
+  const validateFinalSubmission = () => {
+    const validation1 = getStepValidation(1);
+    const validation2 = getStepValidation(2);
+    const validation3 = getStepValidation(3);
+    const validation4 = getStepValidation(4);
+    const validation5 = getStepValidation(5);
+    
+    return validation1.isValid && validation2.isValid && validation3.isValid && 
+           validation4.isValid && validation5.isValid;
+  };
+
+  const getFinalValidationErrors = () => {
+    const allErrors = [];
+    for (let i = 1; i <= 6; i++) {
+      const validation = getStepValidation(i);
+      allErrors.push(...validation.errors);
+    }
+    return allErrors;
+  };
+
+  const calculateCourseCompletion = () => {
+    const totalModules = courseData.modules.length;
+    const totalLessons = courseData.modules.reduce((acc, module) => acc + module.lessons.length, 0);
+    const totalQuizzes = courseData.modules.reduce((acc, module) => 
+      acc + module.lessons.reduce((lessonAcc, lesson) => lessonAcc + (lesson.quiz.questions.length > 0 ? 1 : 0), 0), 0
+    );
+    const totalAssignments = courseData.modules.reduce((acc, module) => 
+      acc + module.lessons.reduce((lessonAcc, lesson) => lessonAcc + (lesson.assignment.title ? 1 : 0), 0), 0
+    );
+
+    return {
+      totalModules,
+      totalLessons,
+      totalQuizzes,
+      totalAssignments,
+      estimatedDuration: calculateTotalDuration(),
+      completionCriteria: courseData.settings.completionRequirements
+    };
+  };
+
+  const calculateTotalDuration = () => {
+    let totalMinutes = 0;
+    courseData.modules.forEach(module => {
+      module.lessons.forEach(lesson => {
+        if (lesson.videoDuration) {
+          const duration = lesson.videoDuration.split(':');
+          if (duration.length === 2) {
+            totalMinutes += parseInt(duration[0]) * 60 + parseInt(duration[1]);
+          }
+        }
+      });
+    });
+    return Math.ceil(totalMinutes / 60);
+  };
+
+  // Quiz creation functions
+  const addQuizQuestion = () => {
+    setCurrentQuiz(prev => ({
+      ...prev,
+      questions: [...prev.questions, {
+        id: Date.now(),
+        question: '',
+        type: 'multiple-choice',
+        options: ['', '', '', ''],
+        correctAnswer: 0,
+        explanation: '',
+        points: 1
+      }]
+    }));
+  };
+
+  const updateQuizQuestion = (questionIndex, field, value) => {
+    setCurrentQuiz(prev => ({
+      ...prev,
+      questions: prev.questions.map((q, index) => 
+        index === questionIndex ? { ...q, [field]: value } : q
+      )
+    }));
+  };
+
+  const updateQuizQuestionOption = (questionIndex, optionIndex, value) => {
+    setCurrentQuiz(prev => ({
+      ...prev,
+      questions: prev.questions.map((q, index) => 
+        index === questionIndex 
+          ? { ...q, options: q.options.map((opt, oIndex) => oIndex === optionIndex ? value : opt) }
+          : q
+      )
+    }));
+  };
+
+  const removeQuizQuestion = (questionIndex) => {
+    setCurrentQuiz(prev => ({
+      ...prev,
+      questions: prev.questions.filter((_, index) => index !== questionIndex)
+    }));
+  };
+
+  const addQuizToLesson = (moduleIndex, lessonIndex) => {
+    if (currentQuiz.questions.length === 0) {
+      toast.error('Please add at least one question to the quiz');
+      return;
+    }
+
+    setCourseData(prev => ({
+      ...prev,
+      modules: prev.modules.map((module, mIndex) => 
+        mIndex === moduleIndex
+          ? {
+              ...module,
+              lessons: module.lessons.map((lesson, lIndex) => 
+                lIndex === lessonIndex
+                  ? { ...lesson, quiz: currentQuiz }
+                  : lesson
+              )
+            }
+          : module
+      )
+    }));
+
+    setCurrentQuiz({
+      title: '',
+      description: '',
+      questions: [],
+      timeLimit: 30,
+      passingScore: 70,
+      attemptsAllowed: 3,
+      isRequired: false,
+      showResults: 'after_completion'
+    });
+    
+    setShowQuizModal(false);
+    toast.success('Quiz added successfully!');
+  };
+
+  // Assignment creation functions
+  const addAssignmentRubricCriteria = () => {
+    setCurrentAssignment(prev => ({
+      ...prev,
+      rubric: [...prev.rubric, {
+        id: Date.now(),
+        criteria: '',
+        description: '',
+        points: 10,
+        levels: [
+          { name: 'Excellent', points: 10, description: '' },
+          { name: 'Good', points: 8, description: '' },
+          { name: 'Fair', points: 6, description: '' },
+          { name: 'Poor', points: 4, description: '' }
+        ]
+      }]
+    }));
+  };
+
+  const updateAssignmentRubric = (rubricIndex, field, value) => {
+    setCurrentAssignment(prev => ({
+      ...prev,
+      rubric: prev.rubric.map((r, index) => 
+        index === rubricIndex ? { ...r, [field]: value } : r
+      )
+    }));
+  };
+
+  const removeAssignmentRubric = (rubricIndex) => {
+    setCurrentAssignment(prev => ({
+      ...prev,
+      rubric: prev.rubric.filter((_, index) => index !== rubricIndex)
+    }));
+  };
+
+  const addAssignmentToLesson = (moduleIndex, lessonIndex) => {
+    if (!currentAssignment.title || !currentAssignment.description) {
+      toast.error('Please fill in the assignment title and description');
+      return;
+    }
+
+    setCourseData(prev => ({
+      ...prev,
+      modules: prev.modules.map((module, mIndex) => 
+        mIndex === moduleIndex
+          ? {
+              ...module,
+              lessons: module.lessons.map((lesson, lIndex) => 
+                lIndex === lessonIndex
+                  ? { ...lesson, assignment: currentAssignment }
+                  : lesson
+              )
+            }
+          : module
+      )
+    }));
+
+    setCurrentAssignment({
+      title: '',
+      description: '',
+      instructions: '',
+      maxScore: 100,
+      dueDate: '',
+      submissionType: 'both',
+      isRequired: false,
+      rubric: []
+    });
+    
+    setShowAssignmentModal(false);
+    toast.success('Assignment added successfully!');
+  };
+
+  // Utility function to compress images
+  const compressImage = (file, maxWidth = 1920, maxHeight = 1080, quality = 0.8) => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        try {
+          // Calculate new dimensions
+          let { width, height } = img;
+          
+          if (width > height) {
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height;
+              height = maxHeight;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw and compress
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          canvas.toBlob((blob) => {
+            if (blob) {
+              // Create a new File object with original filename
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              });
+              resolve(compressedFile);
+            } else {
+              reject(new Error('Failed to compress image'));
+            }
+          }, 'image/jpeg', quality);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // Utility function to check if compression is needed
+  const needsCompression = (file, maxSize = 10 * 1024 * 1024) => {
+    return file.size > maxSize;
+  };
+
+  // Utility function to show file size info
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Utility function to get compression tips
+  const getCompressionTips = (fileType) => {
+    if (fileType.startsWith('image/')) {
+      return [
+        'Use JPEG format for photos (better compression)',
+        'Use PNG for graphics with transparency',
+        'Consider reducing image dimensions',
+        'Use tools like TinyPNG for additional compression'
+      ];
+    } else if (fileType.startsWith('video/')) {
+      return [
+        'Use H.264 codec with lower bitrate',
+        'Reduce resolution to 720p or 480p',
+        'Keep video length under 2-3 minutes for previews',
+        'Use HandBrake or similar tools for compression',
+        'Consider splitting longer videos into segments'
+      ];
+    }
+    return [];
   };
 
   const handleThumbnailUpload = async (file) => {
     if (!file) return;
     
+    // Check if it's an image file
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+    
     setUploadingThumbnail(true);
+    
     try {
+      let fileToUpload = file;
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      
+      // Show original file size
+      console.log(`Original file size: ${formatFileSize(file.size)}`);
+      
+      // Check if compression is needed
+      if (needsCompression(file, maxSize)) {
+        const loadingToast = toast.loading('Compressing image...');
+        
+        try {
+          // Compress the image
+          const compressedFile = await compressImage(file, 1920, 1080, 0.8);
+          
+          console.log(`Compressed file size: ${formatFileSize(compressedFile.size)}`);
+          
+          // Check if compression was successful
+          if (compressedFile.size < maxSize) {
+            fileToUpload = compressedFile;
+            toast.dismiss(loadingToast);
+            toast.success(`Image compressed from ${formatFileSize(file.size)} to ${formatFileSize(compressedFile.size)}`);
+          } else {
+            // Try more aggressive compression
+            toast.dismiss(loadingToast);
+            const moreCompressedToast = toast.loading('Applying stronger compression...');
+            
+            const moreCompressed = await compressImage(file, 1280, 720, 0.6);
+            
+            if (moreCompressed.size < maxSize) {
+              fileToUpload = moreCompressed;
+              toast.dismiss(moreCompressedToast);
+              toast.success(`Image compressed from ${formatFileSize(file.size)} to ${formatFileSize(moreCompressed.size)}`);
+            } else {
+              toast.dismiss(moreCompressedToast);
+              const tips = getCompressionTips(file.type);
+              toast.error(
+                `Even after compression, file size (${formatFileSize(moreCompressed.size)}) exceeds 10MB limit. 
+                
+                Try these tips:
+                ${tips.slice(0, 2).map(tip => `• ${tip}`).join('\n')}
+                
+                Or upgrade your Cloudinary plan for larger files.`
+              );
+              return;
+            }
+          }
+        } catch (compressionError) {
+          toast.dismiss(loadingToast);
+          console.error('Compression error:', compressionError);
+          toast.error('Failed to compress image. Please try a different image or reduce its size manually.');
+          return;
+        }
+      }
+      
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', fileToUpload);
       formData.append('type', 'image');
       
       // Create configured axios instance
@@ -734,6 +1505,30 @@ const CourseCreate = () => {
 
   const handlePreviewVideoUpload = async (file) => {
     if (!file) return;
+    
+    // Check if it's a video file
+    if (!file.type.startsWith('video/')) {
+      toast.error('Please upload a video file');
+      return;
+    }
+    
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    
+    // Show file size info
+    console.log(`Video file size: ${formatFileSize(file.size)}`);
+    
+    if (file.size > maxSize) {
+      const tips = getCompressionTips(file.type);
+      toast.error(
+        `Video file size (${formatFileSize(file.size)}) exceeds the 10MB limit. 
+        
+        Try these compression tips:
+        ${tips.slice(0, 3).map(tip => `• ${tip}`).join('\n')}
+        
+        Or upgrade your Cloudinary plan for larger files.`
+      );
+      return;
+    }
     
     setUploadingPreview(true);
     try {
@@ -766,6 +1561,30 @@ const CourseCreate = () => {
 
   const handleLessonVideoUpload = async (file) => {
     if (!file) return;
+    
+    // Check if it's a video file
+    if (!file.type.startsWith('video/')) {
+      toast.error('Please upload a video file');
+      return;
+    }
+    
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    
+    // Show file size info
+    console.log(`Lesson video file size: ${formatFileSize(file.size)}`);
+    
+    if (file.size > maxSize) {
+      const tips = getCompressionTips(file.type);
+      toast.error(
+        `Video file size (${formatFileSize(file.size)}) exceeds the 10MB limit. 
+        
+        Try these compression tips:
+        ${tips.slice(0, 4).map(tip => `• ${tip}`).join('\n')}
+        
+        Or upgrade your Cloudinary plan for larger files.`
+      );
+      return;
+    }
     
     setUploadingVideo(true);
     try {
@@ -841,7 +1660,7 @@ const CourseCreate = () => {
               const Icon = step.icon;
               const isActive = activeStep === step.id;
               const isCompleted = activeStep > step.id;
-              const isValid = getStepValidation(step.id);
+              const isValid = getStepValidation(step.id).isValid;
               
               return (
                 <div
@@ -1171,6 +1990,49 @@ const CourseCreate = () => {
                 <div className="text-center mb-8">
                   <h2 className="text-3xl font-bold text-gray-900 mb-2">Course Curriculum</h2>
                   <p className="text-gray-600">Organize your course into modules and lessons</p>
+                  
+                  {/* Course Statistics */}
+                  {courseData.modules.length > 0 && (
+                    <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-blue-600">{courseData.modules.length}</div>
+                        <div className="text-sm text-blue-700">Modules</div>
+                      </div>
+                      <div className="bg-green-50 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-green-600">
+                          {courseData.modules.reduce((acc, module) => acc + module.lessons.length, 0)}
+                        </div>
+                        <div className="text-sm text-green-700">Lessons</div>
+                      </div>
+                      <div className="bg-purple-50 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-purple-600">
+                          {courseData.modules.reduce((acc, module) => 
+                            acc + module.lessons.reduce((lessonAcc, lesson) => 
+                              lessonAcc + (lesson.quiz && lesson.quiz.questions.length > 0 ? 1 : 0), 0), 0
+                          )}
+                        </div>
+                        <div className="text-sm text-purple-700">Quizzes</div>
+                      </div>
+                      <div className="bg-orange-50 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-orange-600">
+                          {courseData.modules.reduce((acc, module) => 
+                            acc + module.lessons.reduce((lessonAcc, lesson) => 
+                              lessonAcc + (lesson.assignment && lesson.assignment.title ? 1 : 0), 0), 0
+                          )}
+                        </div>
+                        <div className="text-sm text-orange-700">Assignments</div>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-gray-600">
+                          {Math.ceil(courseData.modules.reduce((acc, module) => 
+                            acc + module.lessons.reduce((lessonAcc, lesson) => 
+                              lessonAcc + (lesson.videoDuration ? parseInt(lesson.videoDuration.split(':')[0] || 0) : 0), 0), 0
+                          ) / 60)}h
+                        </div>
+                        <div className="text-sm text-gray-700">Duration</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Add Module Button */}
@@ -1238,18 +2100,53 @@ const CourseCreate = () => {
                                     {lesson.videoDuration && (
                                       <span className="text-xs text-gray-500">{lesson.videoDuration}</span>
                                     )}
+                                    {lesson.quiz && lesson.quiz.questions.length > 0 && (
+                                      <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+                                        Quiz ({lesson.quiz.questions.length} Q)
+                                      </span>
+                                    )}
+                                    {lesson.assignment && lesson.assignment.title && (
+                                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                                        Assignment
+                                      </span>
+                                    )}
                                     {lesson.isPreview && (
-                                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">Preview</span>
+                                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">Preview</span>
                                     )}
                                   </div>
                                 </div>
                               </div>
-                              <button
-                                onClick={() => removeLessonFromModule(moduleIndex, lesson.id)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => {
+                                    setSelectedModuleIndex(moduleIndex);
+                                    setSelectedLessonIndex(lessonIndex);
+                                    setShowQuizModal(true);
+                                  }}
+                                  className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                  title="Add Quiz"
+                                >
+                                  <Brain className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedModuleIndex(moduleIndex);
+                                    setSelectedLessonIndex(lessonIndex);
+                                    setShowAssignmentModal(true);
+                                  }}
+                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                  title="Add Assignment"
+                                >
+                                  <FileQuestion className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => removeLessonFromModule(moduleIndex, lesson.id)}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Delete Lesson"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -1979,9 +2876,9 @@ const CourseCreate = () => {
                 {activeStep < steps.length ? (
                   <button
                     onClick={nextStep}
-                    disabled={!getStepValidation(activeStep)}
+                    disabled={!getStepValidation(activeStep).isValid}
                     className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                      getStepValidation(activeStep)
+                      getStepValidation(activeStep).isValid
                         ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-200'
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
@@ -1993,7 +2890,7 @@ const CourseCreate = () => {
                   <button
                     onClick={() => {
                       console.log('Create Course button clicked');
-                      console.log('Button disabled?', loading || !getStepValidation(activeStep));
+                      console.log('Button disabled?', loading || !getStepValidation(activeStep).isValid);
                       console.log('Loading:', loading);
                       console.log('Step validation:', getStepValidation(activeStep));
                       console.log('Active step:', activeStep);
@@ -2086,171 +2983,251 @@ const CourseCreate = () => {
               </motion.div>
             </div>
           )}
+        </AnimatePresence>
 
-          {/* Lesson Modal */}
-          {showLessonModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white rounded-lg w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto"
-              >
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Lesson</h3>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Lesson Title</label>
+        {/* Modals */}
+        <LessonCreationModal
+          isOpen={showLessonModal}
+          onClose={() => setShowLessonModal(false)}
+          moduleIndex={selectedModuleIndex}
+          newLesson={newLesson}
+          setNewLesson={setNewLesson}
+          addLessonToModule={addLessonToModule}
+          handleLessonVideoUpload={handleLessonVideoUpload}
+          uploadingVideo={uploadingVideo}
+        />
+
+        <CompletionRequirementsModal
+          isOpen={showCompletionModal}
+          onClose={() => setShowCompletionModal(false)}
+          courseData={courseData}
+          handleNestedInputChange={handleNestedInputChange}
+        />
+
+        {/* Quiz Modal */}
+        {showQuizModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white rounded-lg p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">Create Quiz</h3>
+                <button
+                  onClick={() => setShowQuizModal(false)}
+                  className="text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Quiz Basic Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Quiz Title</label>
+                    <input
+                      type="text"
+                      value={currentQuiz.title}
+                      onChange={(e) => setCurrentQuiz({...currentQuiz, title: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Introduction Quiz"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Time Limit (minutes)</label>
+                    <input
+                      type="number"
+                      value={currentQuiz.timeLimit}
+                      onChange={(e) => setCurrentQuiz({...currentQuiz, timeLimit: parseInt(e.target.value)})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Quiz Questions */}
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-lg font-semibold text-gray-900">Questions</h4>
+                    <button
+                      onClick={addQuizQuestion}
+                      className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add Question</span>
+                    </button>
+                  </div>
+                  
+                  {currentQuiz.questions.map((question, index) => (
+                    <div key={question.id} className="border border-gray-200 rounded-lg p-4 mb-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <span className="text-sm font-medium text-gray-600">Question {index + 1}</span>
+                        <button
+                          onClick={() => removeQuizQuestion(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                       <input
                         type="text"
-                        value={newLesson.title}
-                        onChange={(e) => setNewLesson({...newLesson, title: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        placeholder="Getting Started with Hooks"
+                        value={question.question}
+                        onChange={(e) => updateQuizQuestion(index, 'question', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3"
+                        placeholder="Enter your question"
                       />
+                      <div className="grid grid-cols-2 gap-2">
+                        {question.options.map((option, optIndex) => (
+                          <div key={optIndex} className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              name={`question-${index}`}
+                              checked={question.correctAnswer === optIndex}
+                              onChange={() => updateQuizQuestion(index, 'correctAnswer', optIndex)}
+                              className="text-purple-600"
+                            />
+                            <input
+                              type="text"
+                              value={option}
+                              onChange={(e) => updateQuizQuestionOption(index, optIndex, e.target.value)}
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                              placeholder={`Option ${optIndex + 1}`}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Lesson Type</label>
-                      <select
-                        value={newLesson.type}
-                        onChange={(e) => setNewLesson({...newLesson, type: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      >
-                        <option value="video">Video</option>
-                        <option value="text">Text/Article</option>
-                        <option value="quiz">Quiz</option>
-                        <option value="assignment">Assignment</option>
-                      </select>
-                    </div>
-                  </div>
+                  ))}
+                </div>
+              </div>
 
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowQuizModal(false)}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => addQuizToLesson(selectedModuleIndex, selectedLessonIndex)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Add Quiz
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Assignment Modal */}
+        {showAssignmentModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white rounded-lg p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">Create Assignment</h3>
+                <button
+                  onClick={() => setShowAssignmentModal(false)}
+                  className="text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Assignment Basic Info */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Assignment Title</label>
+                  <input
+                    type="text"
+                    value={currentAssignment.title}
+                    onChange={(e) => setCurrentAssignment({...currentAssignment, title: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Practice Exercise"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                  <textarea
+                    value={currentAssignment.description}
+                    onChange={(e) => setCurrentAssignment({...currentAssignment, description: e.target.value})}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Describe what students need to do"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <textarea
-                      value={newLesson.description}
-                      onChange={(e) => setNewLesson({...newLesson, description: e.target.value})}
-                      rows={3}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      placeholder="Lesson description"
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Max Score</label>
+                    <input
+                      type="number"
+                      value={currentAssignment.maxScore}
+                      onChange={(e) => setCurrentAssignment({...currentAssignment, maxScore: parseInt(e.target.value)})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
-
-                  {newLesson.type === 'video' && (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Video Upload</label>
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-purple-400 transition-colors">
-                          <input
-                            type="file"
-                            accept="video/*"
-                            onChange={(e) => handleLessonVideoUpload(e.target.files[0])}
-                            className="hidden"
-                            id="lesson-video-upload"
-                            disabled={uploadingVideo}
-                          />
-                          <label
-                            htmlFor="lesson-video-upload"
-                            className="cursor-pointer flex flex-col items-center space-y-2"
-                          >
-                            {uploadingVideo ? (
-                              <>
-                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
-                                <span className="text-sm text-gray-600">Uploading video...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Video className="w-6 h-6 text-gray-400" />
-                                <span className="text-sm font-medium text-gray-700">
-                                  Click to upload video
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  MP4, MOV up to 500MB
-                                </span>
-                              </>
-                            )}
-                          </label>
-                        </div>
-                      </div>
-                      
-                      <div className="text-center text-gray-500 text-sm">or</div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Video URL</label>
-                          <input
-                            type="text"
-                            value={newLesson.videoUrl}
-                            onChange={(e) => setNewLesson({...newLesson, videoUrl: e.target.value})}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            placeholder="https://example.com/video.mp4"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Duration (seconds)</label>
-                          <input
-                            type="number"
-                            value={newLesson.videoDuration}
-                            onChange={(e) => setNewLesson({...newLesson, videoDuration: parseInt(e.target.value) || 0})}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            placeholder="900"
-                          />
-                        </div>
-                      </div>
-                      
-                      {newLesson.videoUrl && (
-                        <div className="relative">
-                          <video
-                            src={newLesson.videoUrl}
-                            className="w-full h-32 object-cover rounded-lg"
-                            controls
-                            onError={() => toast.error('Invalid video URL')}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {newLesson.type === 'text' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Content</label>
-                      <textarea
-                        value={newLesson.content}
-                        onChange={(e) => setNewLesson({...newLesson, content: e.target.value})}
-                        rows={6}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        placeholder="Lesson content in markdown or HTML"
-                      />
-                    </div>
-                  )}
-
-                  <label className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      checked={newLesson.isPreview}
-                      onChange={(e) => setNewLesson({...newLesson, isPreview: e.target.checked})}
-                      className="text-purple-600"
-                    />
-                    <span className="text-gray-700">Allow preview for non-enrolled students</span>
-                  </label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Submission Type</label>
+                    <select
+                      value={currentAssignment.submissionType}
+                      onChange={(e) => setCurrentAssignment({...currentAssignment, submissionType: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="text">Text</option>
+                      <option value="file">File Upload</option>
+                      <option value="both">Both</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="flex justify-end space-x-3 mt-6">
-                  <button
-                    onClick={() => setShowLessonModal(false)}
-                    className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => addLessonToModule(selectedModuleIndex)}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                  >
-                    Add Lesson
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowAssignmentModal(false)}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => addAssignmentToLesson(selectedModuleIndex, selectedLessonIndex)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Add Assignment
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showCertificatePreview && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white rounded-lg p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">Certificate Preview</h3>
+                <button
+                  onClick={() => setShowCertificatePreview(false)}
+                  className="text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <CertificatePreview />
+            </motion.div>
+          </div>
+        )}
       </div>
     </div>
   );
