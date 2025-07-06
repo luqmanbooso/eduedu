@@ -157,7 +157,7 @@ router.post('/complete-course', protect, async (req, res) => {
     const progress = await Progress.findOne({
       user: req.user._id,
       course: courseId
-    }).populate('course', 'title instructor');
+    });
     
     if (!progress) {
       return res.status(404).json({ message: 'Progress not found' });
@@ -174,33 +174,9 @@ router.post('/complete-course', protect, async (req, res) => {
       $inc: { coursesCompleted: 1 }
     });
     
-    // Generate certificate if available
-    const course = progress.course;
-    let certificate = null;
-    
-    try {
-      certificate = await Certificate.create({
-        user: req.user._id,
-        course: courseId,
-        certificateId: `CERT-${Date.now()}-${req.user._id}`,
-        grade: 'A', // Default grade, can be calculated based on quiz scores
-        score: 100, // Default score, can be calculated
-        completionDate: new Date(),
-        certificateUrl: `${process.env.FRONTEND_URL}/certificates/${course._id}/${req.user._id}`
-      });
-    } catch (certError) {
-      console.error('Error generating certificate:', certError);
-      // Continue without certificate
-    }
-    
     res.json({
-      message: 'Course completed successfully!',
-      isCompleted: true,
-      certificate: certificate ? {
-        certificateId: certificate.certificateId,
-        downloadUrl: certificate.certificateUrl
-      } : null,
-      progress: 100
+      message: 'Course completed successfully',
+      progress: progress
     });
   } catch (error) {
     console.error(error);
@@ -208,36 +184,177 @@ router.post('/complete-course', protect, async (req, res) => {
   }
 });
 
-// @desc    Update current lesson
-// @route   PUT /api/progress/current-lesson
+// @desc    Add bookmark to lesson
+// @route   POST /api/progress/course/:courseId/bookmark
 // @access  Private
-router.put('/current-lesson', protect, async (req, res) => {
+router.post('/course/:courseId/bookmark', protect, async (req, res) => {
   try {
-    const { courseId, lessonId } = req.body;
+    const { courseId } = req.params;
+    const { lessonId, title, timestamp, note } = req.body;
     
-    if (!courseId || !lessonId) {
-      return res.status(400).json({ message: 'Course ID and Lesson ID are required' });
+    if (!lessonId || !title || timestamp === undefined) {
+      return res.status(400).json({ 
+        message: 'Lesson ID, title, and timestamp are required' 
+      });
     }
     
-    const progress = await Progress.findOneAndUpdate(
-      { user: req.user._id, course: courseId },
-      { 
-        currentLesson: lessonId,
-        lastAccessed: new Date()
-      },
-      { new: true }
-    );
+    // Find or create progress record
+    let progress = await Progress.findOne({
+      user: req.user._id,
+      course: courseId
+    });
+    
+    if (!progress) {
+      progress = await Progress.create({
+        user: req.user._id,
+        course: courseId
+      });
+    }
+    
+    // Add bookmark
+    await progress.addBookmark(lessonId, title, timestamp, note || '');
+    
+    res.json({
+      message: 'Bookmark added successfully',
+      bookmarks: progress.bookmarks
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error adding bookmark' });
+  }
+});
+
+// @desc    Remove bookmark
+// @route   DELETE /api/progress/course/:courseId/bookmark/:bookmarkId
+// @access  Private
+router.delete('/course/:courseId/bookmark/:bookmarkId', protect, async (req, res) => {
+  try {
+    const { courseId, bookmarkId } = req.params;
+    
+    const progress = await Progress.findOne({
+      user: req.user._id,
+      course: courseId
+    });
     
     if (!progress) {
       return res.status(404).json({ message: 'Progress not found' });
     }
     
-    await progress.updateStreak();
+    // Remove bookmark
+    await progress.removeBookmark(bookmarkId);
     
-    res.json(progress);
+    res.json({
+      message: 'Bookmark removed successfully',
+      bookmarks: progress.bookmarks
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Error updating current lesson' });
+    res.status(500).json({ message: 'Error removing bookmark' });
+  }
+});
+
+// @desc    Add note to lesson
+// @route   POST /api/progress/course/:courseId/note
+// @access  Private
+router.post('/course/:courseId/note', protect, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const { lessonId, title, content, timestamp } = req.body;
+    
+    if (!lessonId || !title || !content) {
+      return res.status(400).json({ 
+        message: 'Lesson ID, title, and content are required' 
+      });
+    }
+    
+    // Find or create progress record
+    let progress = await Progress.findOne({
+      user: req.user._id,
+      course: courseId
+    });
+    
+    if (!progress) {
+      progress = await Progress.create({
+        user: req.user._id,
+        course: courseId
+      });
+    }
+    
+    // Add note
+    await progress.addNote(lessonId, title, content, timestamp || 0);
+    
+    res.json({
+      message: 'Note added successfully',
+      notes: progress.notes
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error adding note' });
+  }
+});
+
+// @desc    Update note
+// @route   PUT /api/progress/course/:courseId/note/:noteId
+// @access  Private
+router.put('/course/:courseId/note/:noteId', protect, async (req, res) => {
+  try {
+    const { courseId, noteId } = req.params;
+    const { title, content } = req.body;
+    
+    if (!title || !content) {
+      return res.status(400).json({ 
+        message: 'Title and content are required' 
+      });
+    }
+    
+    const progress = await Progress.findOne({
+      user: req.user._id,
+      course: courseId
+    });
+    
+    if (!progress) {
+      return res.status(404).json({ message: 'Progress not found' });
+    }
+    
+    // Update note
+    await progress.updateNote(noteId, title, content);
+    
+    res.json({
+      message: 'Note updated successfully',
+      notes: progress.notes
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error updating note' });
+  }
+});
+
+// @desc    Remove note
+// @route   DELETE /api/progress/course/:courseId/note/:noteId
+// @access  Private
+router.delete('/course/:courseId/note/:noteId', protect, async (req, res) => {
+  try {
+    const { courseId, noteId } = req.params;
+    
+    const progress = await Progress.findOne({
+      user: req.user._id,
+      course: courseId
+    });
+    
+    if (!progress) {
+      return res.status(404).json({ message: 'Progress not found' });
+    }
+    
+    // Remove note
+    await progress.removeNote(noteId);
+    
+    res.json({
+      message: 'Note removed successfully',
+      notes: progress.notes
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error removing note' });
   }
 });
 

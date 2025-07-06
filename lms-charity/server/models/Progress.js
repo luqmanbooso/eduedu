@@ -74,7 +74,57 @@ const progressSchema = new mongoose.Schema({
   lastActiveDate: {
     type: Date,
     default: Date.now
-  }
+  },
+  bookmarks: [{
+    lessonId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true
+    },
+    title: {
+      type: String,
+      required: true
+    },
+    timestamp: {
+      type: Number, // Video timestamp in seconds
+      required: true
+    },
+    note: {
+      type: String,
+      maxLength: 500
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  notes: [{
+    lessonId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true
+    },
+    title: {
+      type: String,
+      required: true,
+      maxLength: 200
+    },
+    content: {
+      type: String,
+      required: true,
+      maxLength: 2000
+    },
+    timestamp: {
+      type: Number, // Video timestamp in seconds
+      default: 0
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 }, {
   timestamps: true
 });
@@ -170,6 +220,58 @@ progressSchema.methods.updateStreak = function() {
   // If same day, keep current streak
   
   this.lastActiveDate = today;
+  return this.save();
+};
+
+// Add bookmark
+progressSchema.methods.addBookmark = function(lessonId, title, timestamp, note = '') {
+  this.bookmarks.push({
+    lessonId,
+    title,
+    timestamp,
+    note,
+    createdAt: new Date()
+  });
+  return this.save();
+};
+
+// Remove bookmark
+progressSchema.methods.removeBookmark = function(bookmarkId) {
+  this.bookmarks = this.bookmarks.filter(bookmark => 
+    bookmark._id.toString() !== bookmarkId.toString()
+  );
+  return this.save();
+};
+
+// Add note
+progressSchema.methods.addNote = function(lessonId, title, content, timestamp = 0) {
+  this.notes.push({
+    lessonId,
+    title,
+    content,
+    timestamp,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+  return this.save();
+};
+
+// Update note
+progressSchema.methods.updateNote = function(noteId, title, content) {
+  const note = this.notes.id(noteId);
+  if (note) {
+    note.title = title;
+    note.content = content;
+    note.updatedAt = new Date();
+  }
+  return this.save();
+};
+
+// Remove note
+progressSchema.methods.removeNote = function(noteId) {
+  this.notes = this.notes.filter(note => 
+    note._id.toString() !== noteId.toString()
+  );
   return this.save();
 };
 

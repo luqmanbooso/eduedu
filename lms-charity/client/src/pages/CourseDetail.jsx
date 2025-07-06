@@ -27,7 +27,7 @@ import { toast } from 'react-hot-toast';
 import VideoPlayer from '../components/VideoPlayer';
 import CommentSection from '../components/CommentSection';
 import { LoadingSpinner } from '../components/LoadingComponents';
-import { courseAPI, enrollmentAPI, enhancedCourseAPI, wishlistAPI } from '../services/api';
+import { courseAPI, enrollmentAPI, enhancedCourseAPI, wishlistAPI, progressAPI } from '../services/api';
 
 const CourseDetail = () => {
   const { id } = useParams();
@@ -110,14 +110,25 @@ const CourseDetail = () => {
 
   const markLessonComplete = async (lessonId) => {
     try {
-      const response = await enrollmentAPI.updateLessonProgress(id, lessonId, {
-        timeSpent: 30, // You can track actual time spent
-        completed: true
-      });
+      const response = await progressAPI.markLessonComplete(id, lessonId, 30); // 30 minutes default
       
-      if (response.success) {
-        setProgress(response.data.progress);
+      if (response) {
+        // Update progress state
+        setProgress(prev => ({
+          ...prev,
+          progressPercentage: response.progress,
+          isCompleted: response.isCompleted
+        }));
+        
+        // Refresh course data to get updated progress
+        await fetchCourse();
+        
         toast.success('Lesson marked as complete!');
+        
+        // If course is completed, show completion message
+        if (response.isCompleted) {
+          toast.success('🎉 Congratulations! You have completed the course!');
+        }
       }
     } catch (error) {
       console.error('Error marking lesson complete:', error);

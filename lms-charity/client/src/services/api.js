@@ -231,9 +231,27 @@ export const progressAPI = {
     return response.data;
   },
 
+  // Remove bookmark
+  removeBookmark: async (courseId, bookmarkId) => {
+    const response = await api.delete(`/progress/course/${courseId}/bookmark/${bookmarkId}`);
+    return response.data;
+  },
+
   // Add note
   addNote: async (courseId, noteData) => {
     const response = await api.post(`/progress/course/${courseId}/note`, noteData);
+    return response.data;
+  },
+
+  // Update note
+  updateNote: async (courseId, noteId, noteData) => {
+    const response = await api.put(`/progress/course/${courseId}/note/${noteId}`, noteData);
+    return response.data;
+  },
+
+  // Remove note
+  removeNote: async (courseId, noteId) => {
+    const response = await api.delete(`/progress/course/${courseId}/note/${noteId}`);
     return response.data;
   },
 
