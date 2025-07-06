@@ -27,7 +27,7 @@ import { toast } from 'react-hot-toast';
 import VideoPlayer from '../components/VideoPlayer';
 import CommentSection from '../components/CommentSection';
 import { LoadingSpinner } from '../components/LoadingComponents';
-import { courseAPI, enrollmentAPI, enhancedCourseAPI } from '../services/api';
+import { courseAPI, enrollmentAPI, enhancedCourseAPI, wishlistAPI } from '../services/api';
 
 const CourseDetail = () => {
   const { id } = useParams();
@@ -39,12 +39,30 @@ const CourseDetail = () => {
   const [progress, setProgress] = useState(null);
   const [enrolling, setEnrolling] = useState(false);
   const [showPreviewVideo, setShowPreviewVideo] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchCourse();
+      checkWishlistStatus();
     }
-  }, [id]);
+  }, [id, user]);
+
+  const checkWishlistStatus = async () => {
+    if (!user || !id) return;
+    
+    try {
+      const response = await wishlistAPI.checkWishlist(id);
+      setIsInWishlist(response.isInWishlist);
+    } catch (error) {
+      console.error('Error checking wishlist status:', error);
+      // If there's an error checking, default to false
+      setIsInWishlist(false);
+    }
+  };
 
   const fetchCourse = async () => {
     try {
@@ -107,20 +125,66 @@ const CourseDetail = () => {
     }
   };
 
-  const handleWishlist = () => {
-    toast.success('Added to wishlist!');
+  const handleWishlist = async () => {
+    if (!user) {
+      toast.error('Please login to add courses to your wishlist');
+      return;
+    }
+
+    setWishlistLoading(true);
+    try {
+      if (isInWishlist) {
+        // Remove from wishlist
+        await wishlistAPI.removeFromWishlist(id);
+        setIsInWishlist(false);
+        toast.success('Removed from wishlist');
+      } else {
+        // Add to wishlist
+        await wishlistAPI.addToWishlist(id);
+        setIsInWishlist(true);
+        toast.success('Added to wishlist!');
+      }
+    } catch (error) {
+      console.error('Wishlist error:', error);
+      toast.error(error.response?.data?.message || 'Failed to update wishlist');
+    } finally {
+      setWishlistLoading(false);
+    }
   };
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: course.title,
-        text: course.description,
-        url: window.location.href,
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success('Course link copied to clipboard!');
+  const handleShare = async () => {
+    const shareData = {
+      title: course.title,
+      text: `Check out this course: ${course.title}`,
+      url: window.location.href,
+    };
+
+    try {
+      // Check if native sharing is available
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+        toast.success('Course shared successfully!');
+      } else {
+        // Fallback to clipboard
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          toast.success('Course link copied to clipboard!');
+        } catch (clipboardError) {
+          // Final fallback - show share modal
+          setShowShareModal(true);
+        }
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        // User cancelled sharing, try clipboard
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          toast.success('Course link copied to clipboard!');
+        } catch (clipboardError) {
+          // Final fallback - show share modal
+          setShowShareModal(true);
+        }
+      }
     }
   };
 
@@ -560,28 +624,39 @@ const CourseDetail = () => {
               {/* Course Thumbnail */}
               <div 
                 className="relative group cursor-pointer"
-                onClick={handlePreviewClick}
+                onClick={course.previewVideo?.url ? handlePreviewClick : () => setShowPreviewModal(true)}
               >
                 <img 
                   src={course.thumbnail?.url || '/api/placeholder/400/225'} 
                   alt={course.title}
                   className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
                 />
-                {course.previewVideo?.url && (
+                {course.previewVideo?.url ? (
                   <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 group-hover:bg-opacity-60 transition-all duration-300">
                     <div className="bg-white bg-opacity-90 hover:bg-opacity-100 transition-all duration-300 p-4 rounded-full">
                       <Play className="w-8 h-8 text-purple-600" />
                     </div>
                   </div>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 group-hover:bg-opacity-50 transition-all duration-300 opacity-0 group-hover:opacity-100">
+                    <div className="bg-white bg-opacity-90 hover:bg-opacity-100 transition-all duration-300 p-3 rounded-full">
+                      <Eye className="w-6 h-6 text-purple-600" />
+                    </div>
+                  </div>
                 )}
                 {course.previewVideo?.url && (
                   <div className="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 text-xs font-medium rounded">
-                    Preview Available
+                    Video Preview
                   </div>
                 )}
-                {!course.previewVideo?.url && (
+                {!course.previewVideo?.url && course.thumbnail?.url && (
                   <div className="absolute bottom-2 left-2 bg-purple-600 text-white px-2 py-1 text-xs font-medium rounded">
-                    Course Image
+                    Click to Enlarge
+                  </div>
+                )}
+                {!course.thumbnail?.url && (
+                  <div className="absolute bottom-2 left-2 bg-gray-600 text-white px-2 py-1 text-xs font-medium rounded">
+                    No Preview
                   </div>
                 )}
               </div>
@@ -631,11 +706,19 @@ const CourseDetail = () => {
                 <div className="flex space-x-2 mb-4">
                   <motion.button 
                     onClick={handleWishlist}
+                    disabled={wishlistLoading}
                     whileHover={{ scale: 1.02 }}
-                    className="flex-1 flex items-center justify-center space-x-2 py-2 px-4 border border-gray-300 hover:bg-gray-50 transition-colors font-serif"
+                    className={`flex-1 flex items-center justify-center space-x-2 py-2 px-4 border transition-colors font-serif disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isInWishlist 
+                        ? 'border-red-300 bg-red-50 text-red-600 hover:bg-red-100' 
+                        : 'border-gray-300 hover:bg-gray-50'
+                    }`}
                   >
-                    <Heart size={16} />
-                    <span>Wishlist</span>
+                    <Heart 
+                      size={16} 
+                      className={isInWishlist ? 'fill-current' : ''} 
+                    />
+                    <span>{wishlistLoading ? 'Loading...' : (isInWishlist ? 'In Wishlist' : 'Add to Wishlist')}</span>
                   </motion.button>
                   <motion.button 
                     onClick={handleShare}
@@ -687,109 +770,6 @@ const CourseDetail = () => {
                 </div>
               </div>
             </motion.div>
-
-            {/* Course Content */}
-            {(course.lessons && course.lessons.length > 0) || (course.modules && course.modules.length > 0) ? (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="bg-white border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow duration-200"
-              >
-                <h3 className="text-lg font-semibold text-black mb-4 font-serif">
-                  Course Content
-                </h3>
-                
-                {/* If course has modules, show module structure */}
-                {course.modules && course.modules.length > 0 ? (
-                  <div className="space-y-4">
-                    {course.modules.map((module, moduleIndex) => (
-                      <div key={module._id || moduleIndex} className="border border-gray-200 rounded">
-                        <div className="p-3 bg-gray-50 border-b border-gray-200">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-medium text-black font-serif">
-                              Module {moduleIndex + 1}: {module.title}
-                            </h4>
-                            <span className="text-sm text-gray-600 font-serif">
-                              {module.lessons?.length || 0} lessons
-                            </span>
-                          </div>
-                        </div>
-                        {module.lessons && module.lessons.length > 0 && (
-                          <div className="divide-y divide-gray-100">
-                            {module.lessons.map((lesson, lessonIndex) => (
-                              <button
-                                key={lesson._id || lessonIndex}
-                                onClick={() => setCurrentLesson(lesson)}
-                                className={`w-full text-left p-3 hover:bg-gray-50 transition-colors font-serif ${
-                                  currentLesson?._id === lesson._id ? 'bg-purple-50' : ''
-                                }`}
-                              >
-                                <div className="flex items-center space-x-3">
-                                  {isLessonCompleted(lesson._id) ? (
-                                    <CheckCircle className="w-4 h-4 text-purple-600" />
-                                  ) : (
-                                    <Play className="w-4 h-4 text-gray-400" />
-                                  )}
-                                  <div className="flex-1">
-                                    <h5 className="font-medium text-black font-serif text-sm">
-                                      {lesson.title}
-                                    </h5>
-                                    <div className="flex items-center space-x-2 text-xs text-gray-500">
-                                      <span className="font-serif">
-                                        {lesson.duration || 0} min
-                                      </span>
-                                      <span className="font-serif">
-                                        {lesson.type || 'video'}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  /* If course has lessons only, show flat structure */
-                  <div className="space-y-2">
-                    {course.lessons.map((lesson, index) => (
-                      <button
-                        key={lesson._id}
-                        onClick={() => setCurrentLesson(lesson)}
-                        className={`w-full text-left p-3 border transition-colors font-serif ${
-                          currentLesson?._id === lesson._id
-                            ? 'border-purple-500 bg-purple-50'
-                            : 'border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3">
-                          {isLessonCompleted(lesson._id) ? (
-                            <CheckCircle className="w-5 h-5 text-purple-600" />
-                          ) : (
-                            <Play className="w-5 h-5 text-gray-400" />
-                          )}
-                          <div className="flex-1">
-                            <h4 className="font-medium text-black font-serif">
-                              {index + 1}. {lesson.title}
-                            </h4>
-                            <div className="flex items-center space-x-2 text-sm text-gray-600">
-                              <span className="font-serif">
-                                {lesson.duration || 0} minutes
-                              </span>
-                              <span className="font-serif">
-                                {lesson.type || 'video'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            ) : null}
           </div>
         </div>
       </div>
@@ -847,6 +827,81 @@ const CourseDetail = () => {
                       <Users className="w-4 h-4 text-gray-500" />
                       <span className="text-sm text-gray-600">
                         {course.enrolledStudents?.length || 0} students
+                      </span>
+                    </div>
+                  </div>
+                  {!enrolled && (
+                    <motion.button
+                      onClick={handleEnroll}
+                      disabled={enrolling}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
+                    >
+                      {enrolling ? 'Enrolling...' : 'Enroll Now'}
+                    </motion.button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Preview Image Modal */}
+        {showPreviewModal && course.thumbnail?.url && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowPreviewModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="bg-white rounded-lg overflow-hidden max-w-4xl w-full max-h-[90vh] relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative">
+                <img
+                  src={course.thumbnail.url}
+                  alt={`${course.title} preview`}
+                  className="w-full h-auto max-h-[70vh] object-contain"
+                />
+                <button
+                  onClick={() => setShowPreviewModal(false)}
+                  className="absolute top-4 right-4 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 rounded-full transition-all duration-200"
+                >
+                  <span className="sr-only">Close</span>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  Course Preview: {course.title}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {course.shortDescription}
+                </p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <Clock className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">
+                        {course.estimatedDuration || 'Duration not specified'}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Users className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">
+                        {course.enrolledStudents?.length || 0} students
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Star className="w-4 h-4 text-yellow-500" />
+                      <span className="text-sm text-gray-600">
+                        {course.level || 'All Levels'}
                       </span>
                     </div>
                   </div>
