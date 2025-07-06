@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import { uploadAPI } from '../services/api';
 import LessonCreationModal from '../components/LessonCreationModal';
 import CompletionRequirementsModal from '../components/CompletionRequirementsModal';
 import { 
@@ -71,6 +72,33 @@ const CourseCreate = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
+
+  // Check authentication status
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please login to create courses');
+      navigate('/login');
+      return;
+    }
+    
+    if (!user) {
+      console.log('User not loaded yet...');
+      return;
+    }
+    
+    if (user.role !== 'instructor' && user.role !== 'admin') {
+      toast.error('Only instructors can create courses');
+      navigate('/dashboard');
+      return;
+    }
+    
+    console.log('Authentication check passed:', {
+      token: !!token,
+      user: user,
+      role: user.role
+    });
+  }, [user, navigate]);
   
   const [courseData, setCourseData] = useState({
     title: '',
@@ -706,33 +734,32 @@ const CourseCreate = () => {
         order: courseData.modules[moduleIndex].lessons.length + 1
       };
       
-      console.log('Original lesson before cleanup:', {
-        quiz: cleanLesson.quiz,
-        assignment: cleanLesson.assignment
-      });
-      
-      // Remove empty quiz if it has no valid questions
-      if (!cleanLesson.quiz || 
-          !cleanLesson.quiz.questions || 
-          cleanLesson.quiz.questions.length === 0 ||
-          !cleanLesson.quiz.questions.some(q => q && q.question && q.question.trim())) {
+      // Only include quiz if it has actual questions
+      if (cleanLesson.quiz && cleanLesson.quiz.questions && cleanLesson.quiz.questions.length === 0) {
         delete cleanLesson.quiz;
-        console.log('Removed empty quiz');
       }
       
-      // Remove empty assignment if it has no title or description
-      if (!cleanLesson.assignment || 
-          !cleanLesson.assignment.title || 
-          !cleanLesson.assignment.title.trim() ||
-          !cleanLesson.assignment.description || 
-          !cleanLesson.assignment.description.trim()) {
+      // Only include assignment if it has actual title and description
+      if (cleanLesson.assignment && 
+          (!cleanLesson.assignment.title || !cleanLesson.assignment.title.trim() ||
+           !cleanLesson.assignment.description || !cleanLesson.assignment.description.trim())) {
         delete cleanLesson.assignment;
-        console.log('Removed empty assignment');
       }
       
-      console.log('Cleaned lesson:', {
-        quiz: cleanLesson.quiz,
-        assignment: cleanLesson.assignment
+      // Also remove empty assignment objects that might have been created by the lesson creation modal
+      if (cleanLesson.assignment && 
+          cleanLesson.assignment.title === '' && 
+          cleanLesson.assignment.description === '') {
+        delete cleanLesson.assignment;
+      }
+      
+      console.log('Lesson after cleanup:', {
+        title: cleanLesson.title,
+        hasQuiz: !!cleanLesson.quiz,
+        hasAssignment: !!cleanLesson.assignment,
+        quizQuestionsCount: cleanLesson.quiz?.questions?.length || 0,
+        assignmentHasTitle: !!cleanLesson.assignment?.title,
+        assignmentHasDescription: !!cleanLesson.assignment?.description
       });
       
       setCourseData(prev => ({
@@ -778,7 +805,7 @@ const CourseCreate = () => {
         isPreview: false,
         isCompleted: false,
         completionCriteria: {
-          watchTime: 80, // percentage of video to watch
+          watchTime: 80,
           requireQuizPass: false,
           requireAssignmentSubmission: false
         }
@@ -841,43 +868,53 @@ const CourseCreate = () => {
       const submissionData = {
         title: courseData.title,
         description: courseData.description,
-        shortDescription: courseData.shortDescription,
+        shortDescription: courseData.shortDescription || '',
         category: courseData.category,
-        subcategory: courseData.subcategory,
+        subcategory: courseData.subcategory || '',
         level: courseData.level,
         thumbnail: {
-          url: courseData.thumbnail,
+          url: courseData.thumbnail || '',
           publicId: ''
         },
         previewVideo: {
-          url: courseData.previewVideo,
+          url: courseData.previewVideo || '',
           publicId: '',
           duration: 0
         },
-        price: courseData.pricing.type === 'free' ? 0 : courseData.price,
-        discountPrice: courseData.discountPrice || undefined,
-        currency: courseData.currency,
-        estimatedDuration: courseData.estimatedDuration,
-        estimatedCompletionTime: courseData.estimatedCompletionTime,
-        language: courseData.language,
-        tags: courseData.tags,
-        learningOutcomes: courseData.learningOutcomes.filter(outcome => outcome.trim()),
-        requirements: courseData.requirements.filter(req => req.trim()),
-        targetAudience: courseData.targetAudience.filter(audience => audience.trim()),
-        modules: courseData.modules.map(module => ({
+        price: courseData.pricing.type === 'free' ? 0 : (courseData.price || 0),
+        discountPrice: courseData.discountPrice || 0,
+        currency: courseData.currency || 'USD',
+        estimatedDuration: courseData.estimatedDuration || '',
+        estimatedCompletionTime: courseData.estimatedCompletionTime || '',
+        language: courseData.language || 'English',
+        tags: courseData.tags || [],
+        learningOutcomes: courseData.learningOutcomes.filter(outcome => outcome && outcome.trim()),
+        requirements: courseData.requirements.filter(req => req && req.trim()),
+        targetAudience: courseData.targetAudience.filter(audience => audience && audience.trim()),
+        modules: (courseData.modules || []).map((module, moduleIndex) => ({
           title: module.title,
-          description: module.description,
+          description: module.description || '',
           estimatedDuration: parseFloat(module.estimatedDuration) || 0,
-          order: module.order,
-          lessons: module.lessons.map(lesson => {
+          order: module.order || moduleIndex + 1,
+          lessons: (module.lessons || []).map((lesson, lessonIndex) => {
+            // Ensure lesson type is valid - only allow backend-supported types
+            const validLessonTypes = ['video', 'text', 'quiz', 'assignment', 'live'];
+            let lessonType = lesson.type || 'video';
+            
+            // Map any invalid types to 'video' as default
+            if (!validLessonTypes.includes(lessonType)) {
+              console.warn(`Invalid lesson type "${lessonType}" found, defaulting to "video"`);
+              lessonType = 'video';
+            }
+            
             const lessonData = {
               title: lesson.title,
-              description: lesson.description,
-              type: lesson.type,
+              description: lesson.description || '',
+              type: lessonType,
               content: lesson.content || '',
               videoUrl: lesson.videoUrl || '',
-              videoDuration: lesson.videoDuration || 0,
-              order: lesson.order,
+              videoDuration: parseFloat(lesson.videoDuration) || 0,
+              order: lesson.order || lessonIndex + 1,
               isPreview: lesson.isPreview || false,
               resources: lesson.resources || []
             };
@@ -894,35 +931,86 @@ const CourseCreate = () => {
               
               if (validQuestions.length > 0) {
                 lessonData.quiz = {
-                  ...lesson.quiz,
-                  questions: validQuestions
+                  questions: validQuestions,
+                  timeLimit: lesson.quiz.timeLimit || 30,
+                  passingScore: lesson.quiz.passingScore || 70,
+                  attemptsAllowed: lesson.quiz.attemptsAllowed || 3,
+                  showCorrectAnswers: lesson.quiz.showCorrectAnswers !== false
                 };
+                console.log(`Including quiz for lesson "${lesson.title}" with ${validQuestions.length} questions`);
+              } else {
+                console.log(`Excluding quiz for lesson "${lesson.title}" - no valid questions`);
               }
+            } else {
+              console.log(`No quiz data for lesson "${lesson.title}"`);
             }
             
-            // Only include assignment if it has complete required fields
-            if (lesson.assignment && 
+            // Only include assignment if it has complete required fields AND is not empty
+            const hasValidAssignment = lesson.assignment && 
                 typeof lesson.assignment === 'object' &&
                 lesson.assignment.title && 
                 typeof lesson.assignment.title === 'string' && 
                 lesson.assignment.title.trim() && 
                 lesson.assignment.description && 
                 typeof lesson.assignment.description === 'string' && 
-                lesson.assignment.description.trim()) {
-              lessonData.assignment = lesson.assignment;
+                lesson.assignment.description.trim();
+            
+            if (hasValidAssignment) {
+              console.log(`Including assignment for lesson "${lesson.title}":`, {
+                title: lesson.assignment.title,
+                description: lesson.assignment.description.substring(0, 50) + '...'
+              });
+              
+              lessonData.assignment = {
+                title: lesson.assignment.title.trim(),
+                description: lesson.assignment.description.trim(),
+                instructions: lesson.assignment.instructions || '',
+                maxScore: lesson.assignment.maxScore || 100,
+                dueDate: lesson.assignment.dueDate || null,
+                submissionType: lesson.assignment.submissionType || 'both',
+                resources: lesson.assignment.resources || []
+              };
+            } else {
+              // Log why assignment was not included
+              if (lesson.assignment && typeof lesson.assignment === 'object') {
+                console.log(`Excluding assignment for lesson "${lesson.title}" - missing required fields:`, {
+                  hasTitle: !!(lesson.assignment.title && lesson.assignment.title.trim()),
+                  hasDescription: !!(lesson.assignment.description && lesson.assignment.description.trim()),
+                  titleValue: lesson.assignment.title || '[empty]',
+                  descriptionValue: lesson.assignment.description || '[empty]',
+                  isEmptyObject: Object.keys(lesson.assignment).length === 0
+                });
+              } else {
+                console.log(`No assignment data for lesson "${lesson.title}"`);
+              }
+              // Explicitly DO NOT set lessonData.assignment at all
             }
             
             return lessonData;
-          }).filter(lesson => lesson.title && lesson.title.trim()) // Remove any lessons without titles
-        })).filter(module => module.title && module.title.trim() && module.lessons.length > 0), // Remove empty modules
+          }).filter(lesson => {
+            // Remove any lessons without titles and ensure no empty assignments
+            if (!lesson.title || !lesson.title.trim()) {
+              return false;
+            }
+            
+            // Final cleanup: if lesson has an assignment property but it's invalid, remove it
+            if (lesson.assignment && 
+                (!lesson.assignment.title || !lesson.assignment.title.trim() ||
+                 !lesson.assignment.description || !lesson.assignment.description.trim())) {
+              console.log(`Final cleanup: removing invalid assignment from lesson "${lesson.title}"`);
+              delete lesson.assignment;
+            }
+            
+            return true;
+          }) // Remove any lessons without titles
+        })).filter(module => module.title && module.title.trim()), // Remove empty modules
         certificate: {
-          isAvailable: courseData.certificate.isAvailable,
+          isAvailable: courseData.certificate?.isAvailable !== false,
           requirements: {
-            minimumScore: courseData.certificate.requirements?.minimumScore || 70,
-            completionPercentage: courseData.certificate.requirements?.completionPercentage || 100
+            minimumScore: courseData.certificate?.requirements?.minimumScore || 70,
+            completionPercentage: courseData.certificate?.requirements?.completionPercentage || 100
           }
         },
-        settings: courseData.settings,
         status: 'draft',
         isPublished: false
       };
@@ -932,14 +1020,19 @@ const CourseCreate = () => {
         title: m.title,
         lessons: m.lessons.map(l => ({
           title: l.title,
+          type: l.type,
           hasQuiz: !!l.quiz,
           hasAssignment: !!l.assignment,
           quizQuestions: l.quiz?.questions?.length || 0,
           assignmentTitle: l.assignment?.title || 'none',
-          rawQuiz: l.quiz,
-          rawAssignment: l.assignment
+          assignmentDescription: l.assignment?.description || 'none',
+          // Show the exact assignment object structure
+          assignmentObject: l.assignment
         }))
       })));
+      
+      // Also log the exact JSON that will be sent
+      console.log('Full submission JSON:', JSON.stringify(submissionData, null, 2));
       console.log('Raw courseData.modules:', courseData.modules.map(m => ({
         title: m.title,
         lessons: m.lessons.map(l => ({
@@ -969,7 +1062,27 @@ const CourseCreate = () => {
       console.error('Error response data:', error.response?.data);
       console.error('Error response status:', error.response?.status);
       
-      toast.error(error.response?.data?.message || 'Failed to create course');
+      // Log detailed validation errors
+      if (error.response?.data?.errors) {
+        console.error('Detailed validation errors:', error.response.data.errors);
+        error.response.data.errors.forEach((err, index) => {
+          console.error(`Validation Error ${index + 1}:`, err);
+        });
+      }
+      
+      if (error.response?.data?.details) {
+        console.error('Validation details:', error.response.data.details);
+      }
+      
+      // Show detailed error message to user
+      let errorMessage = 'Failed to create course';
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        errorMessage = error.response.data.errors.join('; ');
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -1219,6 +1332,18 @@ const CourseCreate = () => {
       return;
     }
 
+    // Validate that all questions have content
+    const invalidQuestions = currentQuiz.questions.filter(q => 
+      !q.question || !q.question.trim() || 
+      !q.options || q.options.length < 2 || 
+      q.options.some(opt => !opt || !opt.trim())
+    );
+
+    if (invalidQuestions.length > 0) {
+      toast.error('Please complete all quiz questions with valid options');
+      return;
+    }
+
     setCourseData(prev => ({
       ...prev,
       modules: prev.modules.map((module, mIndex) => 
@@ -1227,7 +1352,7 @@ const CourseCreate = () => {
               ...module,
               lessons: module.lessons.map((lesson, lIndex) => 
                 lIndex === lessonIndex
-                  ? { ...lesson, quiz: currentQuiz }
+                  ? { ...lesson, quiz: { ...currentQuiz } }
                   : lesson
               )
             }
@@ -1247,7 +1372,7 @@ const CourseCreate = () => {
     });
     
     setShowQuizModal(false);
-    toast.success('Quiz added successfully!');
+    toast.success('Quiz updated successfully!');
   };
 
   // Assignment creation functions
@@ -1291,6 +1416,11 @@ const CourseCreate = () => {
       return;
     }
 
+    if (!currentAssignment.title.trim() || !currentAssignment.description.trim()) {
+      toast.error('Assignment title and description cannot be empty');
+      return;
+    }
+
     setCourseData(prev => ({
       ...prev,
       modules: prev.modules.map((module, mIndex) => 
@@ -1299,7 +1429,7 @@ const CourseCreate = () => {
               ...module,
               lessons: module.lessons.map((lesson, lIndex) => 
                 lIndex === lessonIndex
-                  ? { ...lesson, assignment: currentAssignment }
+                  ? { ...lesson, assignment: { ...currentAssignment } }
                   : lesson
               )
             }
@@ -1319,7 +1449,7 @@ const CourseCreate = () => {
     });
     
     setShowAssignmentModal(false);
-    toast.success('Assignment added successfully!');
+    toast.success('Assignment updated successfully!');
   };
 
   // Utility function to compress images
@@ -1481,10 +1611,19 @@ const CourseCreate = () => {
       
       // Create configured axios instance
       const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login to upload files');
+        return;
+      }
+      
+      console.log('User role:', user?.role);
+      console.log('Token exists:', !!token);
+      console.log('User object:', user);
+      
       const response = await axios.post('/api/courses/upload', formData, {
         headers: { 
           'Content-Type': 'multipart/form-data',
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Authorization': `Bearer ${token}`
         },
         baseURL: 'http://localhost:5000'
       });
@@ -1497,7 +1636,17 @@ const CourseCreate = () => {
       toast.success('Thumbnail uploaded successfully!');
     } catch (error) {
       console.error('Thumbnail upload error:', error);
-      toast.error('Failed to upload thumbnail');
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
+      
+      if (error.response?.status === 403) {
+        console.error('403 Forbidden - Auth issue detected');
+        toast.error('Authentication failed. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else {
+        toast.error('Failed to upload thumbnail');
+      }
     } finally {
       setUploadingThumbnail(false);
     }
@@ -1537,10 +1686,15 @@ const CourseCreate = () => {
       formData.append('type', 'video');
       
       const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login to upload files');
+        return;
+      }
+      
       const response = await axios.post('/api/courses/upload', formData, {
         headers: { 
           'Content-Type': 'multipart/form-data',
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Authorization': `Bearer ${token}`
         },
         baseURL: 'http://localhost:5000'
       });
@@ -1587,16 +1741,72 @@ const CourseCreate = () => {
     }
     
     setUploadingVideo(true);
+    
     try {
+      console.log('=== VIDEO UPLOAD DEBUG ===');
+      console.log('File:', file);
+      console.log('User:', user);
+      console.log('User role:', user?.role);
+      
+      // Try using the uploadAPI service first
+      try {
+        console.log('Attempting upload via uploadAPI service...');
+        const result = await uploadAPI.uploadFile(file, 'video');
+        console.log('UploadAPI result:', result);
+        
+        setNewLesson(prev => ({
+          ...prev,
+          videoUrl: result.url,
+          videoDuration: result.duration || 0
+        }));
+        
+        toast.success('Video uploaded successfully!');
+        return;
+      } catch (uploadAPIError) {
+        console.error('UploadAPI failed:', uploadAPIError);
+        console.log('Falling back to direct API call...');
+      }
+      
+      // Fallback to direct API call
       const formData = new FormData();
       formData.append('file', file);
       formData.append('type', 'video');
       
       const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login to upload files');
+        return;
+      }
+      
+      console.log('Token exists:', !!token);
+      console.log('Token preview:', token ? token.substring(0, 20) + '...' : 'No token');
+      
+      // Test the auth endpoint first
+      try {
+        const authTest = await axios.get('/api/auth/me', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          baseURL: 'http://localhost:5000'
+        });
+        console.log('Auth test successful:', authTest.data);
+      } catch (authError) {
+        console.error('Auth test failed:', authError.response?.status, authError.response?.data);
+        if (authError.response?.status === 403 || authError.response?.status === 401) {
+          console.error('Auth test failed with 403/401 - token is invalid');
+          toast.error('Your session has expired. Please login again.');
+          localStorage.removeItem('token');
+          navigate('/login');
+          return;
+        }
+      }
+      
+      console.log('=== PROCEEDING WITH DIRECT UPLOAD ===');
+      
       const response = await axios.post('/api/courses/upload', formData, {
         headers: { 
           'Content-Type': 'multipart/form-data',
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Authorization': `Bearer ${token}`
         },
         baseURL: 'http://localhost:5000'
       });
@@ -1610,11 +1820,53 @@ const CourseCreate = () => {
       toast.success('Video uploaded successfully!');
     } catch (error) {
       console.error('Video upload error:', error);
-      toast.error('Failed to upload video');
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
+      
+      if (error.response?.status === 403) {
+        console.error('403 Forbidden - Auth issue detected');
+        toast.error('Authentication failed. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else if (error.response?.status === 401) {
+        console.error('401 Unauthorized - Token invalid');
+        toast.error('Your session has expired. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to upload video');
+      }
     } finally {
       setUploadingVideo(false);
     }
   };
+
+  // Check authentication status
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please login to create courses');
+      navigate('/login');
+      return;
+    }
+    
+    if (!user) {
+      console.log('User not loaded yet...');
+      return;
+    }
+    
+    if (user.role !== 'instructor' && user.role !== 'admin') {
+      toast.error('Only instructors can create courses');
+      navigate('/dashboard');
+      return;
+    }
+    
+    console.log('Authentication check passed:', {
+      token: !!token,
+      user: user,
+      role: user.role
+    });
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white py-8">
@@ -1948,22 +2200,22 @@ const CourseCreate = () => {
                   <div className="space-y-3">
                     {courseData.targetAudience.map((audience, index) => (
                       <div key={index} className="flex space-x-3">
-                        <div className="flex-shrink-0 w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-medium mt-1">
-                          <Target className="w-4 h-4" />
+                        <div className="flex-shrink-0 w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center">
+                          <CheckCircle className="w-5 h-5" />
                         </div>
                         <input
                           type="text"
                           value={audience}
                           onChange={(e) => handleArrayInputChange('targetAudience', index, e.target.value)}
-                          className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          placeholder="Beginner developers, students, professionals..."
+                          placeholder={`Who should take this course? (e.g., "Beginners in programming")`}
+                          className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                         {courseData.targetAudience.length > 1 && (
                           <button
                             onClick={() => removeArrayItem('targetAudience', index)}
-                            className="p-3 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-3 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <X className="w-4 h-4" />
                           </button>
                         )}
                       </div>
@@ -2117,28 +2369,36 @@ const CourseCreate = () => {
                                 </div>
                               </div>
                               <div className="flex items-center space-x-2">
-                                <button
-                                  onClick={() => {
-                                    setSelectedModuleIndex(moduleIndex);
-                                    setSelectedLessonIndex(lessonIndex);
-                                    setShowQuizModal(true);
-                                  }}
-                                  className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                                  title="Add Quiz"
-                                >
-                                  <Brain className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setSelectedModuleIndex(moduleIndex);
-                                    setSelectedLessonIndex(lessonIndex);
-                                    setShowAssignmentModal(true);
-                                  }}
-                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                  title="Add Assignment"
-                                >
-                                  <FileQuestion className="w-4 h-4" />
-                                </button>
+                                {/* Show Quiz button only if lesson has quiz enabled */}
+                                {lesson.quiz && lesson.quiz.questions && lesson.quiz.questions.length > 0 && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedModuleIndex(moduleIndex);
+                                      setSelectedLessonIndex(lessonIndex);
+                                      setCurrentQuiz(lesson.quiz);
+                                      setShowQuizModal(true);
+                                    }}
+                                    className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                    title="Edit Quiz"
+                                  >
+                                    <Brain className="w-4 h-4" />
+                                  </button>
+                                )}
+                                {/* Show Assignment button only if lesson has assignment enabled */}
+                                {lesson.assignment && lesson.assignment.title && lesson.assignment.title.trim() !== '' && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedModuleIndex(moduleIndex);
+                                      setSelectedLessonIndex(lessonIndex);
+                                      setCurrentAssignment(lesson.assignment);
+                                      setShowAssignmentModal(true);
+                                    }}
+                                    className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                    title="Edit Assignment"
+                                  >
+                                    <FileQuestion className="w-4 h-4" />
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => removeLessonFromModule(moduleIndex, lesson.id)}
                                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -3114,7 +3374,7 @@ const CourseCreate = () => {
                   onClick={() => addQuizToLesson(selectedModuleIndex, selectedLessonIndex)}
                   className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                 >
-                  Add Quiz
+                  {currentQuiz.title ? 'Update Quiz' : 'Add Quiz'}
                 </button>
               </div>
             </motion.div>
@@ -3200,7 +3460,7 @@ const CourseCreate = () => {
                   onClick={() => addAssignmentToLesson(selectedModuleIndex, selectedLessonIndex)}
                   className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                 >
-                  Add Assignment
+                  {currentAssignment.title ? 'Update Assignment' : 'Add Assignment'}
                 </button>
               </div>
             </motion.div>

@@ -331,20 +331,29 @@ router.post('/', protect, restrictTo('instructor', 'admin'), async (req, res) =>
           videoDuration: parseInt(lesson.videoDuration) || 0,
           order: lesson.order || lessonIndex + 1,
           isPreview: lesson.isPreview || false,
-          quiz: lesson.quiz || {
-            questions: [],
-            timeLimit: 30,
-            passingScore: 70,
-            attemptsAllowed: 3
-          },
-          assignment: lesson.assignment || {
-            title: '',
-            description: '',
-            instructions: '',
-            maxScore: 100,
-            dueDate: null,
-            submissionType: 'both'
-          },
+          // Only include quiz if it has questions or if lesson type is quiz
+          ...(lesson.quiz && (lesson.quiz.questions?.length > 0 || lesson.type === 'quiz') ? {
+            quiz: {
+              questions: lesson.quiz.questions || [],
+              timeLimit: lesson.quiz.timeLimit || 30,
+              passingScore: lesson.quiz.passingScore || 70,
+              attemptsAllowed: lesson.quiz.attemptsAllowed || 3,
+              showCorrectAnswers: lesson.quiz.showCorrectAnswers !== false
+            }
+          } : {}),
+          // Only include assignment if it has title and description or if lesson type is assignment
+          ...(lesson.assignment && lesson.assignment.title && lesson.assignment.description ? {
+            assignment: {
+              title: lesson.assignment.title,
+              description: lesson.assignment.description,
+              instructions: lesson.assignment.instructions || '',
+              maxScore: lesson.assignment.maxScore || 100,
+              dueDate: lesson.assignment.dueDate || null,
+              submissionType: lesson.assignment.submissionType || 'both',
+              allowedFormats: lesson.assignment.allowedFormats || [],
+              maxFileSize: lesson.assignment.maxFileSize || (10 * 1024 * 1024)
+            }
+          } : {}),
           resources: Array.isArray(lesson.resources) ? lesson.resources : []
         })) : []
       })) : [],
