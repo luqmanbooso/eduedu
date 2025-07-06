@@ -154,26 +154,9 @@ const CourseDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden">
-      {/* Background Preview Image */}
-      {course.thumbnail?.url && (
-        <>
-          <div 
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-5"
-            style={{
-              backgroundImage: `url(${course.thumbnail.url})`,
-              filter: 'blur(1px)'
-            }}
-          />
-          {/* Subtle gradient overlay for better text readability */}
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-50/20 via-transparent to-blue-50/20" />
-        </>
-      )}
-      
-      {/* Content Overlay */}
-      <div className="relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Course Preview Section */}
@@ -326,7 +309,7 @@ const CourseDetail = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="bg-white/95 backdrop-blur-sm border border-gray-200 p-6 shadow-sm hover:shadow-md transition-all duration-200"
+              className="bg-white border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow duration-200"
             >
               <h1 className="text-3xl font-bold text-black mb-4 font-serif">
                 {course.title}
@@ -572,7 +555,7 @@ const CourseDetail = () => {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="bg-white/95 backdrop-blur-sm border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 sticky top-4"
+              className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 sticky top-4"
             >
               {/* Course Thumbnail */}
               <div 
@@ -710,7 +693,7 @@ const CourseDetail = () => {
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="bg-white/95 backdrop-blur-sm border border-gray-200 p-6 shadow-sm hover:shadow-md transition-all duration-200"
+                className="bg-white border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow duration-200"
               >
                 <h3 className="text-lg font-semibold text-black mb-4 font-serif">
                   Course Content
@@ -884,7 +867,6 @@ const CourseDetail = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      </div>
     </div>
   );
 };
