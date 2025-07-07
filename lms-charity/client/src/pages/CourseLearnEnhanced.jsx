@@ -39,7 +39,9 @@ import {
   ThumbsUp,
   ThumbsDown,
   Lock,
-  CheckSquare
+  CheckSquare,
+  Image,
+  ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -74,132 +76,440 @@ const CourseLearnEnhanced = () => {
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [assignmentData, setAssignmentData] = useState(null);
 
-  // Mock data - replace with API calls
+  // Fetch course data from API
   useEffect(() => {
-    setTimeout(() => {
-      const mockCourse = {
-        _id: courseId,
-        title: 'Complete React Development Masterclass 2024',
-        description: 'Master React from beginner to advanced level',
-        instructor: {
-          name: 'John Smith',
-          avatar: ''
-        },
-        progress: 45,
-        modules: [
-          {
-            _id: 'mod1',
-            title: 'Getting Started with React',
-            order: 1,
-            lessons: [
-              {
-                _id: 'lesson1',
-                title: 'What is React and Why Use It?',
-                description: 'Understanding React fundamentals and its ecosystem',
-                type: 'video',
-                videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-                videoDuration: 900,
-                order: 1,
-                isCompleted: true,
-                resources: [
-                  { title: 'React Official Documentation', url: '#', type: 'link' },
-                  { title: 'Course Slides PDF', url: '#', type: 'pdf' }
-                ]
-              },
-              {
-                _id: 'lesson2',
-                title: 'Setting Up Development Environment',
-                description: 'Install Node.js, Create React App, and essential tools',
-                type: 'video',
-                videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-                videoDuration: 720,
-                order: 2,
-                isCompleted: false,
-                resources: []
-              },
-              {
-                _id: 'lesson3',
-                title: 'React Fundamentals Quiz',
-                description: 'Test your understanding of React basics',
-                type: 'quiz',
-                order: 3,
-                isCompleted: false,
-                quiz: {
-                  questions: [
-                    {
-                      id: 1,
-                      question: 'What is React?',
-                      options: [
-                        'A JavaScript library for building user interfaces',
-                        'A database management system',
-                        'A CSS framework',
-                        'A web server'
-                      ],
-                      correctAnswer: 0
+    const fetchCourseData = async () => {
+      try {
+        const response = await fetch(`/api/courses/${courseId}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch course data');
+        }
+        
+        const courseData = await response.json();
+        
+        // Process the course data to ensure it matches the expected structure
+        const processedCourse = {
+          ...courseData,
+          modules: courseData.modules?.map(module => ({
+            ...module,
+            lessons: module.lessons?.map(lesson => ({
+              ...lesson,
+              isCompleted: false, // This should come from progress API
+              resources: lesson.resources || []
+            })) || []
+          })) || []
+        };
+        
+        setCourse(processedCourse);
+        
+        // Set initial lesson
+        if (processedCourse.modules.length > 0 && processedCourse.modules[0].lessons.length > 0) {
+          setCurrentModule(processedCourse.modules[0]);
+          setCurrentLesson(processedCourse.modules[0].lessons[0]);
+        }
+        
+        // TODO: Fetch completed lessons from progress API
+        setCompletedLessons([]); // This should come from progress API
+        
+      } catch (error) {
+        console.error('Error fetching course data:', error);
+        toast.error('Failed to load course data. Using sample data.');
+        
+        // Comprehensive sample data with proper structure
+        const sampleCourse = {
+          _id: courseId,
+          title: 'Complete React Development Masterclass 2024',
+          description: 'Master React from beginner to advanced level with hands-on projects, quizzes, and assignments',
+          instructor: {
+            name: 'John Smith',
+            avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+            bio: 'Senior React Developer with 8+ years experience',
+            rating: 4.8,
+            studentsCount: 45000
+          },
+          progress: 45,
+          totalDuration: 1200, // minutes
+          level: 'Intermediate',
+          category: 'Programming',
+          tags: ['React', 'JavaScript', 'Web Development', 'Frontend'],
+          learningOutcomes: [
+            'Build modern React applications from scratch',
+            'Master React Hooks and Context API',
+            'Implement state management with Redux',
+            'Create reusable components and custom hooks',
+            'Deploy React apps to production'
+          ],
+          requirements: [
+            'Basic knowledge of HTML, CSS, and JavaScript',
+            'Familiarity with ES6+ features',
+            'Node.js installed on your computer',
+            'Text editor (VS Code recommended)'
+          ],
+          targetAudience: [
+            'Frontend developers wanting to learn React',
+            'JavaScript developers looking to upgrade skills',
+            'Web developers transitioning to modern frameworks',
+            'Computer science students'
+          ],
+          modules: [
+            {
+              _id: 'mod1',
+              title: 'Getting Started with React',
+              description: 'Learn the fundamentals of React and set up your development environment',
+              order: 1,
+              duration: 180, // minutes
+              lessons: [
+                {
+                  _id: 'lesson1',
+                  title: 'What is React and Why Use It?',
+                  description: 'Understanding React fundamentals, virtual DOM, and its ecosystem',
+                  type: 'video',
+                  videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+                  videoDuration: 900, // 15 minutes
+                  order: 1,
+                  isCompleted: true,
+                  resources: [
+                    { 
+                      title: 'React Official Documentation', 
+                      url: 'https://reactjs.org/docs/getting-started.html', 
+                      type: 'link',
+                      description: 'Official React documentation and guides'
+                    },
+                    { 
+                      title: 'Course Slides - React Introduction', 
+                      url: '#', 
+                      type: 'pdf',
+                      description: 'PDF slides covering React basics and concepts'
                     },
                     {
-                      id: 2,
-                      question: 'Which method is used to render React components?',
-                      options: ['render()', 'display()', 'show()', 'create()'],
-                      correctAnswer: 0
+                      title: 'React Cheat Sheet',
+                      url: '#',
+                      type: 'pdf',
+                      description: 'Quick reference guide for React syntax and patterns'
                     }
                   ],
-                  timeLimit: 300,
-                  passingScore: 70
-                }
-              }
-            ]
-          },
-          {
-            _id: 'mod2',
-            title: 'JSX and Components',
-            order: 2,
-            lessons: [
-              {
-                _id: 'lesson4',
-                title: 'Understanding JSX',
-                description: 'Learn JSX syntax and best practices',
-                type: 'video',
-                videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-                videoDuration: 1080,
-                order: 1,
-                isCompleted: false,
-                resources: []
-              },
-              {
-                _id: 'lesson5',
-                title: 'Component Assignment',
-                description: 'Build your first React component',
-                type: 'assignment',
-                order: 2,
-                isCompleted: false,
-                assignment: {
-                  title: 'Create a Profile Card Component',
-                  description: 'Build a reusable profile card component that displays user information including name, avatar, bio, and social links.',
-                  instructions: [
-                    'Create a new React component called ProfileCard',
-                    'Accept props for name, avatar, bio, and social links',
-                    'Style the component using CSS modules or styled-components',
-                    'Make the component responsive',
-                    'Add hover effects and animations'
+                  transcript: 'In this lesson, we will explore what React is and why it has become one of the most popular JavaScript libraries...',
+                  notes: 'Key takeaways: React is a library for building user interfaces, it uses a virtual DOM for performance, and has a component-based architecture.'
+                },
+                {
+                  _id: 'lesson2',
+                  title: 'Setting Up Development Environment',
+                  description: 'Install Node.js, Create React App, and essential development tools',
+                  type: 'video',
+                  videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+                  videoDuration: 720, // 12 minutes
+                  order: 2,
+                  isCompleted: false,
+                  resources: [
+                    {
+                      title: 'Node.js Download',
+                      url: 'https://nodejs.org/',
+                      type: 'link',
+                      description: 'Download and install Node.js'
+                    },
+                    {
+                      title: 'VS Code Extensions Guide',
+                      url: '#',
+                      type: 'pdf',
+                      description: 'Recommended VS Code extensions for React development'
+                    }
                   ],
-                  dueDate: '2024-02-01',
-                  maxScore: 100,
-                  submissionType: 'both'
+                  transcript: 'Let\'s set up our development environment for React development...',
+                  notes: 'Make sure to install Node.js version 14 or higher. Create React App is the recommended way to start a new React project.'
+                },
+                {
+                  _id: 'lesson3',
+                  title: 'React Fundamentals Quiz',
+                  description: 'Test your understanding of React basics and development setup',
+                  type: 'quiz',
+                  order: 3,
+                  isCompleted: false,
+                  quiz: {
+                    questions: [
+                      {
+                        id: 1,
+                        question: 'What is React?',
+                        options: [
+                          'A JavaScript library for building user interfaces',
+                          'A database management system',
+                          'A CSS framework',
+                          'A web server'
+                        ],
+                        correctAnswer: 0,
+                        explanation: 'React is a JavaScript library developed by Facebook for building user interfaces, particularly for web applications.'
+                      },
+                      {
+                        id: 2,
+                        question: 'What is the Virtual DOM?',
+                        options: [
+                          'A backup of the real DOM',
+                          'A JavaScript representation of the real DOM',
+                          'A new version of HTML',
+                          'A CSS framework'
+                        ],
+                        correctAnswer: 1,
+                        explanation: 'The Virtual DOM is a JavaScript representation of the real DOM that React uses to optimize rendering performance.'
+                      },
+                      {
+                        id: 3,
+                        question: 'Which command creates a new React app?',
+                        options: [
+                          'npm install react',
+                          'npx create-react-app my-app',
+                          'npm start react',
+                          'react new app'
+                        ],
+                        correctAnswer: 1,
+                        explanation: 'npx create-react-app is the standard way to create a new React application with all necessary build tools configured.'
+                      }
+                    ],
+                    timeLimit: 300, // 5 minutes
+                    passingScore: 70,
+                    attemptsAllowed: 3,
+                    instructions: 'Answer all questions to test your understanding of React fundamentals. You need 70% to pass.'
+                  }
                 }
-              }
-            ]
-          }
-        ]
-      };
+              ]
+            },
+            {
+              _id: 'mod2',
+              title: 'JSX and Components',
+              description: 'Master JSX syntax and learn to create reusable React components',
+              order: 2,
+              duration: 240, // minutes
+              lessons: [
+                {
+                  _id: 'lesson4',
+                  title: 'Understanding JSX',
+                  description: 'Learn JSX syntax, expressions, and best practices',
+                  type: 'video',
+                  videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+                  videoDuration: 1080, // 18 minutes
+                  order: 1,
+                  isCompleted: false,
+                  resources: [
+                    {
+                      title: 'JSX Documentation',
+                      url: 'https://reactjs.org/docs/introducing-jsx.html',
+                      type: 'link',
+                      description: 'Official JSX documentation'
+                    },
+                    {
+                      title: 'JSX Examples',
+                      url: '#',
+                      type: 'document',
+                      description: 'Code examples demonstrating JSX patterns'
+                    }
+                  ],
+                  transcript: 'JSX is a syntax extension for JavaScript that allows you to write HTML-like code in your JavaScript files...',
+                  notes: 'Remember: JSX is not HTML! It\'s JavaScript that looks like HTML. Always use camelCase for attributes.'
+                },
+                {
+                  _id: 'lesson5',
+                  title: 'Creating Your First Component',
+                  description: 'Learn to create and use React components',
+                  type: 'video',
+                  videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+                  videoDuration: 960, // 16 minutes
+                  order: 2,
+                  isCompleted: false,
+                  resources: [
+                    {
+                      title: 'Component Starter Template',
+                      url: '#',
+                      type: 'document',
+                      description: 'Template for creating new React components'
+                    }
+                  ]
+                },
+                {
+                  _id: 'lesson6',
+                  title: 'Build a Profile Card Component',
+                  description: 'Apply your knowledge by building a reusable profile card component',
+                  type: 'assignment',
+                  order: 3,
+                  isCompleted: false,
+                  assignment: {
+                    title: 'Create a Profile Card Component',
+                    description: 'Build a reusable profile card component that displays user information including name, avatar, bio, and social links. This assignment will help you practice component creation, props, and styling.',
+                    instructions: [
+                      'Create a new React component called ProfileCard',
+                      'Accept props for name, avatar, bio, and social links',
+                      'Style the component using CSS modules or styled-components',
+                      'Make the component responsive for mobile and desktop',
+                      'Add hover effects and smooth animations',
+                      'Include prop validation using PropTypes',
+                      'Export the component for use in other files'
+                    ],
+                    dueDate: '2024-02-15',
+                    maxScore: 100,
+                    submissionType: 'both',
+                    resources: [
+                      {
+                        title: 'Assignment Requirements',
+                        url: '#',
+                        type: 'pdf',
+                        description: 'Detailed requirements and grading rubric'
+                      },
+                      {
+                        title: 'Sample Profile Data',
+                        url: '#',
+                        type: 'document',
+                        description: 'JSON file with sample user data for testing'
+                      }
+                    ],
+                    rubric: {
+                      functionality: 40,
+                      codeQuality: 25,
+                      styling: 20,
+                      responsiveness: 15
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              _id: 'mod3',
+              title: 'State Management and Hooks',
+              description: 'Master React state management using hooks and learn advanced patterns',
+              order: 3,
+              duration: 300, // minutes
+              lessons: [
+                {
+                  _id: 'lesson7',
+                  title: 'Introduction to React Hooks',
+                  description: 'Learn about useState, useEffect, and other built-in hooks',
+                  type: 'video',
+                  videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+                  videoDuration: 1200, // 20 minutes
+                  order: 1,
+                  isCompleted: false,
+                  resources: [
+                    {
+                      title: 'Hooks API Reference',
+                      url: 'https://reactjs.org/docs/hooks-reference.html',
+                      type: 'link',
+                      description: 'Complete reference for all React hooks'
+                    },
+                    {
+                      title: 'Hooks Examples',
+                      url: '#',
+                      type: 'document',
+                      description: 'Code examples for common hook patterns'
+                    }
+                  ]
+                },
+                {
+                  _id: 'lesson8',
+                  title: 'State Management Quiz',
+                  description: 'Test your knowledge of React state and hooks',
+                  type: 'quiz',
+                  order: 2,
+                  isCompleted: false,
+                  quiz: {
+                    questions: [
+                      {
+                        id: 1,
+                        question: 'Which hook is used to add state to functional components?',
+                        options: ['useEffect', 'useState', 'useContext', 'useReducer'],
+                        correctAnswer: 1,
+                        explanation: 'useState is the hook used to add state to functional components in React.'
+                      },
+                      {
+                        id: 2,
+                        question: 'When does useEffect run by default?',
+                        options: [
+                          'Only on mount',
+                          'Only on unmount',
+                          'After every render',
+                          'Never'
+                        ],
+                        correctAnswer: 2,
+                        explanation: 'useEffect runs after every render by default, unless you provide a dependency array.'
+                      }
+                    ],
+                    timeLimit: 180,
+                    passingScore: 80
+                  }
+                },
+                {
+                  _id: 'lesson9',
+                  title: 'Build a Todo App with Hooks',
+                  description: 'Create a complete todo application using React hooks',
+                  type: 'assignment',
+                  order: 3,
+                  isCompleted: false,
+                  assignment: {
+                    title: 'Todo App with React Hooks',
+                    description: 'Build a fully functional todo application using React hooks for state management. This project will demonstrate your understanding of useState, useEffect, and component lifecycle.',
+                    instructions: [
+                      'Create a TodoApp component with add, edit, delete functionality',
+                      'Use useState for managing todo list state',
+                      'Use useEffect for local storage persistence',
+                      'Implement filtering (all, active, completed)',
+                      'Add proper error handling and validation',
+                      'Include unit tests for key functionality',
+                      'Style the app with CSS or a UI library'
+                    ],
+                    dueDate: '2024-02-20',
+                    maxScore: 150,
+                    submissionType: 'both',
+                    resources: [
+                      {
+                        title: 'Project Requirements',
+                        url: '#',
+                        type: 'pdf',
+                        description: 'Detailed project requirements and specifications'
+                      },
+                      {
+                        title: 'UI Mockups',
+                        url: '#',
+                        type: 'image',
+                        description: 'Visual mockups for the todo app interface'
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        };
 
-      setCourse(mockCourse);
-      setCurrentModule(mockCourse.modules[0]);
-      setCurrentLesson(mockCourse.modules[0].lessons[0]);
-      setCompletedLessons(['lesson1']);
-      setLoading(false);
-    }, 1000);
+        setCourse(sampleCourse);
+        setCurrentModule(sampleCourse.modules[0]);
+        setCurrentLesson(sampleCourse.modules[0].lessons[0]);
+        setCompletedLessons(['lesson1']);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourseData();
   }, [courseId]);
+
+  // Update quiz and assignment data when lesson changes
+  useEffect(() => {
+    if (currentLesson) {
+      if (currentLesson.type === 'quiz' && currentLesson.quiz) {
+        setQuizData(currentLesson.quiz);
+        setQuizAnswers({});
+        setQuizSubmitted(false);
+      } else {
+        setQuizData(null);
+      }
+      
+      if (currentLesson.type === 'assignment' && currentLesson.assignment) {
+        setAssignmentData(currentLesson.assignment);
+      } else {
+        setAssignmentData(null);
+      }
+    }
+  }, [currentLesson]);
 
   // Video controls
   const togglePlay = () => {
@@ -694,6 +1004,47 @@ const CourseLearnEnhanced = () => {
                           <p className="text-gray-300">
                             {currentLesson.description}
                           </p>
+                          
+                          {/* Lesson Resources */}
+                          {currentLesson.resources && currentLesson.resources.length > 0 && (
+                            <div className="mt-4">
+                              <h4 className="text-sm font-medium text-gray-400 mb-2">Resources</h4>
+                              <div className="space-y-2">
+                                {currentLesson.resources.map((resource, index) => (
+                                  <a
+                                    key={index}
+                                    href={resource.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center space-x-3 p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
+                                  >
+                                    <div className="flex-shrink-0">
+                                      {resource.type === 'pdf' ? (
+                                        <FileText className="h-5 w-5 text-red-400" />
+                                      ) : resource.type === 'video' ? (
+                                        <Play className="h-5 w-5 text-blue-400" />
+                                      ) : resource.type === 'image' ? (
+                                        <Image className="h-5 w-5 text-green-400" />
+                                      ) : (
+                                        <Download className="h-5 w-5 text-purple-400" />
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-white font-medium truncate group-hover:text-blue-300">
+                                        {resource.title}
+                                      </p>
+                                      {resource.description && (
+                                        <p className="text-sm text-gray-400 truncate">
+                                          {resource.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <ExternalLink className="h-4 w-4 text-gray-400 group-hover:text-blue-300" />
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <button

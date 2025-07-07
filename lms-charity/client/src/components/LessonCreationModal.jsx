@@ -70,13 +70,41 @@ const LessonCreationModal = ({
                 </label>
                 <select
                   value={newLesson.type}
-                  onChange={(e) => setNewLesson({...newLesson, type: e.target.value})}
+                  onChange={(e) => {
+                    const type = e.target.value;
+                    setNewLesson({
+                      ...newLesson, 
+                      type: type,
+                      // Clear type-specific data when changing types and set proper defaults
+                      ...(type === 'quiz' && {
+                        quiz: {
+                          questions: [],
+                          timeLimit: 300,
+                          passingScore: 70
+                        }
+                      }),
+                      ...(type === 'assignment' && {
+                        assignment: {
+                          title: '',
+                          description: '',
+                          instructions: [],
+                          maxScore: 100,
+                          dueDate: '',
+                          submissionType: 'both'
+                        }
+                      }),
+                      ...(type === 'video' && {
+                        videoUrl: '',
+                        videoDuration: 0
+                      })
+                    });
+                  }}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                 >
                   <option value="video">Video Lesson</option>
-                  <option value="text">Text/Reading Material</option>
                   <option value="quiz">Quiz</option>
                   <option value="assignment">Assignment</option>
+                  <option value="text">Text/Reading Material</option>
                   <option value="live">Live Session</option>
                 </select>
                 <p className="text-sm text-gray-500 mt-1">
@@ -102,8 +130,6 @@ const LessonCreationModal = ({
             </div>
           </div>
 
-          {/* Dynamic Content Based on Lesson Type */}
-          
           {/* Video Upload Requirements - Only show for video lessons */}
           {newLesson.type === 'video' && (
             <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
@@ -182,8 +208,11 @@ const LessonCreationModal = ({
                       value={newLesson.videoDuration}
                       onChange={(e) => setNewLesson({...newLesson, videoDuration: e.target.value})}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
-                      placeholder="e.g., 15:30 (mm:ss format)"
+                      placeholder="e.g., 15:30 or 900 (seconds)"
                     />
+                    <p className="text-sm text-gray-500 mt-1">
+                      Enter duration in mm:ss format or seconds
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -267,6 +296,151 @@ const LessonCreationModal = ({
             </div>
           )}
 
+          {/* Quiz Configuration - Only show for quiz lessons */}
+          {newLesson.type === 'quiz' && (
+            <div className="bg-yellow-50 p-6 rounded-lg border border-yellow-200">
+              <h4 className="font-semibold text-yellow-900 mb-4 flex items-center">
+                <Brain className="w-5 h-5 mr-2" />
+                Quiz Configuration
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Time Limit (minutes)
+                  </label>
+                  <input
+                    type="number"
+                    value={newLesson.quiz?.timeLimit ? Math.floor(newLesson.quiz.timeLimit / 60) : 5}
+                    onChange={(e) => setNewLesson({
+                      ...newLesson,
+                      quiz: {
+                        ...newLesson.quiz,
+                        timeLimit: parseInt(e.target.value) * 60 // Convert to seconds
+                      }
+                    })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-600"
+                    placeholder="5"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Passing Score (%)
+                  </label>
+                  <input
+                    type="number"
+                    value={newLesson.quiz?.passingScore || 70}
+                    onChange={(e) => setNewLesson({
+                      ...newLesson,
+                      quiz: {
+                        ...newLesson.quiz,
+                        passingScore: parseInt(e.target.value)
+                      }
+                    })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-600"
+                    placeholder="70"
+                  />
+                </div>
+              </div>
+              <div className="mt-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Note:</strong> You can add quiz questions after creating the lesson using the quiz editor.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Assignment Configuration - Only show for assignment lessons */}
+          {newLesson.type === 'assignment' && (
+            <div className="bg-green-50 p-6 rounded-lg border border-green-200">
+              <h4 className="font-semibold text-green-900 mb-4 flex items-center">
+                <FileText className="w-5 h-5 mr-2" />
+                Assignment Configuration
+              </h4>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Assignment Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={newLesson.assignment?.title || ''}
+                    onChange={(e) => setNewLesson({
+                      ...newLesson,
+                      assignment: {
+                        ...newLesson.assignment,
+                        title: e.target.value
+                      }
+                    })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+                    placeholder="e.g., Create a Profile Card Component"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Assignment Description *
+                  </label>
+                  <textarea
+                    value={newLesson.assignment?.description || ''}
+                    onChange={(e) => setNewLesson({
+                      ...newLesson,
+                      assignment: {
+                        ...newLesson.assignment,
+                        description: e.target.value
+                      }
+                    })}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+                    placeholder="Describe the assignment requirements and objectives..."
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Maximum Score
+                    </label>
+                    <input
+                      type="number"
+                      value={newLesson.assignment?.maxScore || 100}
+                      onChange={(e) => setNewLesson({
+                        ...newLesson,
+                        assignment: {
+                          ...newLesson.assignment,
+                          maxScore: parseInt(e.target.value)
+                        }
+                      })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+                      placeholder="100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Submission Type
+                    </label>
+                    <select
+                      value={newLesson.assignment?.submissionType || 'both'}
+                      onChange={(e) => setNewLesson({
+                        ...newLesson,
+                        assignment: {
+                          ...newLesson.assignment,
+                          submissionType: e.target.value
+                        }
+                      })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+                    >
+                      <option value="text">Text Only</option>
+                      <option value="file">File Only</option>
+                      <option value="both">Text and File</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <p className="text-sm text-green-800">
+                    <strong>Note:</strong> You can add detailed instructions after creating the lesson using the assignment editor.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Content Tips and Notes - Common section for all types */}
           <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
