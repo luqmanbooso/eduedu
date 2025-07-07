@@ -208,7 +208,7 @@ const CourseCreate = () => {
     transcript: '',
     quiz: {
       questions: [],
-      timeLimit: 30,
+      timeLimit: 300, // 5 minutes default
       passingScore: 70,
       attemptsAllowed: 3,
       isRequired: false
@@ -216,7 +216,7 @@ const CourseCreate = () => {
     assignment: {
       title: '',
       description: '',
-      instructions: '',
+      instructions: [],
       maxScore: 100,
       dueDate: '',
       submissionType: 'both',
@@ -242,7 +242,7 @@ const CourseCreate = () => {
     title: '',
     description: '',
     questions: [],
-    timeLimit: 30,
+    timeLimit: 300, // 5 minutes default
     passingScore: 70,
     attemptsAllowed: 3,
     isRequired: false,
@@ -251,7 +251,7 @@ const CourseCreate = () => {
   const [currentAssignment, setCurrentAssignment] = useState({
     title: '',
     description: '',
-    instructions: '',
+    instructions: [],
     maxScore: 100,
     dueDate: '',
     submissionType: 'both',
@@ -788,7 +788,7 @@ const CourseCreate = () => {
         transcript: '',
         quiz: {
           questions: [],
-          timeLimit: 30,
+          timeLimit: 300, // 5 minutes default
           passingScore: 70,
           attemptsAllowed: 3,
           isRequired: false
@@ -796,7 +796,7 @@ const CourseCreate = () => {
         assignment: {
           title: '',
           description: '',
-          instructions: '',
+          instructions: [],
           maxScore: 100,
           dueDate: '',
           submissionType: 'both',
@@ -1364,7 +1364,7 @@ const CourseCreate = () => {
       title: '',
       description: '',
       questions: [],
-      timeLimit: 30,
+      timeLimit: 300, // 5 minutes default
       passingScore: 70,
       attemptsAllowed: 3,
       isRequired: false,
@@ -1440,7 +1440,7 @@ const CourseCreate = () => {
     setCurrentAssignment({
       title: '',
       description: '',
-      instructions: '',
+      instructions: [],
       maxScore: 100,
       dueDate: '',
       submissionType: 'both',

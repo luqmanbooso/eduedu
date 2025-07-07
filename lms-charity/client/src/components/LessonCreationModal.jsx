@@ -310,25 +310,24 @@ const LessonCreationModal = ({
                   onChange={(e) => {
                     if (e.target.checked) {
                       setNewLesson({
-                        ...newLesson,
-                        quiz: {
-                          title: '',
-                          description: '',
-                          questions: [{ 
-                            id: Date.now(),
-                            question: '', 
-                            type: 'multiple-choice',
-                            options: ['', '', '', ''], 
-                            correctAnswer: 0,
-                            explanation: '',
-                            points: 1
-                          }],
-                          timeLimit: 30,
-                          passingScore: 70,
-                          attemptsAllowed: 3,
-                          isRequired: false,
-                          showResults: 'after_completion'
-                        }
+                        ...newLesson,                          quiz: {
+                            title: '',
+                            description: '',
+                            questions: [{ 
+                              id: Date.now(),
+                              question: '', 
+                              type: 'multiple-choice',
+                              options: ['', '', '', ''], 
+                              correctAnswer: 0,
+                              explanation: '',
+                              points: 1
+                            }],
+                            timeLimit: 300, // 5 minutes default
+                            passingScore: 70,
+                            attemptsAllowed: 3,
+                            isRequired: false,
+                            showResults: 'after_completion'
+                          }
                       });
                     } else {
                       setNewLesson({

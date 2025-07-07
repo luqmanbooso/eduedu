@@ -44,7 +44,6 @@ const InstructorDashboard = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const [showCourseModal, setShowCourseModal] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [showContentManager, setShowContentManager] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState(null);
@@ -115,14 +114,6 @@ const InstructorDashboard = () => {
   ];
 
   const quickActions = [
-    {
-      title: 'Create New Course',
-      description: 'Build and publish a new course with interactive content',
-      icon: Plus,
-      action: () => setShowCourseModal(true),
-      color: 'bg-purple-600',
-      hoverColor: 'hover:bg-purple-700'
-    },
     {
       title: 'Manage Courses',
       description: 'Edit course content, lessons, and settings',
@@ -324,7 +315,6 @@ const InstructorDashboard = () => {
             >
               <CoursesTab 
                 courses={instructorCourses} 
-                onCreateCourse={() => setShowCourseModal(true)}
                 onManageContent={handleManageContent}
                 onRefresh={fetchInstructorCourses}
               />
@@ -379,13 +369,6 @@ const InstructorDashboard = () => {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Course Creation Modal */}
-        <CourseCreationModal 
-          isOpen={showCourseModal} 
-          onClose={() => setShowCourseModal(false)} 
-          onCourseCreated={fetchInstructorCourses}
-        />
 
         {/* Certificate Creation Modal */}
         <CertificateCreationModal 
@@ -632,7 +615,7 @@ const OverviewTab = ({ instructorCourses, students, dashboardData }) => {
 };
 
 // Courses Tab Component
-const CoursesTab = ({ courses, onCreateCourse, onManageContent, onRefresh }) => {
+const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
@@ -733,15 +716,13 @@ const CoursesTab = ({ courses, onCreateCourse, onManageContent, onRefresh }) => 
           >
             <FileText className="w-4 h-4 mr-2" />
             Generate Report
-          </button>            <motion.button
-              onClick={onCreateCourse}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="inline-flex items-center px-6 py-3 bg-purple-600 text-white font-medium hover:bg-purple-700 transition-colors shadow-sm"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Create New Course
-            </motion.button>
+          </button>            <Link
+            to="/courses/create"
+            className="inline-flex items-center px-6 py-3 bg-purple-600 text-white font-medium hover:bg-purple-700 transition-colors shadow-sm rounded-lg"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Create New Course
+          </Link>
         </div>
       </div>
 
@@ -868,13 +849,13 @@ const CoursesTab = ({ courses, onCreateCourse, onManageContent, onRefresh }) => 
               : 'Create your first course to get started'}
           </p>
           {!searchTerm && filterStatus === 'all' && (
-            <button
-              onClick={onCreateCourse}
-              className="inline-flex items-center px-6 py-3 bg-purple-600 text-white font-medium hover:bg-purple-700 transition-colors"
+            <Link
+              to="/courses/create"
+              className="inline-flex items-center px-6 py-3 bg-purple-600 text-white font-medium hover:bg-purple-700 transition-colors rounded-lg"
             >
               <Plus className="w-5 h-5 mr-2" />
               Create Your First Course
-            </button>
+            </Link>
           )}
         </div>
       ) : (
