@@ -140,12 +140,21 @@ progressSchema.methods.calculateProgress = async function() {
     const Course = mongoose.model('Course');
     const course = await Course.findById(this.course);
     
-    if (!course || course.lessons.length === 0) {
+    if (!course || !course.modules || course.modules.length === 0) {
       this.progressPercentage = 0;
       return 0;
     }
     
-    const totalLessons = course.lessons.length;
+    // Count total lessons across all modules
+    const totalLessons = course.modules.reduce((total, module) => {
+      return total + (module.lessons ? module.lessons.length : 0);
+    }, 0);
+    
+    if (totalLessons === 0) {
+      this.progressPercentage = 0;
+      return 0;
+    }
+    
     const completedLessons = this.completedLessons.length;
     
     this.progressPercentage = Math.round((completedLessons / totalLessons) * 100);

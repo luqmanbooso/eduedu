@@ -27,11 +27,13 @@ import {
   Flame,
   ChevronRight,
   Users,
-  Globe
+  Globe,
+  X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { courseAPI, progressAPI, enrollmentAPI, wishlistAPI, certificateAPI } from '../services/api';
-import { toast } from 'react-hot-toast';
+import RatingModal from '../components/RatingModal';
+import toast from 'react-hot-toast';
 
 const MyLearningEnhanced = () => {
   const { user } = useAuth();
@@ -47,6 +49,8 @@ const MyLearningEnhanced = () => {
   const [sortBy, setSortBy] = useState('recent');
   const [filterBy, setFilterBy] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [selectedCourseForRating, setSelectedCourseForRating] = useState(null);
 
   useEffect(() => {
     if (user) {
@@ -101,6 +105,23 @@ const MyLearningEnhanced = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRatingSubmit = async (ratingData) => {
+    try {
+      await courseAPI.rateCourse(selectedCourseForRating.courseId || selectedCourseForRating._id, ratingData);
+      toast.success('Thank you for rating this course!');
+      setShowRatingModal(false);
+      setSelectedCourseForRating(null);
+    } catch (error) {
+      console.error('Rating error:', error);
+      toast.error('Failed to submit rating. You may have already rated this course.');
+    }
+  };
+
+  const handleCourseRating = (course) => {
+    setSelectedCourseForRating(course);
+    setShowRatingModal(true);
   };
 
   const getFilteredCourses = () => {
@@ -489,6 +510,7 @@ const MyLearningEnhanced = () => {
                     activeTab={activeTab}
                     onContinue={() => navigate(`/learn/${course.courseId}`)}
                     onView={() => navigate(`/courses/${course.courseId}`)}
+                    onRate={handleCourseRating}
                   />
                 ))}
               </div>
@@ -496,13 +518,136 @@ const MyLearningEnhanced = () => {
           </div>
         </div>
       </div>
+
+      {/* Rating Modal */}
+      <RatingModal
+        isOpen={showRatingModal}
+        onClose={() => {
+          setShowRatingModal(false);
+          setSelectedCourseForRating(null);
+        }}
+        onSubmit={handleRatingSubmit}
+        courseName={selectedCourseForRating?.title || ''}
+      />
     </div>
   );
 };
 
 // Course Card Component
-const CourseCard = ({ course, viewMode, activeTab, onContinue, onView }) => {
+const CourseCard = ({ course, viewMode, activeTab, onContinue, onView, onRate }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const navigate = useNavigate();
+
+  const handleDownloadCertificate = async () => {
+    try {
+      // For completed courses, generate/get certificate and redirect to viewer
+      console.log('Generating certificate for course:', course.courseId || course._id);
+      
+      const response = await certificateAPI.generateCertificate(course.courseId || course._id);
+      console.log('Certificate response:', response);
+      
+      // Handle both new certificate creation and existing certificate cases
+      const certificate = response.certificate || response;
+      
+      if (certificate && (certificate.certificateId && certificate.verificationCode)) {
+        toast.success('Certificate ready for viewing!');
+        
+        // Redirect to certificate viewer page
+        const certificateId = certificate.certificateId;
+        const verificationCode = certificate.verificationCode;
+        
+        // Open certificate in new tab
+        window.open(`/certificate/${certificateId}/${verificationCode}`, '_blank');
+      } else {
+        console.error('Invalid certificate response:', response);
+        toast.error('Failed to generate certificate - invalid response');
+      }
+    } catch (error) {
+      console.error('Certificate generation error:', error);
+      if (error.response?.status === 400) {
+        toast.error(error.response?.data?.message || 'Course not completed or certificate requirements not met');
+      } else {
+        toast.error('Failed to generate certificate. Please try again.');
+      }
+    }
+    setShowMenu(false);
+  };
+
+  const handleShareCourse = async (platform) => {
+    try {
+      // For completed courses, generate certificate and share the certificate link
+      if (activeTab === 'completed') {
+        const response = await certificateAPI.generateCertificate(course.courseId || course._id);
+        
+        // Handle both new certificate creation and existing certificate cases
+        const certificate = response.certificate || response;
+        
+        if (certificate && certificate.certificateId && certificate.verificationCode) {
+          const certificateId = certificate.certificateId;
+          const verificationCode = certificate.verificationCode;
+          const shareText = `I just completed "${course.title}" and earned my certificate! 🎉`;
+          const shareUrl = `${window.location.origin}/certificate/${certificateId}/${verificationCode}`;
+          
+          switch (platform) {
+            case 'twitter':
+              window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`);
+              break;
+            case 'linkedin':
+              window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`);
+              break;
+            case 'facebook':
+              window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`);
+              break;
+            case 'copy':
+              navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+              toast.success('Certificate link copied to clipboard!');
+              break;
+          }
+        } else {
+          toast.error('Failed to generate certificate for sharing');
+        }
+      } else {
+        // For other courses, share the course page
+        const shareText = `Check out this course: "${course.title}"`;
+        const shareUrl = `${window.location.origin}/courses/${course.courseId || course._id}`;
+        
+        switch (platform) {
+          case 'twitter':
+            window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`);
+            break;
+          case 'linkedin':
+            window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`);
+            break;
+          case 'facebook':
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`);
+            break;
+          case 'copy':
+            navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+            toast.success('Course link copied to clipboard!');
+            break;
+        }
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      toast.error('Failed to share. Please try again.');
+    }
+    setShowMenu(false);
+  };
+
+  const handleRateCourse = () => {
+    onRate(course);
+    setShowMenu(false);
+  };
+
+  const handleViewCourse = () => {
+    // For completed courses, go to learning page to review
+    if (activeTab === 'completed') {
+      navigate(`/learn/${course.courseId}`);
+    } else {
+      navigate(`/courses/${course.courseId}`);
+    }
+    setShowMenu(false);
+  };
 
   if (viewMode === 'list') {
     return (
@@ -549,12 +694,42 @@ const CourseCard = ({ course, viewMode, activeTab, onContinue, onView }) => {
             </button>
           )}
           
-          <button
-            onClick={onView}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-          >
-            View
-          </button>
+          {activeTab === 'completed' && (
+            <>
+              <button
+                onClick={handleViewCourse}
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center space-x-1"
+              >
+                <Eye className="w-4 h-4" />
+                <span>Review</span>
+              </button>
+              <button
+                onClick={handleDownloadCertificate}
+                className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm flex items-center space-x-1"
+              >
+                <Award className="w-4 h-4" />
+                <span>View Certificate</span>
+              </button>
+            </>
+          )}
+          
+          {activeTab === 'wishlist' && (
+            <button
+              onClick={handleViewCourse}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+            >
+              View Course
+            </button>
+          )}
+          
+          {activeTab === 'learning' && (
+            <button
+              onClick={handleViewCourse}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+            >
+              Details
+            </button>
+          )}
         </div>
       </motion.div>
     );
@@ -593,18 +768,78 @@ const CourseCard = ({ course, viewMode, activeTab, onContinue, onView }) => {
             
             {showMenu && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
-                <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                {activeTab === 'completed' && (
+                  <>                <button 
+                  onClick={handleDownloadCertificate}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                >
                   <Download className="w-4 h-4 mr-3" />
-                  Download Certificate
+                  View Certificate
                 </button>
-                <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
-                  <Share2 className="w-4 h-4 mr-3" />
-                  Share Course
-                </button>
-                <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
-                  <Star className="w-4 h-4 mr-3" />
-                  Rate Course
-                </button>
+                    <div className="border-t border-gray-100 my-1"></div>
+                    <div className="px-4 py-1">
+                      <span className="text-xs text-gray-500 font-medium">Share Achievement</span>
+                    </div>
+                    <button 
+                      onClick={() => handleShareCourse('twitter')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      <Share2 className="w-4 h-4 mr-3" />
+                      Share on Twitter
+                    </button>
+                    <button 
+                      onClick={() => handleShareCourse('linkedin')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      <Share2 className="w-4 h-4 mr-3" />
+                      Share on LinkedIn
+                    </button>
+                    <button 
+                      onClick={() => handleShareCourse('copy')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      <Share2 className="w-4 h-4 mr-3" />
+                      Copy Link
+                    </button>
+                    <div className="border-t border-gray-100 my-1"></div>
+                    <button 
+                      onClick={handleRateCourse}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      <Star className="w-4 h-4 mr-3" />
+                      Rate & Review
+                    </button>
+                  </>
+                )}
+                {activeTab === 'learning' && (
+                  <>
+                    <button 
+                      onClick={handleViewCourse}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      <Eye className="w-4 h-4 mr-3" />
+                      View Course Details
+                    </button>
+                  </>
+                )}
+                {activeTab === 'wishlist' && (
+                  <>
+                    <button 
+                      onClick={handleViewCourse}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      <Eye className="w-4 h-4 mr-3" />
+                      View Course
+                    </button>
+                    <button 
+                      onClick={() => {/* Implement remove from wishlist */}}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
+                    >
+                      <X className="w-4 h-4 mr-3" />
+                      Remove from Wishlist
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -646,9 +881,25 @@ const CourseCard = ({ course, viewMode, activeTab, onContinue, onView }) => {
           )}
           
           {activeTab === 'completed' && (
-            <div className="flex items-center space-x-2 text-green-600">
-              <CheckCircle className="w-5 h-5" />
-              <span className="text-sm font-medium">Completed</span>
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 text-green-600 mr-4">
+                <CheckCircle className="w-5 h-5" />
+                <span className="text-sm font-medium">Completed</span>
+              </div>
+              <button
+                onClick={handleViewCourse}
+                className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              >
+                <Eye className="w-4 h-4" />
+                <span>Review</span>
+              </button>
+              <button
+                onClick={handleDownloadCertificate}
+                className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+              >
+                <Award className="w-4 h-4" />
+                <span>View Certificate</span>
+              </button>
             </div>
           )}
 

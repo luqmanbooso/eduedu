@@ -115,19 +115,19 @@ const CourseCreate = () => {
     keyTakeaways: [''],
     resources: [], // Start with empty array for file uploads
     quiz: {
-      title: '',
       questions: [{ question: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }],
       timeLimit: 30,
       passingScore: 70
-    },
-    assignment: {
-      title: '',
-      instructions: [''],
-      dueDate: '',
-      maxPoints: 100,
-      submissionOptions: ['file', 'text'],
-      gradingCriteria: ['']
-    }
+    },        assignment: {
+          title: '', // Add title field to match backend
+          description: '', // Add description field to match backend
+          instructions: '', // String, not array
+          dueDays: 7,
+          maxPoints: 100, // Will map to maxScore on backend
+          submissionType: 'both', // Use backend enum values
+          resources: [],
+          rubric: []
+        }
   });
 
   const steps = [
@@ -289,35 +289,64 @@ const CourseCreate = () => {
     setUploadProgress(0);
     
     try {
+      // Determine upload endpoint
+      let uploadEndpoint, fieldName;
+      if (type === 'thumbnail' || file.type.startsWith('image/')) {
+        uploadEndpoint = '/api/upload/image';
+        fieldName = 'image';
+      } else if (type === 'preview' || file.type.startsWith('video/')) {
+        uploadEndpoint = '/api/upload/video';
+        fieldName = 'video';
+      }
+      
+      const formData = new FormData();
+      formData.append(fieldName, file);
+      
+      // Simulate progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
-          if (prev >= 90) {
+          if (prev >= 80) {
             clearInterval(progressInterval);
             return prev;
           }
           return prev + 10;
         });
-      }, 100);
+      }, 200);
       
-      const url = URL.createObjectURL(file);
-      
-      setTimeout(() => {
-        setUploadProgress(100);
-        
-        if (type === 'thumbnail') {
-          setCourseData(prev => ({ ...prev, thumbnail: url }));
-          toast.success('Thumbnail uploaded!');
-        } else if (type === 'preview') {
-          setCourseData(prev => ({ ...prev, previewVideo: url }));
-          toast.success('Preview video uploaded!');
+      const response = await fetch(`http://localhost:5000${uploadEndpoint}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
-        
-        setIsUploading(false);
-        setUploadProgress(0);
-      }, 1000);
+      });
+      
+      clearInterval(progressInterval);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Upload failed');
+      }
+      
+      const data = await response.json();
+      const fileUrl = `http://localhost:5000${data.url}`;
+      
+      setUploadProgress(100);
+      
+      if (type === 'thumbnail') {
+        setCourseData(prev => ({ ...prev, thumbnail: fileUrl }));
+        toast.success('Thumbnail uploaded!');
+      } else if (type === 'preview') {
+        setCourseData(prev => ({ ...prev, previewVideo: fileUrl }));
+        toast.success('Preview video uploaded!');
+      }
+      
+      setIsUploading(false);
+      setUploadProgress(0);
       
     } catch (error) {
-      toast.error('Upload failed. Please try again.');
+      console.error('Upload error:', error);
+      toast.error(`Upload failed: ${error.message}`);
       setIsUploading(false);
       setUploadProgress(0);
     }
@@ -354,8 +383,13 @@ const CourseCreate = () => {
 
   // Lesson management
   const addLesson = () => {
-    if (workingLesson.title.trim() && workingLesson.description.trim() && currentModuleIndex !== null) {
-      const newLesson = {
+    // Basic validation
+    if (!workingLesson.title.trim() || !workingLesson.description.trim() || currentModuleIndex === null) {
+      toast.error('Please fill in lesson title and description');
+      return;
+    }
+    
+    const newLesson = {
         _id: Date.now().toString(),
         title: workingLesson.title,
         description: workingLesson.description,
@@ -432,7 +466,6 @@ const CourseCreate = () => {
       setShowLessonModal(false);
       setCurrentModuleIndex(null);
       toast.success('Lesson added!');
-    }
   };
 
   const removeLesson = (moduleIndex, lessonId) => {
@@ -466,7 +499,12 @@ const CourseCreate = () => {
         prerequisites: courseData.prerequisites.filter(req => req.trim()),
         targetAudience: courseData.targetAudience.filter(audience => audience.trim()),
         status: 'draft',
-        isPublished: false
+        isPublished: false,
+        // Map assignment data to backend schema
+        modules: courseData.modules.map(module => ({
+          ...module,
+          lessons: module.lessons.map(mapAssignmentData)
+        }))
       };
 
       const response = await axios.post('/courses', coursePayload, {
@@ -567,6 +605,24 @@ const CourseCreate = () => {
     }));
   };
 
+  // Helper function to map frontend assignment data to backend schema
+  const mapAssignmentData = (lesson) => {
+    if (lesson.type === 'assignment' && lesson.assignment) {
+      return {
+        ...lesson,
+        assignment: {
+          ...lesson.assignment,
+          title: lesson.title, // Use lesson title for assignment title
+          description: lesson.description, // Use lesson description for assignment description 
+          maxScore: lesson.assignment.maxPoints, // Map maxPoints to maxScore
+          // Keep all other assignment fields including instructions
+          instructions: lesson.assignment.instructions
+        }
+      };
+    }
+    return lesson;
+  };
+
   // Step components - Using React.memo to prevent unnecessary re-renders
   const StepBasics = useMemo(() => (
     <CourseBasicsForm
@@ -636,6 +692,13 @@ const CourseCreate = () => {
       default: return StepBasics;
     }
   }, [currentStep, StepBasics, StepLearningGoalsMemo, StepMediaMemo, StepContentMemo, StepConclusionMemo, StepReviewMemo]);
+
+  // Cleanup blob URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      // Cleanup is no longer needed since we use server URLs instead of blob URLs
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -858,7 +921,34 @@ const CourseCreate = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Lesson Type</label>
                     <select
                       value={workingLesson.type}
-                      onChange={(e) => setWorkingLesson(prev => ({ ...prev, type: e.target.value }))}
+                      onChange={(e) => {
+                        const newType = e.target.value;
+                        setWorkingLesson(prev => {
+                          const updated = { ...prev, type: newType };
+                          
+                          // Initialize type-specific data when type changes
+                          if (newType === 'assignment' && !updated.assignment) {
+                            updated.assignment = {
+                              title: updated.title || '',
+                              description: updated.description || '',
+                              instructions: '',
+                              dueDays: 7,
+                              maxPoints: 100,
+                              submissionType: 'both',
+                              resources: [],
+                              rubric: []
+                            };
+                          } else if (newType === 'quiz' && !updated.quiz) {
+                            updated.quiz = {
+                              questions: [{ question: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }],
+                              timeLimit: 30,
+                              passingScore: 70
+                            };
+                          }
+                          
+                          return updated;
+                        });
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="video">Video Lesson</option>

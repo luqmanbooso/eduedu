@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Upload, File, Trash2, Download, Eye, X } from 'lucide-react';
 
 const FileUploadResource = React.memo(({ 
@@ -11,6 +11,11 @@ const FileUploadResource = React.memo(({
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // Cleanup is no longer needed for blob URLs since we use server URLs
+  useEffect(() => {
+    // No cleanup needed for server-hosted files
+  }, []);
+
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -19,15 +24,18 @@ const FileUploadResource = React.memo(({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getFileIcon = (type) => {
-    if (type.startsWith('image/')) return '🖼️';
-    if (type.startsWith('video/')) return '🎥';
-    if (type.startsWith('audio/')) return '🎵';
-    if (type.includes('pdf')) return '📄';
-    if (type.includes('word') || type.includes('document')) return '📝';
-    if (type.includes('excel') || type.includes('spreadsheet')) return '📊';
-    if (type.includes('powerpoint') || type.includes('presentation')) return '📽️';
-    if (type.includes('zip') || type.includes('rar')) return '📦';
+  const getFileIcon = (type, mimeType = '') => {
+    // Use mime type if available, otherwise use our mapped type
+    const checkType = mimeType || type;
+    
+    if (checkType.startsWith('image/') || type === 'image') return '🖼️';
+    if (checkType.startsWith('video/') || type === 'video') return '🎥';
+    if (checkType.startsWith('audio/')) return '🎵';
+    if (checkType.includes('pdf') || type === 'pdf') return '📄';
+    if (checkType.includes('word') || checkType.includes('document') || type === 'document') return '📝';
+    if (checkType.includes('excel') || checkType.includes('spreadsheet')) return '📊';
+    if (checkType.includes('powerpoint') || checkType.includes('presentation')) return '📽️';
+    if (checkType.includes('zip') || checkType.includes('rar')) return '📦';
     return '📁';
   };
 
@@ -66,28 +74,17 @@ const FileUploadResource = React.memo(({
         continue;
       }
       
-      // Create object URL for preview (in real app, upload to server)
-      const url = URL.createObjectURL(file);
-      
-      // Map file type to backend enum values
-      const getResourceType = (mimeType) => {
-        if (mimeType.startsWith('video/')) return 'video';
-        if (mimeType === 'application/pdf') return 'pdf';
-        if (mimeType.startsWith('image/')) return 'image';
-        return 'document';
-      };
-      
-      const resource = {
-        id: Date.now() + Math.random(),
-        title: file.name, // Backend expects 'title', not 'name'
-        url: url,
-        type: getResourceType(file.type), // Map to backend enum values
-        size: file.size,
-        uploadedAt: new Date().toISOString(),
-        file: file // Keep reference for actual upload
-      };
-      
-      newResources.push(resource);
+      try {
+        // Upload file to server
+        const uploadedResource = await uploadFileToServer(file);
+        
+        if (uploadedResource) {
+          newResources.push(uploadedResource);
+        }
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        alert(`Failed to upload ${file.name}: ${error.message}`);
+      }
     }
     
     if (newResources.length > 0) {
@@ -95,6 +92,65 @@ const FileUploadResource = React.memo(({
     }
     
     setUploading(false);
+  };
+
+  const uploadFileToServer = async (file) => {
+    const formData = new FormData();
+    
+    // Map file type to backend enum values
+    const getResourceType = (mimeType) => {
+      if (mimeType.startsWith('video/')) return 'video';
+      if (mimeType === 'application/pdf') return 'pdf';
+      if (mimeType.startsWith('image/')) return 'image';
+      return 'document';
+    };
+
+    const resourceType = getResourceType(file.type);
+    
+    // Determine the upload endpoint based on file type
+    let uploadEndpoint;
+    let fieldName;
+    
+    if (file.type.startsWith('image/')) {
+      uploadEndpoint = '/api/upload/image';
+      fieldName = 'image';
+    } else if (file.type.startsWith('video/')) {
+      uploadEndpoint = '/api/upload/video';
+      fieldName = 'video';
+    } else {
+      uploadEndpoint = '/api/upload/document';
+      fieldName = 'document';
+    }
+    
+    formData.append(fieldName, file);
+    
+    const response = await fetch(`http://localhost:5000${uploadEndpoint}`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Upload failed');
+    }
+    
+    const data = await response.json();
+    
+    // Return resource object with server URL
+    return {
+      id: Date.now() + Math.random(),
+      title: file.name,
+      url: `http://localhost:5000${data.url}`, // Full server URL
+      type: resourceType,
+      mimeType: file.type,
+      size: data.size || file.size,
+      uploadedAt: new Date().toISOString(),
+      filename: data.filename,
+      originalName: data.originalName
+    };
   };
 
   const handleDrop = (e) => {
@@ -112,6 +168,8 @@ const FileUploadResource = React.memo(({
   };
 
   const removeResource = (id) => {
+    // Just remove from the list - server files remain on server
+    // In a production app, you might want to call a delete endpoint
     const updatedResources = resources.filter(resource => resource.id !== id);
     onResourcesChange(updatedResources);
   };
@@ -170,7 +228,7 @@ const FileUploadResource = React.memo(({
             {resources.map((resource) => (
               <div key={resource.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
                 <div className="flex items-center space-x-3">
-                  <span className="text-2xl">{getFileIcon(resource.type)}</span>
+                  <span className="text-2xl">{getFileIcon(resource.type, resource.mimeType)}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {resource.title || resource.name}
@@ -183,7 +241,7 @@ const FileUploadResource = React.memo(({
                 
                 <div className="flex items-center space-x-2">
                   {/* Preview for images */}
-                  {resource.type && resource.type.includes('image') && (
+                  {((resource.mimeType && resource.mimeType.startsWith('image/')) || resource.type === 'image') && (
                     <button
                       onClick={() => window.open(resource.url, '_blank')}
                       className="p-1 text-blue-600 hover:text-blue-800"

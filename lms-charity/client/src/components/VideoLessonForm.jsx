@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { 
   Video, Upload, Play, Trash2, Plus, FileText, 
   CheckCircle, Clock, AlertCircle, File
@@ -8,26 +8,69 @@ const VideoLessonForm = React.memo(({ lessonData, onUpdate }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  // Cleanup blob URLs when component unmounts or video changes
+  useEffect(() => {
+    return () => {
+      if (lessonData.videoUrl && lessonData.videoUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(lessonData.videoUrl);
+      }
+    };
+  }, []);
+
+  const handleVideoRemove = useCallback(() => {
+    // No need to clean up server URLs
+    onUpdate({ 
+      ...lessonData, 
+      videoUrl: '', 
+      videoDuration: 0, 
+      videoFile: null 
+    });
+  }, [lessonData, onUpdate]);
+
   const handleVideoUpload = useCallback(async (file) => {
     if (!file) return;
+    
+    // Clean up previous video URL if it exists and it's a blob URL
+    if (lessonData.videoUrl && lessonData.videoUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(lessonData.videoUrl);
+    }
     
     setUploading(true);
     setUploadProgress(0);
     
     try {
-      // Simulate upload progress
+      // Upload to server
+      const formData = new FormData();
+      formData.append('video', file);
+      
+      // Simulate progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
-          if (prev >= 90) {
+          if (prev >= 80) {
             clearInterval(progressInterval);
             return prev;
           }
           return prev + 10;
         });
-      }, 200);
-
-      // Create object URL for preview (in real app, upload to server)
-      const videoUrl = URL.createObjectURL(file);
+      }, 300);
+      
+      const response = await fetch('http://localhost:5000/api/upload/video', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      clearInterval(progressInterval);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Upload failed');
+      }
+      
+      const data = await response.json();
+      const videoUrl = `http://localhost:5000${data.url}`;
       
       // Get video duration
       const video = document.createElement('video');
@@ -36,22 +79,34 @@ const VideoLessonForm = React.memo(({ lessonData, onUpdate }) => {
       video.onloadedmetadata = () => {
         const duration = Math.round(video.duration);
         
-        setTimeout(() => {
-          setUploadProgress(100);
-          onUpdate({
-            ...lessonData,
-            videoUrl,
-            videoDuration: duration,
-            videoFile: file
-          });
-          setUploading(false);
-        }, 500);
+        setUploadProgress(100);
+        onUpdate({
+          ...lessonData,
+          videoUrl,
+          videoDuration: duration,
+          videoFile: null // Remove file reference since it's uploaded
+        });
+        setUploading(false);
+      };
+      
+      video.onerror = () => {
+        // If we can't get duration, just proceed without it
+        setUploadProgress(100);
+        onUpdate({
+          ...lessonData,
+          videoUrl,
+          videoDuration: 0,
+          videoFile: null
+        });
+        setUploading(false);
       };
       
       video.src = videoUrl;
     } catch (error) {
       console.error('Upload error:', error);
+      alert(`Failed to upload video: ${error.message}`);
       setUploading(false);
+      setUploadProgress(0);
     }
   }, [lessonData, onUpdate]);
 
@@ -104,9 +159,16 @@ const VideoLessonForm = React.memo(({ lessonData, onUpdate }) => {
                 src={lessonData.videoUrl} 
                 className="w-full h-48 object-cover rounded-lg"
                 controls
+                onError={(e) => {
+                  console.warn('Video load error:', e);
+                  // Don't auto-remove on error as it might be a temporary network issue
+                }}
+                onLoadStart={() => {
+                  // Video is starting to load
+                }}
               />
               <button
-                onClick={() => onUpdate({ ...lessonData, videoUrl: '', videoDuration: 0, videoFile: null })}
+                onClick={handleVideoRemove}
                 className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
               >
                 <Trash2 className="w-4 h-4" />

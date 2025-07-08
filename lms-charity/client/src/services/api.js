@@ -123,6 +123,12 @@ export const courseAPI = {
   replyToDiscussion: async (courseId, discussionId, replyData) => {
     const response = await api.post(`/courses/${courseId}/discussions/${discussionId}/replies`, replyData);
     return response.data;
+  },
+
+  // Rate a course
+  rateCourse: async (courseId, ratingData) => {
+    const response = await api.post(`/courses/${courseId}/rate`, ratingData);
+    return response.data;
   }
 };
 
@@ -175,7 +181,13 @@ export const certificateAPI = {
 
   // Get user's certificates
   getUserCertificates: async () => {
-    const response = await api.get('/certificates/user');
+    const response = await api.get('/certificates/my-certificates');
+    return response.data;
+  },
+
+  // Get user's certificates (alias for compatibility)
+  getMyCertificates: async () => {
+    const response = await api.get('/certificates/my-certificates');
     return response.data;
   },
 
@@ -187,9 +199,15 @@ export const certificateAPI = {
 
   // Download certificate as PDF
   downloadCertificate: async (certificateId) => {
-    const response = await api.get(`/certificates/${certificateId}/download`, {
+    const response = await api.get(`/certificates/download/${certificateId}`, {
       responseType: 'blob'
     });
+    return response.data;
+  },
+
+  // Verify certificate
+  verifyCertificate: async (certificateId, verificationCode) => {
+    const response = await api.get(`/certificates/verify/${certificateId}/${verificationCode}`);
     return response.data;
   }
 };

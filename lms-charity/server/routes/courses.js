@@ -1430,4 +1430,80 @@ router.get('/:id/analytics', protect, async (req, res) => {
   }
 });
 
+// @desc    Rate a course
+// @route   POST /api/courses/:id/rate
+// @access  Private
+router.post('/:id/rate', protect, async (req, res) => {
+  try {
+    const { rating, review } = req.body;
+    const courseId = req.params.id;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+    }
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check if user is enrolled in the course
+    const isEnrolled = course.enrolledStudents.some(
+      enrollment => enrollment.student.toString() === req.user._id.toString()
+    );
+
+    if (!isEnrolled) {
+      return res.status(400).json({ message: 'You must be enrolled in this course to rate it' });
+    }
+
+    // Check if user has already reviewed this course
+    const existingReviewIndex = course.reviews.findIndex(
+      r => r.user.toString() === req.user._id.toString()
+    );
+
+    const reviewData = {
+      user: req.user._id,
+      rating: parseInt(rating),
+      comment: review || '',
+      isVerifiedPurchase: true,
+      createdAt: new Date()
+    };
+
+    if (existingReviewIndex !== -1) {
+      // Update existing review
+      const oldRating = course.reviews[existingReviewIndex].rating;
+      course.reviews[existingReviewIndex] = reviewData;
+      
+      // Update rating distribution
+      course.rating.distribution[oldRating]--;
+      course.rating.distribution[rating]++;
+    } else {
+      // Add new review
+      course.reviews.push(reviewData);
+      
+      // Update rating distribution and count
+      course.rating.distribution[rating]++;
+      course.rating.count++;
+    }
+
+    // Recalculate average rating
+    const totalRatings = course.reviews.length;
+    const sumRatings = course.reviews.reduce((sum, r) => sum + r.rating, 0);
+    course.rating.average = Math.round((sumRatings / totalRatings) * 10) / 10; // Round to 1 decimal place
+
+    await course.save();
+
+    res.status(200).json({
+      message: 'Rating submitted successfully',
+      rating: course.rating
+    });
+  } catch (error) {
+    console.error('Rating submission error:', error);
+    res.status(500).json({ 
+      message: 'Server error submitting rating',
+      error: error.message 
+    });
+  }
+});
+
 export default router;

@@ -17,6 +17,7 @@ import UserProfile from './pages/UserProfile';
 import AdminDashboard from './pages/AdminDashboard';
 import MyLearningEnhanced from './pages/MyLearningEnhanced';
 import CourseLearnEnhanced from './pages/CourseLearnEnhanced';
+import CertificateViewer from './components/CertificateViewer';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
@@ -54,6 +55,7 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/courses" element={<CourseList />} />
               <Route path="/courses/:id" element={<CourseDetail />} />
+              <Route path="/certificate/:certificateId/:verificationCode" element={<CertificateViewer />} />
               <Route 
                 path="/my-learning" 
                 element={

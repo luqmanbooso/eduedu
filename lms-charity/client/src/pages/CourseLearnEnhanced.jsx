@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 import {
   Play,
   Pause,
@@ -26,6 +28,7 @@ import {
   Menu,
   X,
   Star,
+  ExternalLink,
   Flag,
   Share2,
   Bookmark,
@@ -40,11 +43,9 @@ import {
   ThumbsDown,
   Lock,
   CheckSquare,
-  Image,
-  ExternalLink
+  Image
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import toast from 'react-hot-toast';
 
 const CourseLearnEnhanced = () => {
   const { courseId } = useParams();
@@ -65,6 +66,9 @@ const CourseLearnEnhanced = () => {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [completedLessons, setCompletedLessons] = useState([]);
+  const [courseProgress, setCourseProgress] = useState(0);
+  const [userProgressData, setUserProgressData] = useState(null);
+  const [progressLoading, setProgressLoading] = useState(true);
   const [lessonProgress, setLessonProgress] = useState({});
   const [showNotes, setShowNotes] = useState(false);
   const [notes, setNotes] = useState('');
@@ -75,22 +79,25 @@ const CourseLearnEnhanced = () => {
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [assignmentData, setAssignmentData] = useState(null);
+  
+  // Course completion states
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [courseCompleted, setCourseCompleted] = useState(false);
+  const [userRating, setUserRating] = useState(0);
+  const [userReview, setUserReview] = useState('');
+  const [certificateGenerated, setCertificateGenerated] = useState(false);
 
   // Fetch course data from API
   useEffect(() => {
     const fetchCourseData = async () => {
       try {
-        const response = await fetch(`/api/courses/${courseId}`, {
+        const response = await axios.get(`/courses/${courseId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
         
-        if (!response.ok) {
-          throw new Error('Failed to fetch course data');
-        }
-        
-        const courseData = await response.json();
+        const courseData = response.data;
         
         // Process the course data to ensure it matches the expected structure
         const processedCourse = {
@@ -99,8 +106,12 @@ const CourseLearnEnhanced = () => {
             ...module,
             lessons: module.lessons?.map(lesson => ({
               ...lesson,
-              isCompleted: false, // This should come from progress API
-              resources: lesson.resources || []
+              isCompleted: false, // Will be updated after fetching progress
+              resources: lesson.resources || [],
+              // Preserve all lesson-specific data (quiz, assignment, etc.)
+              quiz: lesson.quiz,
+              assignment: lesson.assignment,
+              content: lesson.content // for text lessons
             })) || []
           })) || []
         };
@@ -113,8 +124,8 @@ const CourseLearnEnhanced = () => {
           setCurrentLesson(processedCourse.modules[0].lessons[0]);
         }
         
-        // TODO: Fetch completed lessons from progress API
-        setCompletedLessons([]); // This should come from progress API
+        // Fetch user progress for this course
+        await fetchUserProgress(courseId);
         
       } catch (error) {
         console.error('Error fetching course data:', error);
@@ -132,7 +143,7 @@ const CourseLearnEnhanced = () => {
             rating: 4.8,
             studentsCount: 45000
           },
-          progress: 45,
+          progress: 0, // Will be updated from progress API
           totalDuration: 1200, // minutes
           level: 'Intermediate',
           category: 'Programming',
@@ -492,6 +503,20 @@ const CourseLearnEnhanced = () => {
     fetchCourseData();
   }, [courseId]);
 
+  // Check for course completion on progress update
+  useEffect(() => {
+    if (course && completedLessons.length > 0) {
+      const totalLessons = course.modules.reduce((total, module) => total + module.lessons.length, 0);
+      const progress = Math.round((completedLessons.length / totalLessons) * 100);
+      setCourseProgress(progress);
+      
+      // Set completion state if course is fully completed
+      if (progress >= 100 && !courseCompleted) {
+        setCourseCompleted(true);
+      }
+    }
+  }, [course, completedLessons, courseCompleted]);
+
   // Update quiz and assignment data when lesson changes
   useEffect(() => {
     if (currentLesson) {
@@ -510,6 +535,106 @@ const CourseLearnEnhanced = () => {
       }
     }
   }, [currentLesson]);
+
+  // Progress tracking functions
+  const fetchUserProgress = async (courseId) => {
+    try {
+      setProgressLoading(true);
+      const response = await axios.get(`/progress/${courseId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      const progressData = response.data;
+      setUserProgressData(progressData);
+      setCompletedLessons(progressData.completedLessons || []);
+      setCourseProgress(progressData.progressPercentage || 0);
+      
+      return progressData;
+    } catch (error) {
+      console.error('Error fetching progress:', error);
+      // If no progress found, initialize it
+      if (error.response?.status === 404) {
+        await initializeCourseProgress(courseId);
+      }
+      return null;
+    } finally {
+      setProgressLoading(false);
+    }
+  };
+
+  const initializeCourseProgress = async (courseId) => {
+    try {
+      const response = await axios.post(`/progress/start/${courseId}`, {}, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      const progressData = response.data;
+      setUserProgressData(progressData);
+      setCourseProgress(0);
+      
+      return progressData;
+    } catch (error) {
+      console.error('Error initializing progress:', error);
+      return null;
+    }
+  };
+
+  const updateLessonProgress = async (courseId, lessonId, timeSpent = 0, quizScore = null) => {
+    try {
+      const response = await axios.post('/progress/complete-lesson', {
+        courseId,
+        lessonId,
+        timeSpent,
+        quizScore
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      const result = response.data;
+      setCourseProgress(result.progress);
+      
+      // Update the course progress in the UI
+      if (course) {
+        setCourse(prev => ({
+          ...prev,
+          progress: result.progress
+        }));
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error updating lesson progress:', error);
+      toast.error('Failed to save progress');
+      return null;
+    }
+  };
+
+  // Update lesson completion status based on progress data
+  const updateLessonCompletionStatus = () => {
+    if (!course || !completedLessons.length) return;
+    
+    setCourse(prevCourse => ({
+      ...prevCourse,
+      modules: prevCourse.modules.map(module => ({
+        ...module,
+        lessons: module.lessons.map(lesson => ({
+          ...lesson,
+          isCompleted: completedLessons.includes(lesson._id)
+        }))
+      }))
+    }));
+  };
+
+  // Update lesson completion status when completedLessons changes
+  useEffect(() => {
+    updateLessonCompletionStatus();
+  }, [completedLessons]);
 
   // Video controls
   const togglePlay = () => {
@@ -549,10 +674,46 @@ const CourseLearnEnhanced = () => {
     }
   };
 
-  const markLessonComplete = () => {
+  const markLessonComplete = async () => {
     if (currentLesson && !completedLessons.includes(currentLesson._id)) {
-      setCompletedLessons([...completedLessons, currentLesson._id]);
+      // Update local state immediately for better UX
+      const newCompletedLessons = [...completedLessons, currentLesson._id];
+      setCompletedLessons(newCompletedLessons);
+      
+      // Calculate progress locally
+      const totalLessons = course.modules.reduce((total, module) => total + module.lessons.length, 0);
+      const newProgress = Math.round((newCompletedLessons.length / totalLessons) * 100);
+      setCourseProgress(newProgress);
+      
       toast.success('Lesson marked as complete!');
+      
+      // Check if course is completed
+      if (newCompletedLessons.length === totalLessons) {
+        setCourseCompleted(true);
+        setShowCompletionModal(true);
+        toast.success('🎉 Congratulations! You completed the entire course!');
+        
+        // Try to update backend course completion
+        try {
+          await axios.post('/progress/complete-course', {
+            courseId: course._id
+          }, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+        } catch (error) {
+          console.warn('Backend course completion update failed:', error);
+        }
+      }
+      
+      // Try to update backend, but don't block if it fails
+      try {
+        const timeSpent = currentLesson.type === 'video' ? (currentLesson.videoDuration || 0) : 300;
+        await updateLessonProgress(course._id, currentLesson._id, timeSpent);
+      } catch (error) {
+        console.warn('Backend progress update failed, but local progress saved:', error);
+      }
       
       // Auto-advance to next lesson
       setTimeout(() => {
@@ -607,7 +768,7 @@ const CourseLearnEnhanced = () => {
     setSidebarOpen(false); // Close sidebar on mobile
   };
 
-  const submitQuiz = () => {
+  const submitQuiz = async () => {
     if (!quizData) return;
 
     let score = 0;
@@ -622,7 +783,25 @@ const CourseLearnEnhanced = () => {
     
     if (percentage >= quizData.passingScore) {
       toast.success(`Quiz passed! Score: ${percentage.toFixed(1)}%`);
-      markLessonComplete();
+      
+      // Mark lesson complete with quiz score
+      if (currentLesson && !completedLessons.includes(currentLesson._id)) {
+        const timeSpent = 300; // 5 minutes default for quiz
+        const result = await updateLessonProgress(course._id, currentLesson._id, timeSpent, percentage);
+        
+        if (result) {
+          setCompletedLessons([...completedLessons, currentLesson._id]);
+          toast.success('Quiz lesson completed!');
+          
+          if (result.isCompleted) {
+            toast.success('🎉 Congratulations! You completed the entire course!');
+          }
+          
+          setTimeout(() => {
+            goToNextLesson();
+          }, 2000);
+        }
+      }
     } else {
       toast.error(`Quiz failed. Score: ${percentage.toFixed(1)}%. Passing score: ${quizData.passingScore}%`);
     }
@@ -695,6 +874,86 @@ const CourseLearnEnhanced = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Course completion functions
+  const submitRating = async () => {
+    try {
+      await axios.post(`/courses/${courseId}/rate`, {
+        rating: userRating,
+        review: userReview
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      toast.success('Thank you for your rating and review!');
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      toast.error('Failed to submit rating');
+    }
+  };
+
+  const generateCertificate = async () => {
+    try {
+      const response = await axios.post(`/certificates/generate`, {
+        courseId: course._id,
+        courseName: course.title,
+        studentName: user.name,
+        completionDate: new Date().toISOString(),
+        instructorName: course.instructor.name
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      setCertificateGenerated(true);
+      toast.success('Certificate generated successfully!');
+      
+      // Download certificate
+      const link = document.createElement('a');
+      link.href = response.data.certificateUrl;
+      link.download = `${course.title}_Certificate.pdf`;
+      link.click();
+    } catch (error) {
+      console.error('Error generating certificate:', error);
+      toast.error('Failed to generate certificate');
+    }
+  };
+
+  const shareCourse = async (platform) => {
+    const shareText = `I just completed "${course.title}" on our LMS platform! 🎉`;
+    const shareUrl = window.location.origin + `/courses/${courseId}`;
+    
+    switch (platform) {
+      case 'twitter':
+        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`);
+        break;
+      case 'linkedin':
+        window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`);
+        break;
+      case 'facebook':
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`);
+        break;
+      case 'copy':
+        navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+        toast.success('Link copied to clipboard!');
+        break;
+      default:
+        break;
+    }
+  };
+
+  const continueLearning = () => {
+    setShowCompletionModal(false);
+    // Navigate to courses or dashboard
+    navigate('/dashboard');
+  };
+
+  const reviewCourse = () => {
+    setShowCompletionModal(false);
+    // Stay on course page but allow re-viewing
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -744,14 +1003,14 @@ const CourseLearnEnhanced = () => {
                 <div className="flex items-center text-sm text-gray-400">
                   <span>{completedLessons.length}/{course.modules.reduce((acc, mod) => acc + mod.lessons.length, 0)} lessons</span>
                   <span className="mx-2">•</span>
-                  <span>{course.progress}% complete</span>
+                  <span>{courseProgress}% complete</span>
                 </div>
                 
                 {/* Progress Bar */}
                 <div className="mt-2 w-full bg-gray-700 rounded-full h-2">
                   <div 
                     className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${course.progress}%` }}
+                    style={{ width: `${courseProgress}%` }}
                   />
                 </div>
               </div>
@@ -846,6 +1105,20 @@ const CourseLearnEnhanced = () => {
             </div>
 
             <div className="flex items-center space-x-4">
+              {/* Course Completion Status */}
+              {courseProgress >= 100 && (
+                <div className="flex items-center space-x-2 bg-green-600 px-3 py-1 rounded-lg">
+                  <Award className="h-4 w-4 text-white" />
+                  <span className="text-white text-sm font-medium">Completed</span>
+                  <button
+                    onClick={() => setShowCompletionModal(true)}
+                    className="text-white hover:text-green-200 transition-colors"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              
               {/* Notes Toggle */}
               <button
                 onClick={() => setShowNotes(!showNotes)}
@@ -1092,6 +1365,108 @@ const CourseLearnEnhanced = () => {
                   </div>
                 )}
 
+                {/* Text/Reading Lesson */}
+                {currentLesson.type === 'text' && (
+                  <div className="mb-6">
+                    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                      {/* Header */}
+                      <div className="bg-gray-800 text-white p-6">
+                        <h2 className="text-2xl font-bold mb-2">
+                          {currentLesson.title}
+                        </h2>
+                        <p className="text-gray-300">
+                          {currentLesson.description}
+                        </p>
+                      </div>
+
+                      {/* Reading Content */}
+                      <div className="p-8">
+                        <div className="prose prose-lg max-w-none">
+                          {currentLesson.content ? (
+                            <div 
+                              className="whitespace-pre-wrap text-gray-800 leading-relaxed text-lg"
+                              style={{ lineHeight: '1.8' }}
+                            >
+                              {currentLesson.content}
+                            </div>
+                          ) : (
+                            <div className="text-center py-12 text-gray-500">
+                              <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                              <p>No reading content available for this lesson.</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Mark Complete Button */}
+                        <div className="mt-8 pt-6 border-t border-gray-200">
+                          <button
+                            onClick={markLessonComplete}
+                            disabled={completedLessons.includes(currentLesson._id)}
+                            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                              completedLessons.includes(currentLesson._id)
+                                ? 'bg-green-600 text-white cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            }`}
+                          >
+                            {completedLessons.includes(currentLesson._id) ? (
+                              <>
+                                <CheckCircle className="h-5 w-5 mr-2 inline" />
+                                Completed
+                              </>
+                            ) : (
+                              <>
+                                <BookOpen className="h-5 w-5 mr-2 inline" />
+                                Mark as Read
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Resources Section */}
+                      {currentLesson.resources && currentLesson.resources.length > 0 && (
+                        <div className="bg-gray-50 p-6 border-t border-gray-200">
+                          <h3 className="font-semibold text-gray-800 mb-4">Resources</h3>
+                          <div className="space-y-2">
+                            {currentLesson.resources.map((resource, index) => (
+                              <a
+                                key={index}
+                                href={resource.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all"
+                              >
+                                <div className="flex-shrink-0 mr-3">
+                                  {resource.type === 'pdf' ? (
+                                    <FileText className="h-5 w-5 text-red-500" />
+                                  ) : resource.type === 'video' ? (
+                                    <Play className="h-5 w-5 text-blue-500" />
+                                  ) : resource.type === 'image' ? (
+                                    <Image className="h-5 w-5 text-green-500" />
+                                  ) : (
+                                    <Download className="h-5 w-5 text-purple-500" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-gray-800 font-medium truncate hover:text-blue-600">
+                                    {resource.title}
+                                  </p>
+                                  {resource.description && (
+                                    <p className="text-sm text-gray-600 truncate">
+                                      {resource.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <ExternalLink className="h-4 w-4 text-gray-400" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Quiz Lesson */}
                 {currentLesson.type === 'quiz' && quizData && (
                   <div className="bg-gray-800 rounded-lg p-6">
@@ -1167,72 +1542,248 @@ const CourseLearnEnhanced = () => {
                 )}
 
                 {/* Assignment Lesson */}
-                {currentLesson.type === 'assignment' && assignmentData && (
+                {currentLesson.type === 'assignment' && (
                   <div className="bg-gray-800 rounded-lg p-6">
                     <div className="mb-6">
                       <h2 className="text-xl font-semibold text-white mb-2">
-                        {assignmentData.title}
+                        {currentLesson.title}
                       </h2>
                       <p className="text-gray-300 mb-4">
-                        {assignmentData.description}
+                        {currentLesson.description}
                       </p>
                       
-                      <div className="flex items-center space-x-4 text-sm text-gray-400 mb-4">
-                        <span>Due: {assignmentData.dueDate}</span>
-                        <span>•</span>
-                        <span>Max Score: {assignmentData.maxScore} points</span>
-                      </div>
-                    </div>
-
-                    {/* Instructions */}
-                    <div className="mb-6">
-                      <h3 className="font-semibold text-white mb-3">Instructions</h3>
-                      <ul className="space-y-2">
-                        {assignmentData.instructions.map((instruction, index) => (
-                          <li key={index} className="flex items-start">
-                            <CheckSquare className="h-5 w-5 mr-3 mt-0.5 text-blue-400 flex-shrink-0" />
-                            <span className="text-gray-300">{instruction}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Submission Area */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h3 className="font-semibold text-white mb-4">Submit Assignment</h3>
-                      
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
-                            Text Submission
-                          </label>
-                          <textarea
-                            placeholder="Enter your submission text here..."
-                            rows={6}
-                            className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
+                      {assignmentData && (
+                        <div className="flex items-center space-x-4 text-sm text-gray-400 mb-4">
+                          <span>Due: {
+                            assignmentData.dueDate ? 
+                              new Date(assignmentData.dueDate).toLocaleDateString() : 
+                              `${assignmentData.dueDays || 7} days from start`
+                          }</span>
+                          <span>•</span>
+                          <span>Max Score: {assignmentData.maxScore || assignmentData.maxPoints || 100} points</span>
                         </div>
+                      )}
+                    </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
-                            File Upload
-                          </label>
-                          <div className="border-2 border-dashed border-gray-500 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer">
-                            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                            <p className="text-gray-300">
-                              Drop files here or click to browse
-                            </p>
-                            <p className="text-sm text-gray-400 mt-1">
-                              Supports: .pdf, .doc, .docx, .zip
-                            </p>
+                    {assignmentData ? (
+                      <>
+                        {/* Instructions */}
+                        <div className="mb-6">
+                          <h3 className="font-semibold text-white mb-3">Instructions</h3>
+                          <div className="bg-gray-700 rounded-lg p-4">
+                            {assignmentData.instructions ? (
+                              Array.isArray(assignmentData.instructions) ? (
+                                <div className="space-y-2">
+                                  {assignmentData.instructions.map((instruction, index) => (
+                                    <div key={index} className="flex items-start">
+                                      <span className="bg-blue-500 text-white text-xs font-medium px-2 py-1 rounded-full mr-3 mt-0.5 flex-shrink-0">
+                                        {index + 1}
+                                      </span>
+                                      <p className="text-gray-300">{instruction}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : typeof assignmentData.instructions === 'string' && assignmentData.instructions.trim() ? (
+                                <p className="text-gray-300 whitespace-pre-wrap">
+                                  {assignmentData.instructions}
+                                </p>
+                              ) : (
+                                <div className="text-center py-4">
+                                  <p className="text-gray-400 mb-2">No specific instructions provided for this assignment.</p>
+                                  <p className="text-gray-500 text-sm">Please check the lesson description above for guidance.</p>
+                                </div>
+                              )
+                            ) : (
+                              <div className="text-center py-4">
+                                <p className="text-gray-400 mb-2">No specific instructions provided for this assignment.</p>
+                                <p className="text-gray-500 text-sm">Please check the lesson description above for guidance.</p>
+                              </div>
+                            )}
                           </div>
                         </div>
 
-                        <button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
-                          Submit Assignment
-                        </button>
+                        {/* Resources (if any) */}
+                        {((currentLesson.resources && currentLesson.resources.length > 0) || 
+                          (assignmentData.resources && assignmentData.resources.length > 0)) && (
+                          <div className="mb-6">
+                            <h3 className="font-semibold text-white mb-3">Assignment Resources</h3>
+                            <div className="space-y-2">
+                              {/* Check lesson resources first, then assignment resources */}
+                              {(currentLesson.resources || assignmentData.resources || []).map((resource, index) => (
+                                <a
+                                  key={index}
+                                  href={resource.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
+                                >
+                                  <FileText className="h-5 w-5 mr-3 text-blue-400" />
+                                  <span className="text-white">{resource.title || resource.name}</span>
+                                  <ExternalLink className="h-4 w-4 ml-auto text-gray-400" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Rubric (if any) */}
+                        {assignmentData.rubric && (
+                          <div className="mb-6">
+                            <h3 className="font-semibold text-white mb-3">Grading Rubric</h3>
+                            <div className="space-y-3">
+                              {Array.isArray(assignmentData.rubric) ? (
+                                assignmentData.rubric.map((criteria, index) => (
+                                  <div key={index} className="bg-gray-700 rounded-lg p-4">
+                                    <div className="flex justify-between items-start mb-2">
+                                      <h4 className="font-medium text-white">{criteria.criteria}</h4>
+                                      <span className="text-blue-400 font-medium">{criteria.maxPoints} pts</span>
+                                    </div>
+                                    {criteria.description && (
+                                      <p className="text-gray-300 text-sm">{criteria.description}</p>
+                                    )}
+                                  </div>
+                                ))
+                              ) : typeof assignmentData.rubric === 'object' ? (
+                                Object.entries(assignmentData.rubric).map(([criteria, points], index) => (
+                                  <div key={index} className="bg-gray-700 rounded-lg p-4">
+                                    <div className="flex justify-between items-start mb-2">
+                                      <h4 className="font-medium text-white">{criteria.charAt(0).toUpperCase() + criteria.slice(1)}</h4>
+                                      <span className="text-blue-400 font-medium">{points} pts</span>
+                                    </div>
+                                  </div>
+                                ))
+                              ) : null}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Submission Area */}
+                        <div className="bg-gray-700 rounded-lg p-4">
+                          <h3 className="font-semibold text-white mb-4">Submit Assignment</h3>
+                          
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-2">
+                                Text Submission
+                              </label>
+                              <textarea
+                                placeholder="Enter your submission text here..."
+                                rows={6}
+                                className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-2">
+                                File Upload
+                              </label>
+                              <div className="border-2 border-dashed border-gray-500 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer">
+                                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                                <p className="text-gray-300">
+                                  Drop files here or click to browse
+                                </p>
+                                <p className="text-sm text-gray-400 mt-1">
+                                  Supports: .pdf, .doc, .docx, .zip
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="space-y-3">
+                              <button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+                                Submit Assignment
+                              </button>
+                              
+                              {/* Mark Complete Button for assignments */}
+                              {!completedLessons.includes(currentLesson._id) && (
+                                <button
+                                  onClick={markLessonComplete}
+                                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                                >
+                                  <CheckCircle className="h-5 w-5" />
+                                  <span>Mark Assignment Complete</span>
+                                </button>
+                              )}
+                              
+                              {completedLessons.includes(currentLesson._id) && (
+                                <div className="w-full bg-green-500 text-white font-semibold py-3 px-6 rounded-lg flex items-center justify-center space-x-2">
+                                  <CheckCircle className="h-5 w-5" />
+                                  <span>Assignment Completed</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      /* Fallback when assignment data is not available */
+                      <div className="text-center py-8">
+                        <div className="bg-gray-700 rounded-lg p-6 mb-6">
+                          <Target className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+                          <h3 className="text-lg font-semibold text-white mb-2">
+                            Assignment Ready
+                          </h3>
+                          <p className="text-gray-300 mb-4">
+                            Assignment details are being loaded. You can still mark this lesson as complete to continue your progress.
+                          </p>
+                          <p className="text-gray-400 text-sm">
+                            Check back later for detailed assignment instructions and submission guidelines.
+                          </p>
+                        </div>
+                        
+                        {/* Always show completion button for assignments */}
+                        {!completedLessons.includes(currentLesson._id) ? (
+                          <button
+                            onClick={markLessonComplete}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors flex items-center justify-center space-x-2 mx-auto"
+                          >
+                            <CheckCircle className="h-5 w-5" />
+                            <span>Mark Assignment Complete</span>
+                          </button>
+                        ) : (
+                          <div className="bg-green-500 text-white font-semibold py-3 px-8 rounded-lg flex items-center justify-center space-x-2 mx-auto">
+                            <CheckCircle className="h-5 w-5" />
+                            <span>Assignment Completed</span>
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Text/Reading Lesson */}
+                {currentLesson.type === 'text' && (
+                  <div className="bg-gray-800 rounded-lg p-6">
+                    <h2 className="text-xl font-semibold text-white mb-4">
+                      {currentLesson.title}
+                    </h2>
+                    <p className="text-gray-300 mb-6">
+                      {currentLesson.description}
+                    </p>
+                    
+                    {currentLesson.content ? (
+                      <div 
+                        className="prose prose-invert max-w-none text-gray-300"
+                        dangerouslySetInnerHTML={{ __html: currentLesson.content }}
+                      />
+                    ) : (
+                      <div className="text-center py-8">
+                        <BookOpen className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+                        <p className="text-gray-400">
+                          This is a reading lesson. The content will be displayed here.
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Mark Complete Button */}
+                    {!completedLessons.includes(currentLesson._id) && (
+                      <button
+                        onClick={markLessonComplete}
+                        className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                      >
+                        <CheckCircle className="h-5 w-5" />
+                        <span>Mark Complete</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1328,6 +1879,199 @@ const CourseLearnEnhanced = () => {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Course Completion Modal */}
+      <AnimatePresence>
+        {showCompletionModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="bg-white rounded-xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            >
+              {/* Header */}
+              <div className="text-center mb-8">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Award className="h-10 w-10 text-green-600" />
+                </div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  🎉 Congratulations!
+                </h2>
+                <p className="text-xl text-gray-600">
+                  You've successfully completed
+                </p>
+                <h3 className="text-2xl font-semibold text-gray-900 mt-2">
+                  {course?.title}
+                </h3>
+              </div>
+
+              {/* Course Stats */}
+              <div className="grid grid-cols-3 gap-4 mb-8 p-4 bg-gray-50 rounded-lg">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {course?.modules?.reduce((total, module) => total + module.lessons.length, 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">Lessons</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">100%</div>
+                  <div className="text-sm text-gray-600">Complete</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {Math.round((course?.modules?.reduce((total, module) => total + module.lessons.length, 0) || 1) * 15 / 60)}h
+                  </div>
+                  <div className="text-sm text-gray-600">Studied</div>
+                </div>
+              </div>
+
+              {/* Certificate Section */}
+              <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                  <Award className="h-5 w-5 mr-2 text-blue-600" />
+                  Get Your Certificate
+                </h4>
+                <p className="text-gray-600 mb-4">
+                  Download your completion certificate to showcase your achievement.
+                </p>
+                <button
+                  onClick={generateCertificate}
+                  disabled={certificateGenerated}
+                  className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
+                    certificateGenerated
+                      ? 'bg-green-100 text-green-700 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  {certificateGenerated ? (
+                    <div className="flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 mr-2" />
+                      Certificate Downloaded
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center">
+                      <Download className="h-5 w-5 mr-2" />
+                      Download Certificate
+                    </div>
+                  )}
+                </button>
+              </div>
+
+              {/* Rating Section */}
+              <div className="mb-8 p-6 bg-yellow-50 rounded-lg border border-yellow-200">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                  <Star className="h-5 w-5 mr-2 text-yellow-600" />
+                  Rate This Course
+                </h4>
+                <p className="text-gray-600 mb-4">
+                  Help other students by sharing your experience.
+                </p>
+                
+                {/* Star Rating */}
+                <div className="flex items-center space-x-1 mb-4">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setUserRating(star)}
+                      className={`p-1 transition-colors ${
+                        star <= userRating ? 'text-yellow-400' : 'text-gray-300'
+                      }`}
+                    >
+                      <Star className="h-6 w-6 fill-current" />
+                    </button>
+                  ))}
+                  <span className="ml-2 text-gray-600">
+                    {userRating > 0 && `${userRating} star${userRating > 1 ? 's' : ''}`}
+                  </span>
+                </div>
+
+                {/* Review Text */}
+                <textarea
+                  value={userReview}
+                  onChange={(e) => setUserReview(e.target.value)}
+                  placeholder="Write a review... (optional)"
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+
+                <button
+                  onClick={submitRating}
+                  disabled={userRating === 0}
+                  className="mt-3 w-full py-2 px-4 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+                >
+                  Submit Rating
+                </button>
+              </div>
+
+              {/* Share Section */}
+              <div className="mb-8 p-6 bg-green-50 rounded-lg border border-green-200">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                  <Share2 className="h-5 w-5 mr-2 text-green-600" />
+                  Share Your Achievement
+                </h4>
+                <p className="text-gray-600 mb-4">
+                  Let others know about your success!
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => shareCourse('twitter')}
+                    className="flex items-center justify-center py-2 px-4 bg-blue-400 hover:bg-blue-500 text-white rounded-lg transition-colors"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Twitter
+                  </button>
+                  <button
+                    onClick={() => shareCourse('linkedin')}
+                    className="flex items-center justify-center py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    LinkedIn
+                  </button>
+                  <button
+                    onClick={() => shareCourse('facebook')}
+                    className="flex items-center justify-center py-2 px-4 bg-blue-800 hover:bg-blue-900 text-white rounded-lg transition-colors"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Facebook
+                  </button>
+                  <button
+                    onClick={() => shareCourse('copy')}
+                    className="flex items-center justify-center py-2 px-4 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Copy Link
+                  </button>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={reviewCourse}
+                  className="flex-1 py-3 px-6 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
+                >
+                  <Eye className="h-5 w-5 mr-2" />
+                  Review Course
+                </button>
+                <button
+                  onClick={continueLearning}
+                  className="flex-1 py-3 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center"
+                >
+                  <ChevronRight className="h-5 w-5 mr-2" />
+                  Continue Learning
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, Users, Clock, BookOpen, Heart, Bookmark, Play } from 'lucide-react';
+import { Star, Users, Clock, BookOpen, Heart, Bookmark, Play, CheckCircle, Award, Eye } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -14,6 +14,7 @@ const CourseCard = ({ course, index = 0, showProgress = false, progressData = nu
   // Check if user is enrolled
   const isEnrolled = user && course.enrolledStudents?.some(e => e.student === user._id);
   const progress = progressData ? progressData.progressPercentage : 0;
+  const isCompleted = progress >= 100;
 
   const handleLike = (e) => {
     e.preventDefault();
@@ -126,7 +127,7 @@ const CourseCard = ({ course, index = 0, showProgress = false, progressData = nu
             </div>
 
             {/* Level badge */}
-            <div className="absolute top-3 left-3">
+            <div className="absolute top-3 left-3 flex flex-col space-y-2">
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                 course.level === 'Beginner' ? 'bg-green-100 text-green-800' :
                 course.level === 'Intermediate' ? 'bg-yellow-100 text-yellow-800' :
@@ -134,6 +135,14 @@ const CourseCard = ({ course, index = 0, showProgress = false, progressData = nu
               }`}>
                 {course.level}
               </span>
+              
+              {/* Completion badge */}
+              {isCompleted && (
+                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-500 text-white flex items-center space-x-1">
+                  <CheckCircle className="h-3 w-3" />
+                  <span>Completed</span>
+                </span>
+              )}
             </div>
           </div>
 
@@ -220,14 +229,21 @@ const CourseCard = ({ course, index = 0, showProgress = false, progressData = nu
             <motion.button
               onClick={handleActionClick}
               className={`w-full font-medium py-3 px-4 rounded-lg transition-all duration-300 transform flex items-center justify-center space-x-2 ${
-                isEnrolled 
-                  ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white'
-                  : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white'
+                isCompleted
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white'
+                  : isEnrolled 
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
+                    : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white'
               }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              {isEnrolled ? (
+              {isCompleted ? (
+                <>
+                  <Award className="h-4 w-4" />
+                  <span>Review & Certificate</span>
+                </>
+              ) : isEnrolled ? (
                 <>
                   <Play className="h-4 w-4" />
                   <span>Continue Learning</span>

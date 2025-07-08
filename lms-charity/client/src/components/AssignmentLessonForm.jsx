@@ -2,6 +2,25 @@ import React from 'react';
 import { Plus, Trash2, FileText, Calendar, Clock, Upload, File } from 'lucide-react';
 
 const AssignmentLessonForm = React.memo(({ lessonData, onUpdate }) => {
+  // Initialize assignment object if it doesn't exist
+  React.useEffect(() => {
+    if (!lessonData.assignment) {
+      onUpdate({
+        ...lessonData,
+        assignment: {
+          title: lessonData.title || '',
+          description: lessonData.description || '', 
+          instructions: '',
+          dueDays: 7,
+          maxPoints: 100,
+          submissionType: 'both',
+          resources: [],
+          rubric: []
+        }
+      });
+    }
+  }, []);
+
   const addRubricCriteria = () => {
     const newCriteria = [...(lessonData.assignment?.rubric || []), {
       id: Date.now(),
@@ -46,26 +65,68 @@ const AssignmentLessonForm = React.memo(({ lessonData, onUpdate }) => {
     });
   };
 
-  const handleResourceUpload = (file) => {
+  const handleResourceUpload = async (file) => {
     if (!file) return;
     
-    // In a real app, upload to server
-    const resourceUrl = URL.createObjectURL(file);
-    const newResources = [...(lessonData.assignment?.resources || []), {
-      id: Date.now(),
-      name: file.name,
-      url: resourceUrl,
-      type: file.type,
-      size: file.size
-    }];
-    
-    onUpdate({
-      ...lessonData,
-      assignment: {
-        ...lessonData.assignment,
-        resources: newResources
+    try {
+      // Upload to server
+      const formData = new FormData();
+      
+      // Determine upload endpoint based on file type
+      let uploadEndpoint, fieldName;
+      if (file.type.startsWith('image/')) {
+        uploadEndpoint = '/api/upload/image';
+        fieldName = 'image';
+      } else if (file.type.startsWith('video/')) {
+        uploadEndpoint = '/api/upload/video';
+        fieldName = 'video';
+      } else {
+        uploadEndpoint = '/api/upload/document';
+        fieldName = 'document';
       }
-    });
+      
+      formData.append(fieldName, file);
+      
+      const response = await fetch(`http://localhost:5000${uploadEndpoint}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Upload failed');
+      }
+      
+      const data = await response.json();
+      const resourceUrl = `http://localhost:5000${data.url}`;
+      
+      const newResources = [...(lessonData.assignment?.resources || []), {
+        id: Date.now(),
+        title: file.name, // Use 'title' instead of 'name' to match backend
+        url: resourceUrl,
+        type: file.type.startsWith('image/') ? 'image' : 
+              file.type.startsWith('video/') ? 'video' : 
+              file.type === 'application/pdf' ? 'pdf' : 'document',
+        mimeType: file.type,
+        size: data.size || file.size,
+        filename: data.filename
+      }];
+      
+      onUpdate({
+        ...lessonData,
+        assignment: {
+          ...lessonData.assignment,
+          resources: newResources
+        }
+      });
+      
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert(`Failed to upload ${file.name}: ${error.message}`);
+    }
   };
 
   const removeResource = (index) => {
@@ -96,7 +157,7 @@ const AssignmentLessonForm = React.memo(({ lessonData, onUpdate }) => {
         {/* Instructions */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Assignment Instructions
+            Assignment Instructions <span className="text-yellow-500">(Recommended)</span>
           </label>
           <textarea
             value={lessonData.assignment?.instructions || ''}
@@ -107,10 +168,13 @@ const AssignmentLessonForm = React.memo(({ lessonData, onUpdate }) => {
                 instructions: e.target.value
               }
             })}
-            rows={6}
+            rows={8}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Provide detailed instructions for this assignment..."
+            placeholder="Provide detailed instructions for this assignment. What should students do? What are the requirements? What should they submit?"
           />
+          {!lessonData.assignment?.instructions?.trim() && (
+            <p className="text-xs text-yellow-600 mt-1">Consider adding instructions to help students understand the assignment</p>
+          )}
         </div>
 
         {/* Assignment Settings */}
