@@ -113,7 +113,7 @@ const CourseCreate = () => {
     content: '',
     overview: '',
     keyTakeaways: [''],
-    resources: [{ name: '', url: '', type: 'documentation' }],
+    resources: [], // Start with empty array for file uploads
     quiz: {
       title: '',
       questions: [{ question: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }],
@@ -354,7 +354,7 @@ const CourseCreate = () => {
 
   // Lesson management
   const addLesson = () => {
-    if (workingLesson.title.trim() && currentModuleIndex !== null) {
+    if (workingLesson.title.trim() && workingLesson.description.trim() && currentModuleIndex !== null) {
       const newLesson = {
         _id: Date.now().toString(),
         title: workingLesson.title,
@@ -364,7 +364,7 @@ const CourseCreate = () => {
         isCompleted: false,
         overview: workingLesson.overview,
         keyTakeaways: workingLesson.keyTakeaways.filter(kt => kt.trim()),
-        resources: workingLesson.resources.filter(r => r.name && r.name.trim())
+        resources: workingLesson.resources.filter(r => r.title && r.title.trim()) // Filter out empty resources
       };
       
       // Add type-specific properties
@@ -469,7 +469,7 @@ const CourseCreate = () => {
         isPublished: false
       };
 
-      const response = await axios.post('/api/courses', coursePayload, {
+      const response = await axios.post('/courses', coursePayload, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
@@ -505,13 +505,13 @@ const CourseCreate = () => {
             ...prev[field],
             [subfield]: [...prev[field][subfield], field === 'quiz' && subfield === 'questions' ? 
               { question: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' } : 
-              field === 'resources' ? { name: '', url: '', type: 'documentation' } : '']
+              field === 'resources' ? { title: '', url: '', type: 'document' } : '']
           }
         };
       } else {
         return {
           ...prev,
-          [field]: [...prev[field], field === 'resources' ? { name: '', url: '', type: 'documentation' } : '']
+          [field]: [...prev[field], field === 'resources' ? { title: '', url: '', type: 'document' } : '']
         };
       }
     });
@@ -836,14 +836,22 @@ const CourseCreate = () => {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Description <span className="text-red-500">*</span>
+                    </label>
                     <textarea
                       value={workingLesson.description}
                       onChange={(e) => setWorkingLesson(prev => ({ ...prev, description: e.target.value }))}
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        !workingLesson.description.trim() ? 'border-red-300' : 'border-gray-300'
+                      }`}
                       placeholder="Brief description of this lesson..."
+                      required
                     />
+                    {!workingLesson.description.trim() && (
+                      <p className="text-xs text-red-600 mt-1">Description is required</p>
+                    )}
                   </div>
 
                   <div>
@@ -974,7 +982,12 @@ const CourseCreate = () => {
                 </button>
                 <button
                   onClick={addLesson}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  disabled={!workingLesson.title.trim() || !workingLesson.description.trim()}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    workingLesson.title.trim() && workingLesson.description.trim()
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
                 >
                   Add Lesson
                 </button>

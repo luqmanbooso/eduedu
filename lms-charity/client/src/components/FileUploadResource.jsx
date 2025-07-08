@@ -69,11 +69,19 @@ const FileUploadResource = React.memo(({
       // Create object URL for preview (in real app, upload to server)
       const url = URL.createObjectURL(file);
       
+      // Map file type to backend enum values
+      const getResourceType = (mimeType) => {
+        if (mimeType.startsWith('video/')) return 'video';
+        if (mimeType === 'application/pdf') return 'pdf';
+        if (mimeType.startsWith('image/')) return 'image';
+        return 'document';
+      };
+      
       const resource = {
         id: Date.now() + Math.random(),
-        name: file.name,
+        title: file.name, // Backend expects 'title', not 'name'
         url: url,
-        type: file.type,
+        type: getResourceType(file.type), // Map to backend enum values
         size: file.size,
         uploadedAt: new Date().toISOString(),
         file: file // Keep reference for actual upload
@@ -165,7 +173,7 @@ const FileUploadResource = React.memo(({
                   <span className="text-2xl">{getFileIcon(resource.type)}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
-                      {resource.name}
+                      {resource.title || resource.name}
                     </p>
                     <p className="text-xs text-gray-500">
                       {formatFileSize(resource.size)} • {resource.type || 'Unknown type'}
@@ -175,7 +183,7 @@ const FileUploadResource = React.memo(({
                 
                 <div className="flex items-center space-x-2">
                   {/* Preview for images */}
-                  {resource.type.startsWith('image/') && (
+                  {resource.type && resource.type.includes('image') && (
                     <button
                       onClick={() => window.open(resource.url, '_blank')}
                       className="p-1 text-blue-600 hover:text-blue-800"
@@ -188,7 +196,7 @@ const FileUploadResource = React.memo(({
                   {/* Download */}
                   <a
                     href={resource.url}
-                    download={resource.name}
+                    download={resource.title || resource.name}
                     className="p-1 text-green-600 hover:text-green-800"
                     title="Download"
                   >
