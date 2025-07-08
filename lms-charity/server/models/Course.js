@@ -284,7 +284,7 @@ const courseSchema = new mongoose.Schema({
   modules: [moduleSchema],
   liveSessions: [liveSessionSchema],
   discussions: [discussionSchema],
-  requirements: [String],
+  prerequisites: [String], // What students need to know before taking this course
   learningOutcomes: [String],
   targetAudience: [String],
   tags: [String],

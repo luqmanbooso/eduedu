@@ -70,10 +70,9 @@ const CourseCreate = () => {
     previewVideo: '',
     totalDuration: 0,
     learningOutcomes: [''],
-    requirements: [''],
+    prerequisites: [''],
     targetAudience: [''],
     modules: [],
-    prerequisites: [''],
     certification: {
       enabled: false,
       title: '',
@@ -95,8 +94,6 @@ const CourseCreate = () => {
   // Modal states
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [showLessonModal, setShowLessonModal] = useState(false);
-  const [showQuizModal, setShowQuizModal] = useState(false);
-  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [showResourceModal, setShowResourceModal] = useState(false);
   const [currentModuleIndex, setCurrentModuleIndex] = useState(null);
   const [currentLessonIndex, setCurrentLessonIndex] = useState(null);
@@ -157,15 +154,15 @@ const CourseCreate = () => {
       case 1:
         return courseData.title.trim() && courseData.description.trim();
       case 2:
-        return courseData.learningOutcomes.some(o => o.trim()) &&
-               courseData.requirements.some(r => r.trim()) &&
-               courseData.targetAudience.some(a => a.trim());
+        return courseData.learningOutcomes.some(o => o.trim());
+        // Target audience is now optional
       case 3:
         return courseData.thumbnail;
       case 4:
         return courseData.modules.length > 0 && courseData.modules.some(m => m.lessons.length > 0);
       case 5:
-        return courseData.nextSteps.summary.trim();
+        return courseData.nextSteps.summary.trim() && 
+               courseData.prerequisites.some(p => p.trim());
       case 6:
         return true;
       default:
@@ -367,15 +364,21 @@ const CourseCreate = () => {
         isCompleted: false,
         overview: workingLesson.overview,
         keyTakeaways: workingLesson.keyTakeaways.filter(kt => kt.trim()),
-        resources: workingLesson.resources.filter(r => r.name.trim()),
-        quiz: workingLesson.quiz,
-        assignment: workingLesson.assignment
+        resources: workingLesson.resources.filter(r => r.name && r.name.trim())
       };
       
+      // Add type-specific properties
       if (newLesson.type === 'video') {
         newLesson.videoDuration = workingLesson.videoDuration;
+        newLesson.videoUrl = workingLesson.videoUrl;
+        newLesson.videoDescription = workingLesson.videoDescription;
+        newLesson.timestamps = workingLesson.timestamps;
       } else if (newLesson.type === 'text') {
         newLesson.content = workingLesson.content;
+      } else if (newLesson.type === 'quiz') {
+        newLesson.quiz = workingLesson.quiz;
+      } else if (newLesson.type === 'assignment') {
+        newLesson.assignment = workingLesson.assignment;
       }
       
       setCourseData(prev => ({
@@ -460,7 +463,7 @@ const CourseCreate = () => {
           name: user?.name || courseData.instructor.name
         },
         learningOutcomes: courseData.learningOutcomes.filter(outcome => outcome.trim()),
-        requirements: courseData.requirements.filter(req => req.trim()),
+        prerequisites: courseData.prerequisites.filter(req => req.trim()),
         targetAudience: courseData.targetAudience.filter(audience => audience.trim()),
         status: 'draft',
         isPublished: false
@@ -582,7 +585,7 @@ const CourseCreate = () => {
       onAddArrayItem={addArrayItem}
       onRemoveArrayItem={removeArrayItem}
     />
-  ), [courseData.learningOutcomes, courseData.requirements, courseData.targetAudience, handleArrayChange, addArrayItem, removeArrayItem]);
+  ), [courseData.learningOutcomes, courseData.targetAudience, handleArrayChange, addArrayItem, removeArrayItem]);
 
   const StepMediaMemo = useMemo(() => (
     <MediaForm
@@ -957,97 +960,7 @@ const CourseCreate = () => {
                 </div>
               </div>
 
-              {/* Quiz Section */}
-              <div className="mt-6 border-t pt-4">
-                <h4 className="font-medium text-gray-900 mb-3">Quiz (Optional)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Quiz Title</label>
-                    <input
-                      type="text"
-                      value={workingLesson.quiz.title}
-                      onChange={(e) => setWorkingLesson(prev => ({ 
-                        ...prev, 
-                        quiz: { ...prev.quiz, title: e.target.value } 
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Quiz title..."
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Time Limit (min)</label>
-                      <input
-                        type="number"
-                        value={workingLesson.quiz.timeLimit}
-                        onChange={(e) => setWorkingLesson(prev => ({ 
-                          ...prev, 
-                          quiz: { ...prev.quiz, timeLimit: parseInt(e.target.value) || 0 } 
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Passing Score (%)</label>
-                      <input
-                        type="number"
-                        value={workingLesson.quiz.passingScore}
-                        onChange={(e) => setWorkingLesson(prev => ({ 
-                          ...prev, 
-                          quiz: { ...prev.quiz, passingScore: parseInt(e.target.value) || 0 } 
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* Assignment Section */}
-              <div className="mt-6 border-t pt-4">
-                <h4 className="font-medium text-gray-900 mb-3">Assignment (Optional)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Assignment Title</label>
-                    <input
-                      type="text"
-                      value={workingLesson.assignment.title}
-                      onChange={(e) => setWorkingLesson(prev => ({ 
-                        ...prev, 
-                        assignment: { ...prev.assignment, title: e.target.value } 
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Assignment title..."
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
-                      <input
-                        type="date"
-                        value={workingLesson.assignment.dueDate}
-                        onChange={(e) => setWorkingLesson(prev => ({ 
-                          ...prev, 
-                          assignment: { ...prev.assignment, dueDate: e.target.value } 
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Max Points</label>
-                      <input
-                        type="number"
-                        value={workingLesson.assignment.maxPoints}
-                        onChange={(e) => setWorkingLesson(prev => ({ 
-                          ...prev, 
-                          assignment: { ...prev.assignment, maxPoints: parseInt(e.target.value) || 0 } 
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
 
               <div className="flex justify-end space-x-3 mt-6">
                 <button
