@@ -46,6 +46,7 @@ import {
   Image
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import CourseCompletionCertificate from '../components/CourseCompletionCertificate';
 
 const CourseLearnEnhanced = () => {
   const { courseId } = useParams();
@@ -86,6 +87,7 @@ const CourseLearnEnhanced = () => {
   const [userRating, setUserRating] = useState(0);
   const [userReview, setUserReview] = useState('');
   const [certificateGenerated, setCertificateGenerated] = useState(false);
+  const [showCertificate, setShowCertificate] = useState(false);
 
   // Fetch course data from API
   useEffect(() => {
@@ -739,6 +741,7 @@ const CourseLearnEnhanced = () => {
         setCurrentLesson(nextModule.lessons[0]);
       } else {
         toast.success('Congratulations! You\'ve completed all lessons.');
+        setShowCertificate(true);
       }
     }
   };
@@ -2072,6 +2075,14 @@ const CourseLearnEnhanced = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showCertificate && (
+        <CourseCompletionCertificate
+          courseId={courseId}
+          course={course}
+          onClose={() => setShowCertificate(false)}
+        />
+      )}
     </div>
   );
 };

@@ -221,16 +221,16 @@ const CertificateViewer = () => {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-lg shadow-2xl overflow-hidden border-4 border-gray-200 max-w-4xl mx-auto print:shadow-none print:border-gray-400"
+          className="bg-white rounded-lg shadow-2xl overflow-hidden border-4 border-gray-200 max-w-5xl mx-auto print:shadow-none print:border-gray-400"
           style={{
             aspectRatio: '1.414', // A4 ratio
             minHeight: '800px'
           }}
         >
-          <div className="h-full p-12 relative bg-gradient-to-br from-blue-50 via-white to-purple-50 print:bg-white">
+          <div className="h-full p-10 relative bg-gradient-to-br from-blue-50 via-white to-purple-50 print:bg-white">
             {/* Decorative Border */}
-            <div className="absolute inset-4 border-4 border-double border-purple-300 rounded-lg print:border-gray-400"></div>
-            <div className="absolute inset-8 border border-purple-200 rounded-lg print:border-gray-300"></div>
+            <div className="absolute inset-4 border-2 border-dashed border-purple-300 rounded-lg print:border-gray-400"></div>
+            <div className="absolute inset-6 border border-purple-200 rounded-lg print:border-gray-300"></div>
             
             {/* Decorative Corner Elements */}
             <div className="absolute top-8 left-8 w-16 h-16 border-l-4 border-t-4 border-purple-400 rounded-tl-lg"></div>
@@ -239,93 +239,85 @@ const CertificateViewer = () => {
             <div className="absolute bottom-8 right-8 w-16 h-16 border-r-4 border-b-4 border-purple-400 rounded-br-lg"></div>
 
             {/* Content Container */}
-            <div className="relative z-10 h-full flex flex-col justify-center items-center text-center px-8">
+            <div className="relative z-10 h-full flex flex-col justify-around items-center text-center px-6">
               
               {/* Header */}
-              <div className="mb-8">
-                <div className="flex justify-center mb-6">
-                  <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-full p-4">
-                    <Award className="w-12 h-12 text-white" />
+              <div className="-mt-4">
+                <div className="flex justify-center mb-4">
+                  <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-full p-3 shadow-lg">
+                    <Award className="w-10 h-10 text-white" />
                   </div>
                 </div>
                 
-                <h1 className="text-5xl font-bold text-gray-800 mb-4 tracking-wide">
-                  CERTIFICATE
+                <h1 className="text-4xl font-bold text-gray-800 mb-2 tracking-wider">
+                  CERTIFICATE OF COMPLETION
                 </h1>
-                <h2 className="text-2xl font-semibold text-purple-600 tracking-widest uppercase">
-                  of Completion
-                </h2>
                 
                 {/* Decorative Line */}
-                <div className="flex justify-center mt-6">
-                  <div className="w-32 h-1 bg-gradient-to-r from-purple-500 via-blue-500 to-purple-500 rounded-full"></div>
+                <div className="flex justify-center mt-3">
+                  <div className="w-40 h-1 bg-gradient-to-r from-purple-500 via-blue-500 to-purple-500 rounded-full"></div>
                 </div>
               </div>
 
               {/* Main Content */}
-              <div className="mb-8 space-y-6">
-                <p className="text-xl text-gray-600 font-light">
+              <div className="my-4 space-y-4">
+                <p className="text-lg text-gray-600 font-light">
                   This is to certify that
                 </p>
                 
-                <div className="py-4">
-                  <h3 className="text-4xl font-bold text-gray-800 mb-2 border-b-2 border-purple-300 pb-2 inline-block px-8">
+                <div className="py-2">
+                  <h3 className="text-4xl font-bold text-purple-700 mb-1 border-b-2 border-purple-300 pb-2 inline-block px-6">
                     {certificate.studentName}
                   </h3>
                 </div>
                 
-                <p className="text-xl text-gray-600 font-light">
+                <p className="text-lg text-gray-600 font-light">
                   has successfully completed the course
                 </p>
                 
-                <div className="py-2">
-                  <h4 className="text-3xl font-semibold text-purple-700 italic leading-relaxed">
+                <div className="py-1">
+                  <h4 className="text-3xl font-semibold text-blue-600 italic leading-relaxed">
                     "{certificate.courseTitle}"
                   </h4>
                 </div>
-                
-                <p className="text-lg text-gray-600">
-                  and has demonstrated proficiency in the subject matter
-                </p>
               </div>
 
               {/* Course Details */}
-              <div className="grid grid-cols-3 gap-8 mb-8 w-full max-w-3xl">
-                <div className="text-center">
-                  <div className="bg-purple-100 rounded-full p-3 w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+              <div className="grid grid-cols-3 gap-6 w-full max-w-3xl">
+                <div className="text-center p-4 rounded-lg bg-purple-50 border border-purple-100">
+                  <div className="bg-purple-100 rounded-full p-3 w-16 h-16 mx-auto mb-2 flex items-center justify-center shadow-inner">
                     <User className="w-8 h-8 text-purple-600" />
                   </div>
-                  <h5 className="font-semibold text-gray-700 mb-1">INSTRUCTOR</h5>
-                  <p className="text-gray-600">{certificate.courseInstructor || 'N/A'}</p>
+                  <h5 className="font-semibold text-gray-700 mb-1 text-sm">INSTRUCTOR</h5>
+                  <p className="text-gray-600 text-base">{certificate.courseInstructor || 'N/A'}</p>
                 </div>
 
-                <div className="text-center">
-                  <div className="bg-blue-100 rounded-full p-3 w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+                <div className="text-center p-4 rounded-lg bg-blue-50 border border-blue-100">
+                  <div className="bg-blue-100 rounded-full p-3 w-16 h-16 mx-auto mb-2 flex items-center justify-center shadow-inner">
                     <Calendar className="w-8 h-8 text-blue-600" />
                   </div>
-                  <h5 className="font-semibold text-gray-700 mb-1">COMPLETED</h5>
-                  <p className="text-gray-600">{formatDate(certificate.completionDate)}</p>
+                  <h5 className="font-semibold text-gray-700 mb-1 text-sm">COMPLETED ON</h5>
+                  <p className="text-gray-600 text-base">{formatDate(certificate.completionDate)}</p>
                 </div>
 
-                <div className="text-center">
-                  <div className="bg-green-100 rounded-full p-3 w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+                <div className="text-center p-4 rounded-lg bg-green-50 border border-green-100">
+                  <div className="bg-green-100 rounded-full p-3 w-16 h-16 mx-auto mb-2 flex items-center justify-center shadow-inner">
                     <Star className="w-8 h-8 text-green-600" />
                   </div>
-                  <h5 className="font-semibold text-gray-700 mb-1">GRADE</h5>
-                  <p className="text-gray-600 font-bold">{certificate.grade}</p>
-                  <p className="text-sm text-gray-500">({certificate.score}%)</p>
+                  <h5 className="font-semibold text-gray-700 mb-1 text-sm">GRADE</h5>
+                  <p className="text-gray-600 font-bold text-base">{certificate.grade} ({certificate.score}%)</p>
                 </div>
               </div>
 
               {/* Skills Section */}
               {certificate.skills && certificate.skills.length > 0 && (
-                <div className="mb-8 w-full max-w-2xl">
-                  <h5 className="font-semibold text-gray-700 mb-4 text-center">SKILLS ACQUIRED</h5>
-                  <div className="flex flex-wrap justify-center gap-3">
+                <div className="w-full max-w-2xl">
+                  <h5 className="font-semibold text-gray-700 mb-3 text-center text-sm">SKILLS ACQUIRED</h5>
+                  <div className="flex flex-wrap justify-center gap-2">
                     {certificate.skills.map((skill, index) => (
                       <span 
                         key={index}
-                        className="px-4 py-2 bg-gradient-to-r from-purple-100 to-blue-100 text-purple-700 rounded-full text-sm font-medium border border-purple-200"
+                        className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium border border-gray-200"
                       >
                         {skill}
                       </span>
@@ -335,26 +327,23 @@ const CertificateViewer = () => {
               )}
 
               {/* Footer */}
-              <div className="mt-auto pt-8 border-t border-gray-300 w-full">
-                <div className="grid grid-cols-2 gap-8 text-sm text-gray-500">
+              <div className="-mb-4 pt-4 border-t border-gray-300 w-full max-w-4xl">
+                <div className="grid grid-cols-2 gap-6 text-xs text-gray-500">
                   <div className="text-left">
-                    <p className="font-semibold mb-1">Certificate Details</p>
-                    <p>ID: {certificate.certificateId}</p>
-                    <p>Verification: {certificate.verificationCode}</p>
+                    <p className="font-semibold mb-1">Certificate ID</p>
+                    <p>{certificate.certificateId}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold mb-1">Achievement</p>
-                    <p>Credits Earned: {certificate.creditsEarned || 0}</p>
-                    <p>Status: Verified Certificate</p>
+                    <p className="font-semibold mb-1">Verification Code</p>
+                    <p>{certificate.verificationCode}</p>
                   </div>
                 </div>
                 
                 {/* Verification Seal */}
-                <div className="flex justify-center mt-6">
-                  <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 rounded-full text-sm font-semibold flex items-center space-x-2">
-                    <Trophy className="w-4 h-4" />
-                    <span>VERIFIED CERTIFICATE</span>
-                    <Trophy className="w-4 h-4" />
+                <div className="flex justify-center mt-3">
+                  <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-1 rounded-full text-xs font-semibold flex items-center space-x-2 shadow-md">
+                    <Trophy className="w-3 h-3" />
+                    <span>VERIFIED by EduCharity</span>
                   </div>
                 </div>
               </div>

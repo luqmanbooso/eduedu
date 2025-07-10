@@ -178,7 +178,7 @@ const CourseCompletionCertificate = ({ courseId, course, onClose }) => {
         <div className="p-6">
           <div
             ref={certificateRef}
-            className="bg-gradient-to-br from-purple-50 to-blue-50 border-4 border-purple-200 rounded-lg p-12 text-center relative overflow-hidden"
+            className="bg-gradient-to-br from-purple-50 to-blue-50 border-4 border-purple-200 rounded-lg p-8 text-center relative overflow-hidden flex flex-col justify-between"
             style={{ width: '800px', height: '600px', margin: '0 auto' }}
           >
             {/* Background Pattern */}
@@ -199,58 +199,56 @@ const CourseCompletionCertificate = ({ courseId, course, onClose }) => {
 
             {/* Header */}
             <div className="relative z-10">
-              <div className="mb-8">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-purple-600 rounded-full mb-4">
-                  <Award className="w-10 h-10 text-white" />
-                </div>
-                <h1 className="text-4xl font-bold text-purple-800 mb-2">Certificate of Completion</h1>
-                <div className="w-32 h-1 bg-purple-600 mx-auto"></div>
+              <div className="inline-flex items-center justify-center w-24 h-24 bg-purple-600 rounded-full mb-4">
+                <Award className="w-12 h-12 text-white" />
               </div>
+              <h1 className="text-5xl font-bold text-purple-800 mb-2">Certificate of Completion</h1>
+              <div className="w-40 h-1 bg-purple-600 mx-auto mb-8"></div>
+            </div>
 
-              {/* Content */}
-              <div className="mb-8">
-                <p className="text-lg text-gray-700 mb-6">This is to certify that</p>
-                
-                <h2 className="text-3xl font-bold text-gray-900 mb-6 border-b-2 border-purple-300 pb-2 mx-20">
-                  {user?.name || 'Student Name'}
-                </h2>
-                
-                <p className="text-lg text-gray-700 mb-2">has successfully completed the course</p>
-                
-                <h3 className="text-2xl font-semibold text-purple-800 mb-6">
-                  "{course?.title}"
-                </h3>
-                
-                <p className="text-gray-600 mb-6">
-                  Instructed by <span className="font-semibold">{course?.instructor?.name}</span>
-                </p>
+            {/* Content */}
+            <div className="relative z-10 flex-grow flex flex-col justify-center">
+              <p className="text-xl text-gray-700 mb-4">This is to certify that</p>
+              
+              <h2 className="text-4xl font-bold text-gray-900 mb-4 border-b-2 border-purple-300 pb-4 mx-auto w-3/4">
+                {user?.name || 'Student Name'}
+              </h2>
+              
+              <p className="text-xl text-gray-700 mb-2">has successfully completed the course</p>
+              
+              <h3 className="text-3xl font-semibold text-purple-800 mb-4">
+                "{course?.title}"
+              </h3>
+              
+              <p className="text-lg text-gray-600">
+                Instructed by <span className="font-semibold">{course?.instructor?.name}</span>
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="relative z-10 flex items-center justify-between mt-auto pt-8">
+              <div className="text-left">
+                <div className="border-t-2 border-gray-400 pt-2 w-56">
+                  <p className="text-md text-gray-600">Date of Completion</p>
+                  <p className="font-semibold text-lg text-gray-800">
+                    {formatDate(certificate?.completedAt || new Date())}
+                  </p>
+                </div>
               </div>
-
-              {/* Footer */}
-              <div className="flex items-center justify-between mt-12">
-                <div className="text-left">
-                  <div className="border-t-2 border-gray-400 pt-2 w-48">
-                    <p className="text-sm text-gray-600">Date of Completion</p>
-                    <p className="font-semibold text-gray-800">
-                      {formatDate(certificate?.completedAt || new Date())}
-                    </p>
-                  </div>
+              
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-purple-600 rounded-full mb-2">
+                  <CheckCircle className="w-10 h-10 text-white" />
                 </div>
-                
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-600 rounded-full mb-2">
-                    <CheckCircle className="w-8 h-8 text-white" />
-                  </div>
-                  <p className="text-xs text-gray-600">Verified Certificate</p>
-                </div>
-                
-                <div className="text-right">
-                  <div className="border-t-2 border-gray-400 pt-2 w-48">
-                    <p className="text-sm text-gray-600">Certificate ID</p>
-                    <p className="font-mono text-sm text-gray-800">
-                      {certificate?.verificationId || 'CERT-' + Date.now()}
-                    </p>
-                  </div>
+                <p className="text-sm text-gray-600">Verified Certificate</p>
+              </div>
+              
+              <div className="text-right">
+                <div className="border-t-2 border-gray-400 pt-2 w-56">
+                  <p className="text-md text-gray-600">Certificate ID</p>
+                  <p className="font-mono text-md text-gray-800">
+                    {certificate?.verificationId || 'CERT-' + Date.now()}
+                  </p>
                 </div>
               </div>
             </div>
