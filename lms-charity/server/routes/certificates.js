@@ -108,9 +108,8 @@ router.post('/generate', protect, async (req, res) => {
     const fileName = `certificate-${certificate.certificateId}.pdf`;
     const filePath = path.join(certificatesDir, fileName);
     
-    // For now, skip PDF generation to avoid corruption issues
-    // TODO: Fix PDF generation later
-    // await generateModernCertificatePDF(certificate, course, req.user, filePath);
+    // Generate the PDF
+    await generateModernCertificatePDF(certificate, course, req.user, filePath);
     
     // Update certificate with placeholder file URL (will be generated on download)
     certificate.certificateUrl = `/uploads/certificates/${fileName}`;
@@ -334,271 +333,196 @@ router.get('/preview/:certificateId', protect, async (req, res) => {
   }
 });
 
-// Modern Udemy-like Certificate PDF Generation
+// Modern Certificate PDF Generation - Rewritten to match CertificateViewer.jsx
 async function generateModernCertificatePDF(certificate, course, user, filePath) {
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({
-        layout: 'landscape',
-        size: 'A4',
-        margins: { top: 40, bottom: 40, left: 50, right: 50 }
+        layout: 'portrait',
+        size: [842, 1191], // A4 aspect ratio, larger size for quality
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
       });
 
-      // Create write stream
       const stream = fs.createWriteStream(filePath);
       doc.pipe(stream);
 
-      // Page dimensions
       const pageWidth = doc.page.width;
       const pageHeight = doc.page.height;
       const centerX = pageWidth / 2;
 
-      // Colors (Udemy-like palette)
-      const primaryColor = '#6366f1';      // Indigo
-      const secondaryColor = '#f59e0b';    // Amber
-      const darkColor = '#1f2937';        // Dark gray
-      const lightColor = '#f3f4f6';       // Light gray
-      const whiteColor = '#ffffff';
+      // Colors
+      const colors = {
+        purple: { light: '#f5f3ff', medium: '#a78bfa', dark: '#8b5cf6' },
+        blue: { light: '#eff6ff', medium: '#60a5fa', dark: '#3b82f6' },
+        green: { light: '#f0fdf4', medium: '#4ade80', dark: '#22c55e' },
+        gray: { light: '#f9fafb', medium: '#6b7280', dark: '#1f2937' },
+        white: '#ffffff',
+      };
 
-      // Background
-      doc.rect(0, 0, pageWidth, pageHeight)
-         .fill(whiteColor);
+      // Background Gradient
+      const grad = doc.linearGradient(0, 0, pageWidth, pageHeight);
+      grad.stop(0, colors.blue.light).stop(1, colors.purple.light);
+      doc.rect(0, 0, pageWidth, pageHeight).fill(grad);
 
-      // Top border with gradient effect (simulated with rectangles)
-      for (let i = 0; i < 10; i++) {
-        const opacity = 0.8 - (i * 0.08);
-        doc.rect(0, i * 3, pageWidth, 3)
-           .fillOpacity(opacity)
-           .fill(primaryColor);
-      }
-
-      // Bottom border
-      for (let i = 0; i < 10; i++) {
-        const opacity = 0.8 - (i * 0.08);
-        doc.rect(0, pageHeight - 30 + (i * 3), pageWidth, 3)
-           .fillOpacity(opacity)
-           .fill(secondaryColor);
-      }
-
-      // Reset opacity
-      doc.fillOpacity(1);
-
-      // Logo/Brand area (top left)
-      doc.fontSize(28)
-         .fillColor(primaryColor)
-         .font('Helvetica-Bold')
-         .text('EduCharity', 50, 50);
-
-      doc.fontSize(12)
-         .fillColor(darkColor)
-         .font('Helvetica')
-         .text('Certificate of Completion', 50, 80);
-
-      // Certificate ID (top right)
-      doc.fontSize(10)
-         .fillColor(darkColor)
-         .font('Helvetica')
-         .text(`Certificate ID: ${certificate.certificateId}`, pageWidth - 250, 50)
-         .text(`Verification Code: ${certificate.verificationCode}`, pageWidth - 250, 65)
-         .text(`Date: ${certificate.completionDate.toLocaleDateString()}`, pageWidth - 250, 80);
-
-      // Main title
-      doc.fontSize(36)
-         .fillColor(darkColor)
-         .font('Helvetica-Bold')
-         .text('Certificate of Achievement', centerX, 140, { align: 'center' });
-
-      // Decorative line
-      doc.moveTo(centerX - 150, 190)
-         .lineTo(centerX + 150, 190)
-         .strokeColor(secondaryColor)
-         .lineWidth(3)
+      // Decorative Borders
+      const margin = 30;
+      doc.rect(margin, margin, pageWidth - margin * 2, pageHeight - margin * 2)
+         .strokeColor(colors.purple.medium)
+         .lineWidth(1)
          .stroke();
-
-      // "This is to certify that" text
-      doc.fontSize(16)
-         .fillColor(darkColor)
-         .font('Helvetica')
-         .text('This is to certify that', centerX, 220, { align: 'center' });
-
-      // Student name (highlighted)
-      doc.fontSize(32)
-         .fillColor(primaryColor)
-         .font('Helvetica-Bold')
-         .text(user.name.toUpperCase(), centerX, 260, { align: 'center' });
-
-      // "has successfully completed" text
-      doc.fontSize(16)
-         .fillColor(darkColor)
-         .font('Helvetica')
-         .text('has successfully completed the course', centerX, 310, { align: 'center' });
-
-      // Course title (highlighted)
-      doc.fontSize(24)
-         .fillColor(secondaryColor)
-         .font('Helvetica-Bold')
-         .text(course.title, centerX, 340, { align: 'center', width: 600 });
-
-      // Performance details
-      const performanceY = 400;
       
-      // Create performance boxes
-      const boxWidth = 120;
-      const boxHeight = 60;
-      const spacing = 40;
-      const startX = centerX - (boxWidth * 1.5 + spacing);
-
-      // Grade box
-      doc.rect(startX, performanceY, boxWidth, boxHeight)
-         .fillColor(lightColor)
-         .fill()
-         .rect(startX, performanceY, boxWidth, boxHeight)
-         .strokeColor(primaryColor)
-         .lineWidth(2)
+      const innerMargin = margin + 8;
+      doc.rect(innerMargin, innerMargin, pageWidth - innerMargin * 2, pageHeight - innerMargin * 2)
+         .dash(6, { space: 6 })
+         .strokeColor(colors.purple.medium)
+         .lineWidth(0.5)
+         .stroke();
+      
+      // Corner Elements
+      const cornerSize = 80;
+      const cornerMargin = margin + 20;
+      const cornerWidth = 4;
+      doc.save()
+         .lineWidth(cornerWidth)
+         .strokeColor(colors.purple.dark)
+         .moveTo(cornerMargin, cornerMargin + cornerSize)
+         .lineTo(cornerMargin, cornerMargin)
+         .lineTo(cornerMargin + cornerSize, cornerMargin)
+         .stroke();
+      doc.save()
+         .lineWidth(cornerWidth)
+         .strokeColor(colors.purple.dark)
+         .moveTo(pageWidth - cornerMargin, cornerMargin + cornerSize)
+         .lineTo(pageWidth - cornerMargin, cornerMargin)
+         .lineTo(pageWidth - cornerMargin - cornerSize, cornerMargin)
+         .stroke();
+      doc.save()
+         .lineWidth(cornerWidth)
+         .strokeColor(colors.purple.dark)
+         .moveTo(cornerMargin, pageHeight - cornerMargin - cornerSize)
+         .lineTo(cornerMargin, pageHeight - cornerMargin)
+         .lineTo(cornerMargin + cornerSize, pageHeight - cornerMargin)
+         .stroke();
+      doc.save()
+         .lineWidth(cornerWidth)
+         .strokeColor(colors.purple.dark)
+         .moveTo(pageWidth - cornerMargin, pageHeight - cornerMargin - cornerSize)
+         .lineTo(pageWidth - cornerMargin, pageHeight - cornerMargin)
+         .lineTo(pageWidth - cornerMargin - cornerSize, pageHeight - cornerMargin)
          .stroke();
 
-      doc.fontSize(14)
-         .fillColor(darkColor)
-         .font('Helvetica')
-         .text('Grade', startX, performanceY + 15, { width: boxWidth, align: 'center' });
+      // Content
+      const contentWidth = pageWidth * 0.8;
+      let y = 150;
 
-      doc.fontSize(20)
-         .fillColor(primaryColor)
-         .font('Helvetica-Bold')
-         .text(certificate.grade, startX, performanceY + 35, { width: boxWidth, align: 'center' });
+      // Header
+      const gradHeader = doc.linearGradient(centerX - 30, y - 30, centerX + 30, y + 30);
+      gradHeader.stop(0, colors.purple.dark).stop(1, colors.blue.dark);
+      doc.circle(centerX, y, 30).fill(gradHeader);
+      
+      // Award Icon (using a simple star path as a placeholder for lucide icon)
+      doc.save()
+         .translate(centerX - 12, y - 12)
+         .path('M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z')
+         .fillColor(colors.white)
+         .fill();
+      doc.restore();
+      
+      y += 50;
+      doc.font('Helvetica-Bold').fontSize(32).fillColor(colors.gray.dark)
+         .text('CERTIFICATE OF COMPLETION', { align: 'center' });
+      y += 50;
+      
+      const lineGrad = doc.linearGradient(centerX - 100, y, centerX + 100, y);
+      lineGrad.stop(0, colors.purple.medium).stop(0.5, colors.blue.medium).stop(1, colors.purple.medium);
+      doc.rect(centerX - 100, y, 200, 3).fill(lineGrad);
+      y += 80;
 
-      // Score box
-      const scoreX = startX + boxWidth + spacing;
-      doc.rect(scoreX, performanceY, boxWidth, boxHeight)
-         .fillColor(lightColor)
-         .fill()
-         .rect(scoreX, performanceY, boxWidth, boxHeight)
-         .strokeColor(secondaryColor)
-         .lineWidth(2)
-         .stroke();
+      // Main Content
+      doc.font('Helvetica').fontSize(18).fillColor(colors.gray.medium)
+         .text('This is to certify that', { align: 'center' });
+      y += 40;
+      
+      doc.font('Helvetica-Bold').fontSize(40).fillColor(colors.purple.dark)
+         .text(user.name, { align: 'center' });
+      doc.rect(centerX - (doc.widthOfString(user.name) / 2) - 20, y + 50, doc.widthOfString(user.name) + 40, 2)
+         .fillColor(colors.purple.medium)
+         .fill();
+      y += 80;
 
-      doc.fontSize(14)
-         .fillColor(darkColor)
-         .font('Helvetica')
-         .text('Score', scoreX, performanceY + 15, { width: boxWidth, align: 'center' });
+      doc.font('Helvetica').fontSize(18).fillColor(colors.gray.medium)
+         .text('has successfully completed the course', { align: 'center' });
+      y += 40;
 
-      doc.fontSize(20)
-         .fillColor(secondaryColor)
-         .font('Helvetica-Bold')
-         .text(`${certificate.score}%`, scoreX, performanceY + 35, { width: boxWidth, align: 'center' });
+      doc.font('Helvetica-Oblique').fontSize(28).fillColor(colors.blue.dark)
+         .text(`"${course.title}"`, { align: 'center', width: contentWidth, continued: false });
+      y += 100;
 
-      // Credits box
-      const creditsX = scoreX + boxWidth + spacing;
-      doc.rect(creditsX, performanceY, boxWidth, boxHeight)
-         .fillColor(lightColor)
-         .fill()
-         .rect(creditsX, performanceY, boxWidth, boxHeight)
-         .strokeColor(primaryColor)
-         .lineWidth(2)
-         .stroke();
+      // Course Details
+      const detailsWidth = pageWidth * 0.75;
+      const detailsStartX = centerX - detailsWidth / 2;
+      const colWidth = detailsWidth / 3;
 
-      doc.fontSize(14)
-         .fillColor(darkColor)
-         .font('Helvetica')
-         .text('Credits', creditsX, performanceY + 15, { width: boxWidth, align: 'center' });
+      const details = [
+        { label: 'INSTRUCTOR', value: course.instructor?.name || 'N/A', color: colors.purple },
+        { label: 'COMPLETED ON', value: new Date(certificate.completionDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), color: colors.blue },
+        { label: 'GRADE', value: `${certificate.grade} (${certificate.score}%)`, color: colors.green },
+      ];
 
-      doc.fontSize(20)
-         .fillColor(primaryColor)
-         .font('Helvetica-Bold')
-         .text(`${certificate.creditsEarned || 1}`, creditsX, performanceY + 35, { width: boxWidth, align: 'center' });
+      details.forEach((detail, i) => {
+        const x = detailsStartX + (i * colWidth);
+        doc.font('Helvetica-Bold').fontSize(11).fillColor(colors.gray.dark)
+           .text(detail.label, x, y, { width: colWidth, align: 'center' });
+        doc.font('Helvetica').fontSize(14).fillColor(colors.gray.medium)
+           .text(detail.value, x, y + 20, { width: colWidth, align: 'center' });
+      });
+      y += 80;
 
-      // Skills section (if available)
+      // Skills
       if (certificate.skills && certificate.skills.length > 0) {
-        doc.fontSize(14)
-           .fillColor(darkColor)
-           .font('Helvetica-Bold')
-           .text('Skills Acquired:', centerX, 490, { align: 'center' });
-
-        doc.fontSize(12)
-           .fillColor(darkColor)
-           .font('Helvetica')
-           .text(certificate.skills.join(' • '), centerX, 510, { 
-             align: 'center', 
-             width: 500 
-           });
+        doc.font('Helvetica-Bold').fontSize(12).fillColor(colors.gray.dark)
+           .text('SKILLS ACQUIRED', { align: 'center' });
+        y += 30;
+        
+        const skillsHtml = certificate.skills.map(skill => `<span>${skill}</span>`).join('');
+        const skillsText = certificate.skills.join('     '); // Simple spacing
+        
+        doc.font('Helvetica').fontSize(11).fillColor(colors.gray.medium)
+           .text(skillsText, { align: 'center', width: contentWidth });
+        y += 60;
       }
-
-      // Instructor signature area
-      const signatureY = pageHeight - 140;
-      
-      // Instructor info
-      doc.fontSize(12)
-         .fillColor(darkColor)
-         .font('Helvetica')
-         .text('Instructor', 100, signatureY);
-
-      doc.fontSize(16)
-         .fillColor(primaryColor)
-         .font('Helvetica-Bold')
-         .text(course.instructor?.name || 'EduCharity Team', 100, signatureY + 20);
-
-      // Signature line
-      doc.moveTo(80, signatureY + 50)
-         .lineTo(250, signatureY + 50)
-         .strokeColor(darkColor)
-         .lineWidth(1)
-         .stroke();
-
-      // Platform verification
-      doc.fontSize(12)
-         .fillColor(darkColor)
-         .font('Helvetica')
-         .text('Verified by EduCharity', pageWidth - 200, signatureY);
-
-      doc.fontSize(10)
-         .fillColor(darkColor)
-         .font('Helvetica')
-         .text(`Verify at: ${process.env.FRONTEND_URL}/verify-certificate/${certificate.certificateId}/${certificate.verificationCode}`, 
-                pageWidth - 350, signatureY + 20, { width: 300 });
-
-      // Verification QR code placeholder (could integrate QR library)
-      doc.rect(pageWidth - 100, signatureY + 40, 60, 60)
-         .strokeColor(lightColor)
-         .lineWidth(1)
-         .stroke();
-
-      doc.fontSize(8)
-         .fillColor(darkColor)
-         .font('Helvetica')
-         .text('QR Code', pageWidth - 85, signatureY + 68, { align: 'center' });
-
-      // Decorative elements
-      // Add some decorative circles
-      for (let i = 0; i < 3; i++) {
-        const x = 100 + (i * 150);
-        const y = 150;
-        doc.circle(x, y, 3)
-           .fillColor(secondaryColor)
-           .fillOpacity(0.3)
-           .fill();
-      }
-
-      doc.fillOpacity(1);
 
       // Footer
-      doc.fontSize(8)
-         .fillColor(darkColor)
-         .font('Helvetica')
-         .text('This certificate is electronically generated and verified. No signature is required.', 
-                centerX, pageHeight - 30, { align: 'center' });
+      const footerY = pageHeight - 150;
+      doc.moveTo(margin, footerY).lineTo(pageWidth - margin, footerY).strokeColor(colors.gray.medium).lineWidth(0.5).stroke();
+      
+      const footerColWidth = (pageWidth - margin * 2) / 2;
+      doc.font('Helvetica-Bold').fontSize(10).fillColor(colors.gray.dark)
+         .text('Certificate ID', margin, footerY + 20);
+      doc.font('Helvetica').fontSize(10).fillColor(colors.gray.medium)
+         .text(certificate.certificateId, margin, footerY + 35);
 
-      // Finalize the PDF
+      doc.font('Helvetica-Bold').fontSize(10).fillColor(colors.gray.dark)
+         .text('Verification Code', pageWidth - margin - footerColWidth, footerY + 20, { align: 'right', width: footerColWidth });
+      doc.font('Helvetica').fontSize(10).fillColor(colors.gray.medium)
+         .text(certificate.verificationCode, pageWidth - margin - footerColWidth, footerY + 35, { align: 'right', width: footerColWidth });
+
+      // Verified Seal
+      const sealY = footerY + 70;
+      const sealGrad = doc.linearGradient(centerX - 80, sealY, centerX + 80, sealY);
+      sealGrad.stop(0, colors.purple.dark).stop(1, colors.blue.dark);
+      doc.roundedRect(centerX - 80, sealY, 160, 25, 12.5).fill(sealGrad);
+      doc.font('Helvetica-Bold').fontSize(10).fillColor(colors.white)
+         .text('VERIFIED by EduCharity', centerX - 80, sealY + 8, { width: 160, align: 'center' });
+
+      // Finalize
       doc.end();
 
-      stream.on('finish', () => {
-        resolve(filePath);
-      });
-
-      stream.on('error', (error) => {
-        reject(error);
-      });
+      stream.on('finish', () => resolve(filePath));
+      stream.on('error', (err) => reject(err));
 
     } catch (error) {
+      console.error('PDF Generation Error:', error);
       reject(error);
     }
   });
