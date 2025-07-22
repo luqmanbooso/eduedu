@@ -44,6 +44,25 @@ const quizQuestionSchema = new mongoose.Schema({
   }
 });
 
+// ml model focused on essay submissions
+const assignmentSubmissionSchema = new mongoose.Schema({
+  student: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  essayText: String, // For text essay submissions
+  submissionUrl: String, // For file submissions
+  grade: Number, // ML score or manual grade
+  feedback: String, // ML or instructor feedback
+  submittedAt: {
+    type: Date,
+    default: Date.now
+  },
+  gradedAt: Date
+});
+
+
 const assignmentSchema = new mongoose.Schema({
   title: {
     type: String,
@@ -70,7 +89,9 @@ const assignmentSchema = new mongoose.Schema({
   maxFileSize: {
     type: Number,
     default: 10 * 1024 * 1024 // 10MB
-  }
+  },
+  submissions: [assignmentSubmissionSchema]
+
 });
 
 const lessonSchema = new mongoose.Schema({

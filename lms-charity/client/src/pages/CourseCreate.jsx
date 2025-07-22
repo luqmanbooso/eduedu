@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import CourseBasicsForm from '../components/CourseBasicsForm';
@@ -140,10 +141,7 @@ const CourseCreate = () => {
   ];
 
   const categories = [
-    'Programming', 'Web Development', 'Mobile Development', 'Data Science',
-    'Machine Learning', 'DevOps', 'Cybersecurity', 'Cloud Computing',
-    'Game Development', 'UI/UX Design', 'Business', 'Marketing',
-    'Photography', 'Music', 'Art & Design', 'Health & Fitness'
+    'Programming', 'Design', 'Business', 'Marketing', 'Science', 'Language', 'Data Science', 'AI/ML', 'Cybersecurity', 'Other'
   ];
 
   const levels = ['Beginner', 'Intermediate', 'Advanced', 'All Levels'];

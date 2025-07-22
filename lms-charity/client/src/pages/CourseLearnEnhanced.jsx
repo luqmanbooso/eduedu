@@ -49,6 +49,32 @@ import { useAuth } from '../context/AuthContext';
 import CourseCompletionCertificate from '../components/CourseCompletionCertificate';
 
 const CourseLearnEnhanced = () => {
+  // Assignment text submission state and handler
+  const [assignmentText, setAssignmentText] = useState("");
+  const handleAssignmentSubmit = () => {
+    if (!assignmentText.trim()) {
+      toast.error("Please enter your assignment text before submitting.");
+      return;
+    }
+    // Replace with actual API call
+    // Use correct essay submission endpoint
+    axios.post(
+      `/lessons/courses/${courseId}/modules/${currentModule?._id}/lessons/${currentLesson?._id}/submit-essay`,
+      { essayText: assignmentText },
+      {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      }
+    )
+    .then(res => {
+      toast.success("Assignment submitted and scored!\nScore: " + res.data.score);
+      setAssignmentText("");
+    })
+    .catch(err => {
+      toast.error("Failed to submit assignment. " + (err?.response?.data?.message || 'Please try again.'));
+    });
+  };
   const { courseId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -1663,57 +1689,42 @@ const CourseLearnEnhanced = () => {
                         {/* Submission Area */}
                         <div className="bg-gray-700 rounded-lg p-4">
                           <h3 className="font-semibold text-white mb-4">Submit Assignment</h3>
-                          
                           <div className="space-y-4">
                             <div>
                               <label className="block text-sm font-medium text-gray-300 mb-2">
                                 Text Submission
                               </label>
-                              <textarea
-                                placeholder="Enter your submission text here..."
-                                rows={6}
-                                className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              />
+                            <textarea
+                              placeholder="Enter your submission text here..."
+                              rows={6}
+                              value={assignmentText}
+                              onChange={e => setAssignmentText(e.target.value)}
+                              className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
                             </div>
-
-                            <div>
-                              <label className="block text-sm font-medium text-gray-300 mb-2">
-                                File Upload
-                              </label>
-                              <div className="border-2 border-dashed border-gray-500 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer">
-                                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                                <p className="text-gray-300">
-                                  Drop files here or click to browse
-                                </p>
-                                <p className="text-sm text-gray-400 mt-1">
-                                  Supports: .pdf, .doc, .docx, .zip
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="space-y-3">
-                              <button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
-                                Submit Assignment
-                              </button>
-                              
-                              {/* Mark Complete Button for assignments */}
-                              {!completedLessons.includes(currentLesson._id) && (
-                                <button
-                                  onClick={markLessonComplete}
-                                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2"
-                                >
-                                  <CheckCircle className="h-5 w-5" />
-                                  <span>Mark Assignment Complete</span>
-                                </button>
-                              )}
-                              
-                              {completedLessons.includes(currentLesson._id) && (
-                                <div className="w-full bg-green-500 text-white font-semibold py-3 px-6 rounded-lg flex items-center justify-center space-x-2">
-                                  <CheckCircle className="h-5 w-5" />
-                                  <span>Assignment Completed</span>
+                            {/* Only show file upload if submissionType is 'file' or 'both' */}
+                            {(assignmentData.submissionType === 'file' || assignmentData.submissionType === 'both') && (
+                              <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                  File Upload
+                                </label>
+                                <div className="border-2 border-dashed border-gray-500 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer">
+                                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                                  <p className="text-gray-300">
+                                    Drop files here or click to browse
+                                  </p>
+                                  <p className="text-sm text-gray-400 mt-1">
+                                    Supports: .pdf, .doc, .docx, .zip
+                                  </p>
                                 </div>
-                              )}
-                            </div>
+                              </div>
+                            )}
+                            <button
+                              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                              onClick={handleAssignmentSubmit}
+                            >
+                              Submit Assignment
+                            </button>
                           </div>
                         </div>
                       </>
@@ -1733,21 +1744,22 @@ const CourseLearnEnhanced = () => {
                           </p>
                         </div>
                         
-                        {/* Always show completion button for assignments */}
-                        {!completedLessons.includes(currentLesson._id) ? (
+                        {/* Only show completion button for non-assignment lessons */}
+                        {currentLesson.type !== 'assignment' && !completedLessons.includes(currentLesson._id) ? (
                           <button
                             onClick={markLessonComplete}
                             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors flex items-center justify-center space-x-2 mx-auto"
                           >
                             <CheckCircle className="h-5 w-5" />
-                            <span>Mark Assignment Complete</span>
+                            <span>Mark Complete</span>
                           </button>
-                        ) : (
+                        ) : null}
+                        {currentLesson.type !== 'assignment' && completedLessons.includes(currentLesson._id) ? (
                           <div className="bg-green-500 text-white font-semibold py-3 px-8 rounded-lg flex items-center justify-center space-x-2 mx-auto">
                             <CheckCircle className="h-5 w-5" />
-                            <span>Assignment Completed</span>
+                            <span>Completed</span>
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     )}
                   </div>
