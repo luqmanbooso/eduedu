@@ -63,6 +63,11 @@ const assignmentSubmissionSchema = new mongoose.Schema({
   submissionUrl: String, // For file submissions
   grade: Number, // ML score or manual grade
   feedback: String, // ML or instructor feedback
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
+  },
   submittedAt: {
     type: Date,
     default: Date.now

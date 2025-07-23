@@ -16,7 +16,7 @@ const router = express.Router();
 // @access  Private (Instructor)
 router.put('/submissions/:submissionId/grade', protect, restrictTo('instructor', 'admin'), async (req, res) => {
   try {
-    const { grade, feedback } = req.body;
+    const { grade, feedback, status } = req.body;
     // Find the course containing the submission
     const course = await Course.findOne({ 'modules.lessons.assignment.submissions._id': req.params.submissionId });
     if (!course) return res.status(404).json({ message: 'Course not found for submission' });
@@ -29,9 +29,10 @@ router.put('/submissions/:submissionId/grade', protect, restrictTo('instructor',
           if (submission) {
             foundSubmission = submission;
             foundLesson = lesson;
-            // Update grade and feedback
+            // Update grade, feedback, and status
             submission.grade = grade;
             submission.feedback = feedback;
+            submission.status = status;
             submission.gradedAt = new Date();
             break;
           }
@@ -41,6 +42,21 @@ router.put('/submissions/:submissionId/grade', protect, restrictTo('instructor',
       if (foundSubmission) break;
     }
     if (!foundSubmission) return res.status(404).json({ message: 'Submission not found' });
+
+    // If approved, mark the lesson as complete for the student
+    if (status === 'approved') {
+      const user = await User.findById(foundSubmission.student);
+      const userCourse = user.enrolledCourses.find(
+        ec => ec.course.toString() === course._id.toString()
+      );
+      if (userCourse && !userCourse.completedLessons.includes(foundLesson._id)) {
+        userCourse.completedLessons.push(foundLesson._id);
+        const totalLessons = course.modules.reduce((acc, module) => acc + module.lessons.length, 0);
+        userCourse.progress = Math.round((userCourse.completedLessons.length / totalLessons) * 100);
+        await user.save();
+      }
+    }
+
     await course.save();
     res.json({ message: 'Grade and feedback updated', submission: foundSubmission });
   } catch (error) {

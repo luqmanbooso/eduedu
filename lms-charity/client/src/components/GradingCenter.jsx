@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileText, 
@@ -60,12 +60,27 @@ const GradingCenter = ({ courseId, isOpen, onClose }) => {
   const fetchSubmissions = async (assignmentId) => {
     if (!assignmentId) return;
     try {
-      const response = await axios.get(`/assignments/${assignmentId}/submissions`);
+      const response = await axios.get(`/courses/assignments/${assignmentId}/submissions`);
       console.log('Fetched submissions:', response.data.submissions);
       setSubmissions(response.data.submissions || []);
     } catch (error) {
       console.error('Error fetching submissions:', error);
     }
+  };
+
+  const getStatusColor = (submission) => {
+    if (submission.status === 'approved') return 'text-green-600 bg-green-100';
+    if (submission.status === 'rejected') return 'text-red-600 bg-red-100';
+    if (new Date(submission.submittedAt) > new Date(selectedAssignment?.dueDate)) return 'text-red-600 bg-red-100';
+    return 'text-yellow-600 bg-yellow-100';
+  };
+
+  const getStatusText = (submission) => {
+    if (submission.status === 'approved') return 'Approved';
+    if (submission.status === 'rejected') return 'Rejected';
+    if (submission.grade !== undefined) return 'Graded';
+    if (new Date(submission.submittedAt) > new Date(selectedAssignment?.dueDate)) return 'Late';
+    return 'Pending';
   };
 
   const filteredSubmissions = submissions.filter(submission => {
@@ -80,18 +95,6 @@ const GradingCenter = ({ courseId, isOpen, onClose }) => {
     }
     return true;
   });
-
-  const getStatusColor = (submission) => {
-    if (submission.grade !== undefined) return 'text-green-600 bg-green-100';
-    if (new Date(submission.submittedAt) > new Date(selectedAssignment?.dueDate)) return 'text-red-600 bg-red-100';
-    return 'text-yellow-600 bg-yellow-100';
-  };
-
-  const getStatusText = (submission) => {
-    if (submission.grade !== undefined) return 'Graded';
-    if (new Date(submission.submittedAt) > new Date(selectedAssignment?.dueDate)) return 'Late';
-    return 'Pending';
-  };
 
   if (!isOpen) return null;
 
@@ -214,8 +217,9 @@ const GradingCenter = ({ courseId, isOpen, onClose }) => {
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
                       >
                         <option value="all">All Submissions</option>
-                        <option value="graded">Graded</option>
-                        <option value="ungraded">Ungraded</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
                         <option value="late">Late</option>
                       </select>
                     </div>
@@ -340,15 +344,16 @@ const GradingPanel = ({ submission, assignment, onGradeUpdate }) => {
     setSuccess('');
   }, [submission]);
 
-  const handleSaveGrade = async () => {
+  const handleSaveGrade = async (status) => {
     setLoading(true);
     setError('');
     setSuccess('');
 
     try {
-      await axios.put(`/submissions/${submission._id}/grade`, {
+      await axios.put(`/grading/submissions/${submission._id}`, {
         grade: parseFloat(grade),
-        feedback: feedback.trim()
+        feedback: feedback.trim(),
+        status
       });
       
       setSuccess('Grade saved successfully!');
@@ -358,6 +363,22 @@ const GradingPanel = ({ submission, assignment, onGradeUpdate }) => {
     } catch (error) {
       console.error('Error saving grade:', error);
       setError(error.response?.data?.message || 'Failed to save grade');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleScoreWithAI = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await axios.post('/grading/score-essay', {
+        essayText: submission.content,
+      });
+      setGrade(response.data.score);
+      setFeedback(response.data.feedback);
+    } catch (err) {
+      setError('Failed to score with AI.');
     } finally {
       setLoading(false);
     }
@@ -534,34 +555,30 @@ const GradingPanel = ({ submission, assignment, onGradeUpdate }) => {
             />
           </div>
 
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-between items-center">
             <button
-              onClick={() => {
-                setGrade(submission.grade || '');
-                setFeedback(submission.feedback || '');
-              }}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              onClick={handleScoreWithAI}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Reset
+              Score with AI
             </button>
-            <button
-              onClick={handleSaveGrade}
-              disabled={loading || !grade}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <div className="flex items-center">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  Saving...
-                </div>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Grade
-                </>
-              )}
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => handleSaveGrade('rejected')}
+                disabled={loading}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                Reject
+              </button>
+              <button
+                onClick={() => handleSaveGrade('approved')}
+                disabled={loading || !grade}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                Accept & Save Grade
+              </button>
+            </div>
           </div>
         </div>
       </div>
