@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { courseAPI, progressAPI, notificationAPI, certificateAPI } from '../services/api';
+import { courseAPI, notificationAPI, certificateAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 export const useStudentDashboard = () => {
@@ -7,7 +7,6 @@ export const useStudentDashboard = () => {
   const [availableCourses, setAvailableCourses] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [certificates, setCertificates] = useState([]);
-  const [progress, setProgress] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -17,48 +16,39 @@ export const useStudentDashboard = () => {
       setLoading(true);
       setError(null);
 
-      const [
-        availableCoursesData,
-        progressData,
-        notificationsData,
-        certificatesData
-      ] = await Promise.all([
-        courseAPI.getAllCourses({ page: 1, limit: 50 }),
-        progressAPI.getAllProgress(),
-        notificationAPI.getNotifications({ page: 1, limit: 20 }),
-        certificateAPI.getCertificates()
-      ]);
-
-      // Set available courses (those not enrolled in)
-      setAvailableCourses(availableCoursesData.courses || []);
-
-      // Set progress data and extract enrolled courses
-      setProgress(progressData || []);
-      
-      // Transform progress data to enrolled courses format
-      const enrolledCoursesData = progressData.map(progressItem => ({
-        ...progressItem.course,
-        progress: progressItem.progressPercentage || 0,
-        totalLessons: progressItem.course.modules?.reduce((acc, module) => 
-          acc + (module.lessons?.length || 0), 0) || 0,
-        completedLessons: progressItem.completedLessons?.length || 0,
-        enrolledAt: progressItem.createdAt,
-        lastAccessed: progressItem.lastAccessed,
-        nextLesson: progressItem.currentLesson?.title || 'Start Course',
-        estimatedTimeLeft: calculateTimeLeft(progressItem),
-        hasQuizzes: true,
-        hasAssignments: true,
-        hasDiscussions: true,
-        upcomingDeadlines: getUpcomingDeadlines(progressItem.course)
+      // Fetch enrolled courses with progress
+      const enrolledCoursesRes = await courseAPI.getEnrolledCourses();
+      const enrolledCoursesRaw = (enrolledCoursesRes.data || enrolledCoursesRes.courses || []);
+      const enrolledCourses = enrolledCoursesRaw.map(course => ({
+        ...course,
+        progress: course.progress?.percentage || 0,
+        completedLessons: course.progress?.completedLessons || 0,
+        totalLessons: course.totalLessons || 0,
+        estimatedTimeLeft: course.progress?.timeLeft || 'N/A',
+        enrolledAt: course.enrollment?.enrolledAt || course.enrolledAt,
+        lastAccessed: course.enrollment?.lastAccessed || course.lastAccessed,
+        nextLesson: course.progress?.nextLesson || 'Start Course',
+        hasQuizzes: !!course.hasQuizzes,
+        hasAssignments: !!course.hasAssignments,
+        hasDiscussions: !!course.hasDiscussions,
+        upcomingDeadlines: [] // You can fill this if you have deadlines
       }));
+      setEnrolledCourses(enrolledCourses);
 
-      setEnrolledCourses(enrolledCoursesData);
+      // Fetch available courses and filter out enrolled
+      const allCoursesRes = await courseAPI.getAllCourses({ page: 1, limit: 50 });
+      const availableCourses = (allCoursesRes.courses || []).filter(
+        c => !enrolledCourses.some(ec => ec._id === c._id)
+      );
+      setAvailableCourses(availableCourses);
 
-      // Set notifications
-      setNotifications(notificationsData.notifications || []);
+      // Fetch certificates
+      const certificatesRes = await certificateAPI.getMyCertificates();
+      setCertificates(certificatesRes.certificates || []);
 
-      // Set certificates
-      setCertificates(certificatesData.certificates || []);
+      // Fetch notifications
+      const notificationsRes = await notificationAPI.getNotifications({ page: 1, limit: 20 });
+      setNotifications(notificationsRes.notifications || []);
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -69,36 +59,15 @@ export const useStudentDashboard = () => {
     }
   };
 
-  // Calculate estimated time left for a course
-  const calculateTimeLeft = (progressItem) => {
-    const totalLessons = progressItem.course.modules?.reduce((acc, module) => 
-      acc + (module.lessons?.length || 0), 0) || 0;
-    const completedLessons = progressItem.completedLessons?.length || 0;
-    const remainingLessons = totalLessons - completedLessons;
-    const avgLessonTime = 30; // minutes per lesson
-    const timeLeftMinutes = remainingLessons * avgLessonTime;
-    
-    if (timeLeftMinutes < 60) {
-      return `${timeLeftMinutes}m`;
-    } else {
-      return `${Math.round(timeLeftMinutes / 60)}h`;
-    }
-  };
-
-  // Get upcoming deadlines for a course
-  const getUpcomingDeadlines = (course) => {
-    // This would be based on assignment due dates, quiz deadlines, etc.
-    // For now, return empty array as assignments are handled separately
-    return [];
-  };
+  // Load data on mount
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
   // Enroll in a course
   const enrollInCourse = async (courseId) => {
     try {
       await courseAPI.enrollInCourse(courseId);
-      
-      // Start progress tracking for the course
-      await progressAPI.startCourse(courseId);
       
       // Refresh dashboard data
       await fetchDashboardData();
@@ -117,9 +86,9 @@ export const useStudentDashboard = () => {
   const continueLearning = async (courseId) => {
     try {
       // Update last accessed time
-      const progressItem = progress.find(p => p.course._id === courseId);
+      const progressItem = enrolledCourses.find(p => p._id === courseId);
       if (progressItem) {
-        await progressAPI.updateProgress(courseId, {
+        await courseAPI.updateCourseProgress(courseId, {
           lastAccessed: new Date()
         });
       }
@@ -135,7 +104,7 @@ export const useStudentDashboard = () => {
   // Complete a lesson
   const completeLesson = async (courseId, lessonId, timeSpent = 0, quizScore = null) => {
     try {
-      await progressAPI.completeLesson({
+      await courseAPI.completeLesson({
         courseId,
         lessonId,
         timeSpent,
@@ -240,18 +209,12 @@ export const useStudentDashboard = () => {
     }
   };
 
-  // Load data on mount
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
   return {
     // Data
     enrolledCourses,
     availableCourses,
     notifications,
     certificates,
-    progress,
     loading,
     error,
     

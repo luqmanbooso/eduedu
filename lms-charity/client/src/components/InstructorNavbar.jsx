@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -28,6 +28,7 @@ import {
   Edit
 } from 'lucide-react';
 import NotificationCenter from './NotificationCenter';
+import api from '../services/api';
 
 const InstructorNavbar = () => {
   const { user, logout } = useAuth();
@@ -37,6 +38,19 @@ const InstructorNavbar = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isCoursesHovered, setIsCoursesHovered] = useState(false);
+  const [instructorStats, setInstructorStats] = useState(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await api.get('/profile/stats');
+        setInstructorStats(res.data.instructor);
+      } catch (e) {
+        setInstructorStats(null);
+      }
+    };
+    if (user?.role === 'instructor') fetchStats();
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -46,9 +60,8 @@ const InstructorNavbar = () => {
 
   // Instructor-specific navigation items
   const navItems = [
-    { name: 'Dashboard', href: '/instructor/dashboard', icon: BarChart3 },
-    { name: 'My Courses', href: '/instructor/courses', icon: BookOpen, hasDropdown: true },
-    { name: 'Students', href: '/instructor/students', icon: Users },
+    // Removed 'Dashboard', 'My Courses', 'Students'
+    // Add other items here if needed
   ];
 
   // Course management dropdown items
@@ -82,12 +95,7 @@ const InstructorNavbar = () => {
   ];
 
   const userNavItems = [
-    { name: 'Dashboard', href: '/instructor/dashboard', icon: BarChart3 },
-    { name: 'My Courses', href: '/instructor/courses', icon: BookOpen },
-    { name: 'Students', href: '/instructor/students', icon: Users },
-    { name: 'Analytics', href: '/instructor/analytics', icon: TrendingUp },
-    { name: 'Earnings', href: '/instructor/earnings', icon: Award },
-    { name: 'Messages', href: '/instructor/messages', icon: MessageSquare },
+    // Removed 'Analytics', 'Earnings', 'Messages'
   ];
 
   return (
@@ -365,11 +373,11 @@ const InstructorNavbar = () => {
                   <div className="px-4 py-3 border-b border-gray-100">
                     <div className="grid grid-cols-2 gap-3 text-center">
                       <div>
-                        <div className="text-lg font-bold text-purple-600">12</div>
+                        <div className="text-lg font-bold text-purple-600">{user?.createdCourses?.length || 0}</div>
                         <div className="text-xs text-gray-500">Courses</div>
                       </div>
                       <div>
-                        <div className="text-lg font-bold text-black">1.2k</div>
+                        <div className="text-lg font-bold text-black">{instructorStats?.totalStudentsTaught ?? 0}</div>
                         <div className="text-xs text-gray-500">Students</div>
                       </div>
                     </div>

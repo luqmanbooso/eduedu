@@ -22,6 +22,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import CourseEditPlaceholder from './pages/CourseEditPlaceholder';
 import CoursePreviewPlaceholder from './pages/CoursePreviewPlaceholder';
+import InstructorProfile from './pages/InstructorProfile';
+import InstructorHelp from './pages/InstructorHelp';
 
 // Component to conditionally render the appropriate navbar
 const ConditionalNavbar = () => {
@@ -159,6 +161,22 @@ function App() {
                 element={
                   <ProtectedRoute requiredRole="admin">
                     <AdminDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/instructor/profile" 
+                element={
+                  <ProtectedRoute requiredRole="instructor">
+                    <InstructorProfile />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/instructor/help" 
+                element={
+                  <ProtectedRoute requiredRole="instructor">
+                    <InstructorHelp />
                   </ProtectedRoute>
                 } 
               />

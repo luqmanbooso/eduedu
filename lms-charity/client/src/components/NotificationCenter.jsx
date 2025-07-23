@@ -29,10 +29,11 @@ const NotificationCenter = ({ notifications = [], onMarkAsRead, onMarkAllAsRead,
   const [filter, setFilter] = useState('all');
   const dropdownRef = useRef(null);
 
-  // Update local notifications when props change
+  // Fix: useEffect for notifications should only depend on notifications prop
   useEffect(() => {
     setLocalNotifications(notifications);
     setUnreadCount(notifications.filter(n => !n.isRead).length);
+    // No further setState or effect here
   }, [notifications]);
 
   // Close dropdown when clicking outside

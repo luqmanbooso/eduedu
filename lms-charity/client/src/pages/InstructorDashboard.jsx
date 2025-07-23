@@ -123,49 +123,6 @@ const InstructorDashboard = () => {
     { id: 'certificates', label: 'Certificates', icon: Award }
   ];
 
-  const quickActions = [
-    {
-      title: 'Manage Courses',
-      description: 'Edit course content, lessons, and settings',
-      icon: Edit,
-      action: () => navigate('/instructor/courses'),
-      color: 'bg-black',
-      hoverColor: 'hover:bg-gray-800'
-    },
-    {
-      title: 'Student Progress',
-      description: 'Monitor completion rates and performance',
-      icon: BarChart3,
-      action: () => navigate('/instructor/students'),
-      color: 'bg-purple-500',
-      hoverColor: 'hover:bg-purple-600'
-    },
-    {
-      title: 'Grade Assignments',
-      description: 'Review assignments, grading, and feedback',
-      icon: GraduationCap,
-      action: () => navigate('/instructor/grading'),
-      color: 'bg-gray-800',
-      hoverColor: 'hover:bg-gray-900'
-    },
-    {
-      title: 'Discussion Forum',
-      description: 'Moderate course discussions and engage with students',
-      icon: MessageSquare,
-      action: () => navigate('/instructor/discussions'),
-      color: 'bg-purple-400',
-      hoverColor: 'hover:bg-purple-500'
-    },
-    {
-      title: 'Issue Certificates',
-      description: 'Manage and issue course completion certificates',
-      icon: Award,
-      action: () => navigate('/instructor/certificates'),
-      color: 'bg-black',
-      hoverColor: 'hover:bg-gray-800'
-    }
-  ];
-
   const handleManageContent = (courseId) => {
     setSelectedCourseId(courseId);
     setShowContentManager(true);
@@ -241,32 +198,6 @@ const InstructorDashboard = () => {
             />
           </motion.div>
         )}
-
-        {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="mb-8"
-        >
-          <h2 className="text-2xl font-bold text-black mb-6 font-serif">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {quickActions.map((action, index) => (
-              <motion.div
-                key={action.title}
-                whileHover={{ scale: 1.02, y: -4 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ duration: 0.2 }}
-                onClick={action.action}
-                className={`${action.color} ${action.hoverColor} text-white p-6 cursor-pointer transition-colors duration-200`}
-              >
-                <action.icon className="w-8 h-8 mb-4" />
-                <h3 className="text-lg font-semibold mb-2">{action.title}</h3>
-                <p className="text-sm opacity-90">{action.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
 
         {/* Tabs */}
         <div className="mb-8">
