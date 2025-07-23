@@ -48,8 +48,16 @@ const CourseContentManager = ({ courseId, isOpen, onClose }) => {
     try {
       setLoading(true);
       const response = await axios.get(`/courses/${courseId}`);
-      setCourse(response.data.course);
-      setModules(response.data.course.modules || []);
+      // Defensive: handle both {course: ...} and direct course object
+      const courseData = response.data.course || response.data;
+      if (!courseData) {
+        console.warn('No course data found in response:', response.data);
+        setCourse(null);
+        setModules([]);
+        return;
+      }
+      setCourse(courseData);
+      setModules(courseData.modules || []);
     } catch (error) {
       console.error('Error fetching course content:', error);
     } finally {
@@ -151,14 +159,14 @@ const CourseContentManager = ({ courseId, isOpen, onClose }) => {
           </div>
 
           <div className="flex h-[calc(95vh-120px)]">
-            {/* Content Tree */}
-            <div className="w-1/2 border-r border-gray-200 overflow-y-auto">
+            {/* Left Panel: Udemy-style curriculum tree */}
+            <div className="w-1/2 bg-white border-r border-gray-200 overflow-y-auto">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">Course Structure</h3>
+                  <h3 className="text-lg font-bold text-gray-900 tracking-tight">Course Structure</h3>
                   <button
                     onClick={handleAddModule}
-                    className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-full shadow hover:bg-purple-700 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Add Module</span>
@@ -173,18 +181,19 @@ const CourseContentManager = ({ courseId, isOpen, onClose }) => {
                   <div className="space-y-4">
                     {modules.map((module, moduleIndex) => (
                       <motion.div
-                        key={module._id}
+                        key={module._id || `module-${moduleIndex}`}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: moduleIndex * 0.1 }}
-                        className="border border-gray-200 rounded-xl overflow-hidden"
+                        className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden"
                       >
                         {/* Module Header */}
-                        <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                        <div className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-purple-50 group transition-colors">
                           <div className="flex items-center space-x-3">
                             <button
                               onClick={() => toggleModuleExpansion(module._id)}
-                              className="text-gray-500 hover:text-gray-700 transition-colors"
+                              className="text-gray-400 hover:text-purple-600 transition-colors focus:outline-none"
+                              title={expandedModules.has(module._id) ? 'Collapse' : 'Expand'}
                             >
                               {expandedModules.has(module._id) ? (
                                 <ChevronDown className="w-4 h-4" />
@@ -192,33 +201,27 @@ const CourseContentManager = ({ courseId, isOpen, onClose }) => {
                                 <ChevronRight className="w-4 h-4" />
                               )}
                             </button>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-medium text-gray-600">
-                                Module {module.order}
-                              </span>
-                              <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
-                              <span className="font-medium text-gray-900">{module.title}</span>
-                            </div>
+                            <span className="text-xs font-semibold text-purple-600 bg-purple-50 rounded px-2 py-0.5">{moduleIndex + 1}</span>
+                            <span className="font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">{module.title}</span>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <span className="text-xs text-gray-500">
-                              {module.lessons?.length || 0} lessons
-                            </span>
+                            <span className="text-xs text-gray-400">{module.lessons?.length || 0} lessons</span>
                             <button
                               onClick={() => handleEditModule(module)}
-                              className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                              className="p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-purple-600 transition-colors"
+                              title="Edit Module"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleAddLesson(module._id)}
-                              className="p-1 text-purple-600 hover:text-purple-700 transition-colors"
+                              className="p-1 rounded-full hover:bg-purple-100 text-purple-600 transition-colors"
+                              title="Add Lesson"
                             >
                               <Plus className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
-
                         {/* Module Content */}
                         <AnimatePresence>
                           {expandedModules.has(module._id) && (
@@ -226,65 +229,63 @@ const CourseContentManager = ({ courseId, isOpen, onClose }) => {
                               initial={{ height: 0, opacity: 0 }}
                               animate={{ height: 'auto', opacity: 1 }}
                               exit={{ height: 0, opacity: 0 }}
-                              className="bg-white"
+                              className="bg-gray-50 border-t border-gray-100"
                             >
                               {module.description && (
-                                <div className="px-4 py-3 text-sm text-gray-600 border-b border-gray-100">
-                                  {module.description}
-                                </div>
+                                <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-100 italic">{module.description}</div>
                               )}
-                              
                               {/* Lessons */}
-                              <div className="px-4 py-2">
+                              <div className="px-2 py-2">
                                 {module.lessons && module.lessons.length > 0 ? (
-                                  <div className="space-y-2">
-                                    {module.lessons.map((lesson, lessonIndex) => (
-                                      <div
-                                        key={lesson._id}
-                                        className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
-                                        onClick={() => handleEditLesson(module._id, lesson)}
-                                      >
-                                        <div className="flex items-center space-x-3">
-                                          <div className={`p-1.5 rounded-lg ${getTypeColor(lesson.type)}`}>
-                                            {getLessonIcon(lesson.type)}
-                                          </div>
-                                          <div>
-                                            <h4 className="font-medium text-gray-900">{lesson.title}</h4>
-                                            <div className="flex items-center space-x-3 mt-1">
-                                              <span className="text-xs text-gray-500 capitalize">
-                                                {lesson.type}
-                                              </span>
-                                              {lesson.videoDuration && (
-                                                <span className="text-xs text-gray-500 flex items-center">
-                                                  <Clock className="w-3 h-3 mr-1" />
-                                                  {Math.floor(lesson.videoDuration / 60)}m
-                                                </span>
-                                              )}
-                                              {lesson.isPreview && (
-                                                <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">
-                                                  Preview
-                                                </span>
-                                              )}
+                                  <div className="space-y-1">
+                                    {module.lessons.map((lesson, lessonIndex) => {
+                                      if (!lesson._id) {
+                                        console.warn('Lesson missing _id, using index as key:', lesson);
+                                      }
+                                      return (
+                                        <div
+                                          key={lesson._id || `lesson-${lessonIndex}`}
+                                          className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-white border border-transparent hover:border-purple-200 cursor-pointer transition-colors group"
+                                          onClick={() => handleEditLesson(module._id, lesson)}
+                                        >
+                                          <div className="flex items-center space-x-3">
+                                            <div className={`p-1.5 rounded-lg ${getTypeColor(lesson.type)} shadow-sm`} title={lesson.type.charAt(0).toUpperCase() + lesson.type.slice(1)}>
+                                              {getLessonIcon(lesson.type)}
+                                            </div>
+                                            <div>
+                                              <h4 className="font-medium text-gray-900 text-sm group-hover:text-purple-700 transition-colors">{lesson.title}</h4>
+                                              <div className="flex items-center space-x-2 mt-0.5">
+                                                <span className="text-xs text-gray-400 capitalize">{lesson.type}</span>
+                                                {lesson.videoDuration && (
+                                                  <span className="text-xs text-gray-400 flex items-center">
+                                                    <Clock className="w-3 h-3 mr-1" />
+                                                    {Math.floor(lesson.videoDuration / 60)}m
+                                                  </span>
+                                                )}
+                                                {lesson.isPreview && (
+                                                  <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">Preview</span>
+                                                )}
+                                              </div>
                                             </div>
                                           </div>
+                                          <div className="flex items-center space-x-2">
+                                            {lesson.isPublished ? (
+                                              <CheckCircle className="w-4 h-4 text-green-500" title="Published" />
+                                            ) : (
+                                              <AlertCircle className="w-4 h-4 text-orange-500" title="Draft" />
+                                            )}
+                                          </div>
                                         </div>
-                                        <div className="flex items-center space-x-2">
-                                          {lesson.isPublished ? (
-                                            <CheckCircle className="w-4 h-4 text-green-500" />
-                                          ) : (
-                                            <AlertCircle className="w-4 h-4 text-orange-500" />
-                                          )}
-                                        </div>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 ) : (
-                                  <div className="text-center py-6 text-gray-500">
+                                  <div className="text-center py-6 text-gray-400">
                                     <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                    <p className="text-sm">No lessons yet</p>
+                                    <p className="text-xs">No lessons yet</p>
                                     <button
                                       onClick={() => handleAddLesson(module._id)}
-                                      className="text-purple-600 hover:text-purple-700 text-sm mt-2 transition-colors"
+                                      className="text-purple-600 hover:text-purple-700 text-xs mt-2 transition-colors"
                                     >
                                       Add your first lesson
                                     </button>
@@ -296,15 +297,14 @@ const CourseContentManager = ({ courseId, isOpen, onClose }) => {
                         </AnimatePresence>
                       </motion.div>
                     ))}
-
                     {modules.length === 0 && (
                       <div className="text-center py-12">
-                        <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No modules yet</h3>
-                        <p className="text-gray-500 mb-4">Start building your course by adding your first module</p>
+                        <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-200" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No modules yet</h3>
+                        <p className="text-gray-400 mb-4">Start building your course by adding your first module</p>
                         <button
                           onClick={handleAddModule}
-                          className="inline-flex items-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                          className="inline-flex items-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-full shadow hover:bg-purple-700 transition-colors"
                         >
                           <Plus className="w-4 h-4" />
                           <span>Create First Module</span>
@@ -316,17 +316,15 @@ const CourseContentManager = ({ courseId, isOpen, onClose }) => {
               </div>
             </div>
 
-            {/* Content Editor/Preview */}
-            <div className="w-1/2 overflow-y-auto bg-gray-50">
-              <div className="p-6">
-                <div className="bg-white rounded-xl border border-gray-200 p-6 min-h-[400px]">
-                  <div className="text-center py-12">
-                    <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Select content to edit</h3>
-                    <p className="text-gray-500">
-                      Choose a module or lesson from the left panel to start editing
-                    </p>
-                  </div>
+            {/* Right Panel: Udemy-style content editor/preview */}
+            <div className="w-1/2 overflow-y-auto bg-gray-50 flex flex-col items-center justify-center">
+              <div className="w-full max-w-xl p-8">
+                <div className="bg-white rounded-2xl border border-gray-200 shadow p-8 min-h-[400px] flex flex-col items-center justify-center">
+                  <FileText className="w-16 h-16 mb-4 text-gray-200" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Select content to edit</h3>
+                  <p className="text-gray-400 text-center">
+                    Choose a module or lesson from the left panel to start editing
+                  </p>
                 </div>
               </div>
             </div>

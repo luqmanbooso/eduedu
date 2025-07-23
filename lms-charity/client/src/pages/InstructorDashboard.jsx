@@ -36,6 +36,8 @@ import CourseContentManager from '../components/CourseContentManager';
 import DiscussionForum from '../components/DiscussionForum';
 import GradingCenter from '../components/GradingCenter';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import api from '../services/api'; // Make sure this import is present for direct API calls
+import { toast } from 'react-toastify'; // Add this import at the top if using react-toastify
 
 const InstructorDashboard = () => {
   const { user } = useAuth();
@@ -163,11 +165,6 @@ const InstructorDashboard = () => {
       hoverColor: 'hover:bg-gray-800'
     }
   ];
-
-  const generateReport = () => {
-    // Report generation logic
-    console.log('Generating report...');
-  };
 
   const handleManageContent = (courseId) => {
     setSelectedCourseId(courseId);
@@ -727,17 +724,14 @@ const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
 
   // New: Delete course logic
   const handleDeleteCourse = async (courseId) => {
+    console.log('Delete course', courseId);
     if (!window.confirm('Are you sure you want to delete this course? This action cannot be undone.')) return;
-    setDeletingCourseId(courseId);
-    setDeleteError('');
     try {
-      console.log('Delete course', courseId);
-      await instructorAPI.deleteCourse(courseId);
+      await api.delete(`/courses/${courseId}`);
+      toast.success('Course deleted!');
       await handleRefreshCourses();
     } catch (error) {
-      setDeleteError('Failed to delete course.');
-    } finally {
-      setDeletingCourseId(null);
+      toast.error(error.response?.data?.message || 'Failed to delete course.');
     }
   };
 
@@ -753,18 +747,15 @@ const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
     navigate(`/courses/preview/${courseId}`);
   };
   const handleEditCourse = (courseId) => {
-    console.log('Edit course', courseId);
-    navigate(`/courses/edit/${courseId}`);
+    onManageContent(courseId);
   };
   const handleRequestPublication = async (courseId) => {
-    console.log('Request publication', courseId);
     try {
-      // TODO: Replace with real backend call
-      alert('Course submitted for admin review (TODO: connect backend)');
-      // Optionally refresh courses
+      const res = await api.patch(`/courses/${courseId}/submit-review`);
+      alert(res.data?.message || 'Course submitted for admin review!');
       await handleRefreshCourses();
     } catch (error) {
-      alert('Failed to request publication.');
+      alert(error.response?.data?.message || 'Failed to request publication.');
     }
   };
   const handleWithdrawSubmission = async (courseId) => {
@@ -791,6 +782,15 @@ const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
     // TODO: Show invite co-instructor modal
     alert('Invite co-instructor - TODO');
   };
+  const handleUnpublish = async (courseId) => {
+    try {
+      const res = await api.put(`/courses/${courseId}/publish`, { isPublished: false });
+      alert(res.data?.message || 'Course unpublished!');
+      await handleRefreshCourses();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to unpublish course.');
+    }
+  };
 
   // Image fallback logic: use local asset if available
   const getImageSrc = (thumbnail) => {
@@ -809,19 +809,7 @@ const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
           <p className="text-gray-600 mt-1">Manage and track your course portfolio</p>
         </div>
         <div className="flex items-center space-x-3">
-          <button
-            onClick={generateReport}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            <FileText className="w-4 h-4 mr-2" />
-            Generate Report
-          </button>            <Link
-            to="/courses/create"
-            className="inline-flex items-center px-6 py-3 bg-purple-600 text-white font-medium hover:bg-purple-700 transition-colors shadow-sm rounded-lg"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Create New Course
-          </Link>
+          {/* Removed Generate Report button */}
         </div>
       </div>
 
@@ -977,105 +965,89 @@ const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Select All Checkbox */}
-          <div className="flex items-center space-x-2 p-2">
-            <input
-              type="checkbox"
-              checked={selectedCourses.length === filteredCourses.length && filteredCourses.length > 0}
-              onChange={handleSelectAll}
-              className="rounded border-gray-300"
-            />
-            <label className="text-sm text-gray-600">Select all courses</label>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCourses.map((course, index) => {
-              // Use .url if thumbnail is an object, else use string, else fallback
-              const imageSrc = (course.thumbnail && typeof course.thumbnail === 'object' ? course.thumbnail.url : course.thumbnail) || '/educharity-logo.svg';
-              const completions = course.completions || Math.floor((course.enrolledStudents?.length || 0) * 0.7);
-              const reviews = course.reviewsCount || Math.floor(Math.random() * 10);
-              const isPublished = course.isPublished || course.status === 'Published';
-              return (
-                <motion.div
-                  key={course._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  whileHover={{ y: -4 }}
-                  className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 group flex flex-col"
-                >
-                  {/* Image with hover overlay for actions */}
-                  <div className="relative">
-                    <img
-                      src={imageSrc}
-                      alt={course.title}
-                      className="w-full h-40 object-cover rounded-t-lg"
-                      onError={e => { e.target.onerror = null; e.target.src = '/educharity-logo.svg'; }}
-                    />
-                    {/* Overlay actions on hover (desktop), always show on mobile */}
-                    <div className="absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 bg-white/80 rounded-full p-1 shadow-md md:flex-row flex-col md:space-x-2 md:space-y-0 space-y-2 md:space-y-0">
-                      <button title="Edit" onClick={() => handleEditCourse(course._id)} className="p-2 rounded-full hover:bg-purple-100 text-purple-700" aria-label="Edit">
-                        <Edit className="w-5 h-5" />
+          {filteredCourses.map((course, index) => {
+            // Use .url if thumbnail is an object, else use string, else fallback
+            const imageSrc = (course.thumbnail && typeof course.thumbnail === 'object' ? course.thumbnail.url : course.thumbnail) || '/educharity-logo.svg';
+            const completions = course.completions || Math.floor((course.enrolledStudents?.length || 0) * 0.7);
+            const reviews = course.reviewsCount || Math.floor(Math.random() * 10);
+            const isPublished = course.isPublished || course.status === 'Published';
+            return (
+              <motion.div
+                key={course._id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.1 }}
+                whileHover={{ y: -4 }}
+                className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 group flex flex-col"
+              >
+                {/* Image with hover overlay for actions */}
+                <div className="relative">
+                  <img
+                    src={imageSrc}
+                    alt={course.title}
+                    className="w-full h-40 object-cover rounded-t-lg"
+                    onError={e => { e.target.onerror = null; e.target.src = '/educharity-logo.svg'; }}
+                  />
+                  {/* Overlay actions on hover (desktop), always show on mobile */}
+                  <div className="absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 bg-white/80 rounded-full p-1 shadow-md md:flex-row flex-col md:space-x-2 md:space-y-0 space-y-2 md:space-y-0">
+                    <button title="Edit" onClick={() => handleEditCourse(course._id)} className="p-2 rounded-full hover:bg-purple-100 text-purple-700" aria-label="Edit">
+                      <Edit className="w-5 h-5" />
+                    </button>
+                    <button title="Preview" onClick={() => handlePreviewCourse(course._id)} className="p-2 rounded-full hover:bg-purple-100 text-purple-700" aria-label="Preview">
+                      <Eye className="w-5 h-5" />
+                    </button>
+                    {!isPublished && (
+                      <button title="Request Publication" onClick={() => handleRequestPublication(course._id)} className="p-2 rounded-full hover:bg-purple-100 text-purple-700" aria-label="Request Publication">
+                        <Upload className="w-5 h-5" />
                       </button>
-                      <button title="Preview" onClick={() => handlePreviewCourse(course._id)} className="p-2 rounded-full hover:bg-purple-100 text-purple-700" aria-label="Preview">
-                        <Eye className="w-5 h-5" />
+                    )}
+                    <button title="Delete" onClick={() => handleDeleteCourse(course._id)} disabled={deletingCourseId === course._id} className="p-2 rounded-full hover:bg-red-100 text-red-600" aria-label="Delete">
+                      <X className="w-5 h-5" />
+                    </button>
+                    {isPublished && (
+                      <button title="Unpublish" onClick={() => handleUnpublish(course._id)} className="p-2 rounded-full hover:bg-yellow-100 text-yellow-700" aria-label="Unpublish">
+                        <Eye className="w-5 h-5" style={{ transform: 'scaleX(-1)' }} />
                       </button>
-                      <button title="Manage Content" onClick={() => { console.log('Manage Content', course._id); onManageContent(course._id); }} className="p-2 rounded-full hover:bg-purple-100 text-purple-700" aria-label="Manage Content">
-                        <Layers className="w-5 h-5" />
+                    )}
+                    {isPublished && (
+                      <button title="Announcements" onClick={() => handleShowAnnouncements(course._id)} className="p-2 rounded-full hover:bg-blue-100 text-blue-700" aria-label="Announcements">
+                        <MessageSquare className="w-5 h-5" />
                       </button>
-                      {!isPublished && (
-                        <button title="Request Publication" onClick={() => handleRequestPublication(course._id)} className="p-2 rounded-full hover:bg-purple-100 text-purple-700" aria-label="Request Publication">
-                          <Upload className="w-5 h-5" />
-                        </button>
-                      )}
-                      <button title="Delete" onClick={() => handleDeleteCourse(course._id)} disabled={deletingCourseId === course._id} className="p-2 rounded-full hover:bg-red-100 text-red-600" aria-label="Delete">
-                        <X className="w-5 h-5" />
-                      </button>
-                      {isPublished && (
-                        <button title="Unpublish" onClick={() => { console.log('Unpublish', course._id); alert('Unpublish (TODO: backend)'); }} className="p-2 rounded-full hover:bg-yellow-100 text-yellow-700" aria-label="Unpublish">
-                          <Eye className="w-5 h-5" style={{ transform: 'scaleX(-1)' }} />
-                        </button>
-                      )}
-                      {isPublished && (
-                        <button title="Announcements" onClick={() => handleShowAnnouncements(course._id)} className="p-2 rounded-full hover:bg-blue-100 text-blue-700" aria-label="Announcements">
-                          <MessageSquare className="w-5 h-5" />
-                        </button>
-                      )}
+                    )}
+                  </div>
+                  {/* Status badge */}
+                  <div className="absolute top-2 left-2">
+                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-800 shadow">
+                      {course.status || (isPublished ? 'Published' : 'Draft')}
+                    </span>
+                  </div>
+                </div>
+                {/* Card body */}
+                <div className="flex-1 flex flex-col p-4">
+                  <h4 className="text-base font-semibold text-black mb-1 line-clamp-1">{course.title}</h4>
+                  <p className="text-gray-600 text-xs mb-2 line-clamp-2">{course.description}</p>
+                  <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
+                    <div className="flex items-center space-x-2">
+                      <Users className="w-4 h-4" />
+                      <span>{course.enrolledStudents?.length || 0}</span>
                     </div>
-                    {/* Status badge */}
-                    <div className="absolute top-2 left-2">
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-800 shadow">
-                        {course.status || (isPublished ? 'Published' : 'Draft')}
-                      </span>
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>{completions}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Star className="w-4 h-4 text-yellow-500" fill="currentColor" />
+                      <span>{course.rating?.average || '4.8'}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <MessageSquare className="w-4 h-4" />
+                      <span>{reviews}</span>
                     </div>
                   </div>
-                  {/* Card body */}
-                  <div className="flex-1 flex flex-col p-4">
-                    <h4 className="text-base font-semibold text-black mb-1 line-clamp-1">{course.title}</h4>
-                    <p className="text-gray-600 text-xs mb-2 line-clamp-2">{course.description}</p>
-                    <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
-                      <div className="flex items-center space-x-2">
-                        <Users className="w-4 h-4" />
-                        <span>{course.enrolledStudents?.length || 0}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle className="w-4 h-4" />
-                        <span>{completions}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Star className="w-4 h-4 text-yellow-500" fill="currentColor" />
-                        <span>{course.rating?.average || '4.8'}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <MessageSquare className="w-4 h-4" />
-                        <span>{reviews}</span>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       )}
     </div>

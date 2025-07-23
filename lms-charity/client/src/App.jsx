@@ -20,6 +20,8 @@ import CourseLearnEnhanced from './pages/CourseLearnEnhanced';
 import CertificateViewer from './components/CertificateViewer';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import CourseEditPlaceholder from './pages/CourseEditPlaceholder';
+import CoursePreviewPlaceholder from './pages/CoursePreviewPlaceholder';
 
 // Component to conditionally render the appropriate navbar
 const ConditionalNavbar = () => {
@@ -160,6 +162,8 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              <Route path="/courses/edit/:id" element={<CourseEditPlaceholder />} />
+              <Route path="/courses/preview/:id" element={<CoursePreviewPlaceholder />} />
             </Routes>
           </main>
         </div>
