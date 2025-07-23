@@ -47,14 +47,11 @@ router.put('/submissions/:submissionId', protect, restrictTo('instructor', 'admi
 
     if (status === 'approved') {
       const user = await User.findById(foundSubmission.student);
-      const userCourse = user.enrolledCourses.find(
-        (c) => c.course.toString() === course._id.toString()
-      );
-      if (userCourse && !userCourse.completedLessons.includes(foundLesson._id)) {
-        userCourse.completedLessons.push(foundLesson._id);
+      const enrollment = course.enrolledStudents.find(e => e.student.toString() === user._id.toString());
+      if (enrollment && !enrollment.completedLessons.includes(foundLesson._id)) {
+        enrollment.completedLessons.push(foundLesson._id);
         const totalLessons = course.modules.reduce((acc, module) => acc + module.lessons.length, 0);
-        userCourse.progress = Math.round((userCourse.completedLessons.length / totalLessons) * 100);
-        await user.save();
+        enrollment.progress = Math.round((enrollment.completedLessons.length / totalLessons) * 100);
       }
     }
 

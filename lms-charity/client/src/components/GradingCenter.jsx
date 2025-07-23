@@ -61,8 +61,9 @@ const GradingCenter = ({ courseId, isOpen, onClose }) => {
     if (!assignmentId) return;
     try {
       const response = await axios.get(`/courses/assignments/${assignmentId}/submissions`);
-      console.log('Fetched submissions:', response.data.submissions);
+      console.log('Fetched submissions (raw response):', response.data.submissions);
       setSubmissions(response.data.submissions || []);
+      console.log('Submissions state after update:', response.data.submissions); // Log after setting state
     } catch (error) {
       console.error('Error fetching submissions:', error);
     }
@@ -244,7 +245,10 @@ const GradingCenter = ({ courseId, isOpen, onClose }) => {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.05 }}
-                          onClick={() => setSelectedSubmission(submission)}
+                          onClick={() => {
+                            console.log('Selected submission:', submission);
+                            setSelectedSubmission(submission);
+                          }}
                           className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
                             selectedSubmission?._id === submission._id ? 'bg-green-50 border-r-2 border-green-500' : ''
                           }`}
@@ -371,14 +375,16 @@ const GradingPanel = ({ submission, assignment, onGradeUpdate }) => {
   const handleScoreWithAI = async () => {
     setLoading(true);
     setError('');
+    const contentToScore = submission.content || submission.essayText; // Use content, fallback to essayText
     try {
       const response = await axios.post('/grading/score-essay', {
-        essayText: submission.content,
+        essayText: contentToScore,
       });
       setGrade(response.data.score);
       setFeedback(response.data.feedback);
     } catch (err) {
-      setError('Failed to score with AI.');
+      console.error('Error scoring with AI:', err);
+      setError(err.response?.data?.message || 'Failed to score with AI. Please ensure the essay has content.');
     } finally {
       setLoading(false);
     }
@@ -449,9 +455,13 @@ const GradingPanel = ({ submission, assignment, onGradeUpdate }) => {
         {/* Submission Content */}
         <div className="mb-6">
           <h4 className="font-medium text-gray-900 mb-3">Submission</h4>
-          {submission.content && (
+          {(submission.content || submission.essayText) ? (
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <p className="text-gray-700">{submission.content}</p>
+              <p className="text-gray-700">{submission.content || submission.essayText}</p>
+            </div>
+          ) : (
+            <div className="bg-gray-50 rounded-lg p-4 mb-4 text-gray-500">
+              <p>No text content provided for this submission.</p>
             </div>
           )}
           

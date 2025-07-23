@@ -190,72 +190,56 @@ router.post('/courses/:courseId/modules/:moduleId/lessons/:lessonId/submit-essay
   try {
     const { essayText } = req.body;
     const { courseId, moduleId, lessonId } = req.params;
-    console.log('Essay submission request:', { courseId, moduleId, lessonId, user: req.user?._id, essayText });
+
     if (!essayText) {
-      console.error('Missing essayText');
       return res.status(400).json({ message: 'Essay text is required.' });
     }
 
     // Find course, module, lesson
     const course = await Course.findById(courseId);
     if (!course) {
-      console.error('Course not found:', courseId);
       return res.status(404).json({ message: 'Course not found.' });
     }
     const module = course.modules.id(moduleId);
     if (!module) {
-      console.error('Module not found:', moduleId);
       return res.status(404).json({ message: 'Module not found.' });
     }
     const lesson = module.lessons.id(lessonId);
     if (!lesson) {
-      console.error('Lesson not found:', lessonId);
       return res.status(404).json({ message: 'Lesson not found.' });
     }
 
     // Check enrollment
     const enrollment = course.enrolledStudents.find(e => e.student.toString() === req.user._id.toString());
     if (!enrollment) {
-      console.error('User not enrolled:', req.user?._id);
       return res.status(403).json({ message: 'You are not enrolled in this course.' });
     }
 
     // Check assignment exists
     if (!lesson.assignment) {
-      console.error('No assignment for lesson:', lessonId);
       return res.status(400).json({ message: 'No assignment for this lesson.' });
     }
 
-    // Prevent duplicate submissions (or allow multiple attempts with timestamps)
-    const alreadySubmitted = lesson.assignment.submissions.find(sub => sub.student.toString() === req.user._id.toString());
-    if (alreadySubmitted) {
-      console.error('Duplicate submission by user:', req.user?._id);
-      return res.status(409).json({ message: 'You have already submitted this assignment.' });
-    }
+    // Prevent duplicate submissions
+    // const alreadySubmitted = lesson.assignment.submissions.find(sub => sub.student.toString() === req.user._id.toString());
+    // if (alreadySubmitted) {
+    //   return res.status(409).json({ message: 'You have already submitted this assignment.' });
+    // }
 
-    // Score essay using ML microservice
-    const mlResult = await scoreEssay(essayText);
-    if (mlResult.error) {
-      console.error('ML scoring error:', mlResult.error);
-      return res.status(500).json({ message: 'Essay scoring failed.', error: mlResult.error });
-    }
-
-    // Store submission
-    lesson.assignment.submissions.push({
+    // Store submission without grading
+    const newSubmission = {
       student: req.user._id,
-      essayText,
-      grade: mlResult.score,
-      feedback: mlResult.feedback,
+      content: essayText, // Store essay in the 'content' field
       submittedAt: new Date(),
-      gradedAt: new Date()
-    });
+      status: 'pending'
+    };
+    lesson.assignment.submissions.push(newSubmission);
+    console.log('New submission added to array:', newSubmission);
+    console.log('Submissions array after push:', lesson.assignment.submissions);
     await course.save();
 
-    console.log('Essay submitted and scored:', { score: mlResult.score, feedback: mlResult.feedback });
     res.status(201).json({
-      message: 'Essay submitted and scored successfully.',
-      score: mlResult.score,
-      feedback: mlResult.feedback
+      message: 'Essay submitted successfully. It will be graded by your instructor.',
     });
   } catch (error) {
     console.error('Essay submission error:', error);

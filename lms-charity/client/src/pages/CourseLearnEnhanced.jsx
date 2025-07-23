@@ -59,7 +59,7 @@ const CourseLearnEnhanced = () => {
     // Replace with actual API call
     // Use correct essay submission endpoint
     axios.post(
-      `/lessons/courses/${courseId}/modules/${currentModule?._id}/lessons/${currentLesson?._id}/submit-essay`,
+      `/courses/${courseId}/modules/${currentModule?._id}/lessons/${currentLesson?._id}/submit-essay`,
       { essayText: assignmentText },
       {
         headers: {

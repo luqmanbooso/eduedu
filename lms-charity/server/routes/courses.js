@@ -1615,7 +1615,7 @@ router.get('/assignments/:lessonId/submissions', protect, restrictTo('instructor
     }
     if (!foundLesson || !foundLesson.assignment) return res.status(404).json({ message: 'Assignment not found for lesson' });
 
-    // Populate student info for each submission
+    // Manually populate student info and ensure content is included
     const submissionsWithStudent = await Promise.all(
       (foundLesson.assignment.submissions || []).map(async (submission) => {
         let studentInfo = null;
@@ -1630,8 +1630,17 @@ router.get('/assignments/:lessonId/submissions', protect, restrictTo('instructor
           }
         }
         return {
-          ...submission.toObject(),
-          student: studentInfo
+          _id: submission._id,
+          student: studentInfo,
+          content: submission.content,
+          files: submission.files,
+          essayText: submission.essayText,
+          submissionUrl: submission.submissionUrl,
+          grade: submission.grade,
+          feedback: submission.feedback,
+          status: submission.status,
+          submittedAt: submission.submittedAt,
+          gradedAt: submission.gradedAt,
         };
       })
     );
