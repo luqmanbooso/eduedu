@@ -24,6 +24,22 @@ router.get('/stats', protect, restrictTo('instructor', 'admin'), async (req, res
     );
     const uniqueStudents = [...new Set(allEnrollments)];
     const totalStudents = uniqueStudents.length;
+
+    // Calculate pending grades
+    let pendingGrades = 0;
+    instructorCourses.forEach(course => {
+      course.modules.forEach(module => {
+        module.lessons.forEach(lesson => {
+          if (lesson.type === 'assignment' && lesson.assignment) {
+            lesson.assignment.submissions.forEach(submission => {
+              if (submission.grade === null || submission.grade === undefined) {
+                pendingGrades++;
+              }
+            });
+          }
+        });
+      });
+    });
     
     // Calculate total revenue
     const totalRevenue = instructorCourses.reduce((sum, course) => {
@@ -69,6 +85,7 @@ router.get('/stats', protect, restrictTo('instructor', 'admin'), async (req, res
       totalStudents,
       averageRating: Math.round(averageRating * 10) / 10,
       certificatesIssued,
+      pendingGrades,
       overview: {
         totalCourses,
         publishedCourses,
@@ -77,7 +94,8 @@ router.get('/stats', protect, restrictTo('instructor', 'admin'), async (req, res
         totalRevenue,
         averageRating: Math.round(averageRating * 10) / 10,
         recentEnrollments,
-        certificatesIssued
+        certificatesIssued,
+        pendingGrades
       },
       monthlyEarnings,
       coursesBreakdown: instructorCourses.map(course => ({
@@ -225,63 +243,46 @@ router.get('/discussions', protect, restrictTo('instructor', 'admin'), async (re
 // @access  Private (Instructor)
 router.get('/assignments', protect, restrictTo('instructor', 'admin'), async (req, res) => {
   try {
-    // Get instructor's courses
-    const instructorCourses = await Course.find({ instructor: req.user._id }).lean();
+    // Get instructor's courses and populate necessary fields
+    const instructorCourses = await Course.find({ instructor: req.user._id })
+      .populate('modules.lessons.assignment.submissions.student', 'name email')
+      .lean();
     
-    // Collect all assignments from instructor's courses and lessons
     const assignments = [];
+    let pendingGradingCount = 0;
+    let totalSubmissionsCount = 0;
+
     instructorCourses.forEach(course => {
-      // Simple assignment count for now - avoid complex nested queries
-      const courseSubmissions = course.assignmentSubmissions || [];
-      
-      // Create a general assignment entry for each course
-      if (course.modules && course.modules.length > 0) {
-        let hasAssignments = false;
-        
+      if (course.modules && Array.isArray(course.modules)) {
         course.modules.forEach(module => {
           if (module.lessons && Array.isArray(module.lessons)) {
             module.lessons.forEach(lesson => {
-              if (lesson.type === 'assignment') {
-                hasAssignments = true;
-                
-                const submissionsCount = courseSubmissions.filter(
-                  s => s.lessonId && s.lessonId.toString() === lesson._id.toString()
-                ).length;
-                
+              if (lesson.type === 'assignment' && lesson.assignment) {
+                const submissions = lesson.assignment.submissions || [];
+                const submissionsCount = submissions.length;
+                const gradedCount = submissions.filter(s => s.grade !== null && s.grade !== undefined).length;
+                const pendingCount = submissionsCount - gradedCount;
+
+                if (pendingCount > 0) {
+                  pendingGradingCount++;
+                }
+                totalSubmissionsCount += submissionsCount;
+
                 assignments.push({
                   _id: lesson._id,
-                  title: lesson.title || 'Assignment',
-                  description: lesson.description || '',
+                  title: lesson.title,
                   courseId: course._id,
                   courseTitle: course.title,
                   submissionsCount,
-                  gradedCount: Math.floor(submissionsCount * 0.7), // Mock graded count
-                  pendingCount: Math.ceil(submissionsCount * 0.3), // Mock pending count
-                  dueDate: new Date(),
-                  maxScore: 100,
-                  type: 'lesson'
+                  gradedCount,
+                  pendingCount,
+                  dueDate: lesson.assignment.dueDate,
+                  maxScore: lesson.assignment.maxScore,
                 });
               }
             });
           }
         });
-        
-        // If no specific assignments found but has submissions, create general entry
-        if (!hasAssignments && courseSubmissions.length > 0) {
-          assignments.push({
-            _id: course._id + '_general',
-            title: `${course.title} - Assignments`,
-            description: 'Course assignments',
-            courseId: course._id,
-            courseTitle: course.title,
-            submissionsCount: courseSubmissions.length,
-            gradedCount: Math.floor(courseSubmissions.length * 0.6),
-            pendingCount: Math.ceil(courseSubmissions.length * 0.4),
-            dueDate: new Date(),
-            maxScore: 100,
-            type: 'course'
-          });
-        }
       }
     });
     
@@ -291,8 +292,8 @@ router.get('/assignments', protect, restrictTo('instructor', 'admin'), async (re
     res.json({
       assignments,
       totalAssignments: assignments.length,
-      pendingGrading: assignments.filter(a => a.pendingCount > 0).length,
-      totalSubmissions: assignments.reduce((sum, a) => sum + a.submissionsCount, 0)
+      pendingGrading: pendingGradingCount,
+      totalSubmissions: totalSubmissionsCount,
     });
   } catch (error) {
     console.error('Instructor assignments error:', error);

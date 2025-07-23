@@ -51,6 +51,14 @@ const assignmentSubmissionSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  content: String, // For text-based submissions
+  files: [
+    {
+      name: String,
+      url: String,
+      size: String,
+    }
+  ],
   essayText: String, // For text essay submissions
   submissionUrl: String, // For file submissions
   grade: Number, // ML score or manual grade

@@ -58,8 +58,10 @@ const GradingCenter = ({ courseId, isOpen, onClose }) => {
   };
 
   const fetchSubmissions = async (assignmentId) => {
+    if (!assignmentId) return;
     try {
       const response = await axios.get(`/assignments/${assignmentId}/submissions`);
+      console.log('Fetched submissions:', response.data.submissions);
       setSubmissions(response.data.submissions || []);
     } catch (error) {
       console.error('Error fetching submissions:', error);
@@ -67,13 +69,16 @@ const GradingCenter = ({ courseId, isOpen, onClose }) => {
   };
 
   const filteredSubmissions = submissions.filter(submission => {
-    const matchesSearch = submission.student?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         submission.student?.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || 
-                         (filterStatus === 'graded' && submission.grade !== undefined) ||
-                         (filterStatus === 'ungraded' && submission.grade === undefined) ||
-                         (filterStatus === 'late' && new Date(submission.submittedAt) > new Date(selectedAssignment?.dueDate));
-    return matchesSearch && matchesStatus;
+    const status = getStatusText(submission).toLowerCase();
+    const studentName = submission.student?.name?.toLowerCase() || '';
+
+    if (filterStatus !== 'all' && status !== filterStatus) {
+      return false;
+    }
+    if (searchTerm && !studentName.includes(searchTerm.toLowerCase())) {
+      return false;
+    }
+    return true;
   });
 
   const getStatusColor = (submission) => {
@@ -231,7 +236,7 @@ const GradingCenter = ({ courseId, isOpen, onClose }) => {
                     <div className="divide-y divide-gray-200">
                       {filteredSubmissions.map((submission, index) => (
                         <motion.div
-                          key={submission._id}
+                          key={submission._id ? submission._id : `submission-${index}`}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.05 }}

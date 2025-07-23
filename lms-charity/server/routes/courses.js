@@ -1,3 +1,4 @@
+// ...existing code...
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
@@ -10,6 +11,43 @@ import { uploadVideo, uploadImage, uploadDocument, uploadAny, uploadToCloudinary
 const router = express.Router();
 
 // Configure multer for file uploads
+// @desc    Update grade and feedback for a submission
+// @route   PUT /api/submissions/:submissionId/grade
+// @access  Private (Instructor)
+router.put('/submissions/:submissionId/grade', protect, restrictTo('instructor', 'admin'), async (req, res) => {
+  try {
+    const { grade, feedback } = req.body;
+    // Find the course containing the submission
+    const course = await Course.findOne({ 'modules.lessons.assignment.submissions._id': req.params.submissionId });
+    if (!course) return res.status(404).json({ message: 'Course not found for submission' });
+    let foundSubmission = null;
+    let foundLesson = null;
+    for (const module of course.modules) {
+      for (const lesson of module.lessons) {
+        if (lesson.assignment && lesson.assignment.submissions) {
+          const submission = lesson.assignment.submissions.id(req.params.submissionId);
+          if (submission) {
+            foundSubmission = submission;
+            foundLesson = lesson;
+            // Update grade and feedback
+            submission.grade = grade;
+            submission.feedback = feedback;
+            submission.gradedAt = new Date();
+            break;
+          }
+        }
+        if (foundSubmission) break;
+      }
+      if (foundSubmission) break;
+    }
+    if (!foundSubmission) return res.status(404).json({ message: 'Submission not found' });
+    await course.save();
+    res.json({ message: 'Grade and feedback updated', submission: foundSubmission });
+  } catch (error) {
+    console.error('Error updating grade:', error);
+    res.status(500).json({ message: 'Server error updating grade', error: error.message });
+  }
+});
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = file.mimetype.startsWith('image/') ? 
@@ -1503,6 +1541,88 @@ router.post('/:id/rate', protect, async (req, res) => {
       message: 'Server error submitting rating',
       error: error.message 
     });
+  }
+});
+
+// @desc    Get assignments for a course (for instructor grading)
+// @route   GET /api/courses/:courseId/assignments
+// @access  Private (Instructor)
+router.get('/:courseId/assignments', protect, restrictTo('instructor', 'admin'), async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId).populate({
+      path: 'modules.lessons.assignment.submissions.student',
+      select: 'name email avatar'
+    });
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    const assignments = [];
+    if (course.modules && Array.isArray(course.modules)) {
+      course.modules.forEach(module => {
+        if (module.lessons && Array.isArray(module.lessons)) {
+          module.lessons.forEach(lesson => {
+            if (lesson.type === 'assignment' && lesson.assignment) {
+              assignments.push({
+                _id: lesson._id,
+                title: lesson.title,
+                description: lesson.description || '',
+                dueDate: lesson.assignment.dueDate,
+                maxScore: lesson.assignment.maxScore,
+                submissions: lesson.assignment.submissions || [],
+              });
+            }
+          });
+        }
+      });
+    }
+    res.json({ assignments });
+  } catch (error) {
+    console.error('Error fetching assignments:', error);
+    res.status(500).json({ message: 'Server error fetching assignments', error: error.message });
+  }
+});
+
+// @desc    Get submissions for a specific assignment (lesson)
+// @route   GET /api/assignments/:lessonId/submissions
+// @access  Private (Instructor)
+router.get('/assignments/:lessonId/submissions', protect, restrictTo('instructor', 'admin'), async (req, res) => {
+  try {
+    // Find the course containing the lesson
+    const course = await Course.findOne({ 'modules.lessons._id': req.params.lessonId });
+    if (!course) return res.status(404).json({ message: 'Course not found for lesson' });
+    let foundLesson = null;
+    for (const module of course.modules) {
+      const lesson = module.lessons.id(req.params.lessonId);
+      if (lesson) {
+        foundLesson = lesson;
+        break;
+      }
+    }
+    if (!foundLesson || !foundLesson.assignment) return res.status(404).json({ message: 'Assignment not found for lesson' });
+
+    // Populate student info for each submission
+    const submissionsWithStudent = await Promise.all(
+      (foundLesson.assignment.submissions || []).map(async (submission) => {
+        let studentInfo = null;
+        if (submission.student) {
+          const user = await User.findById(submission.student).select('name email avatar');
+          if (user) {
+            studentInfo = {
+              name: user.name,
+              email: user.email,
+              avatar: user.avatar || ''
+            };
+          }
+        }
+        return {
+          ...submission.toObject(),
+          student: studentInfo
+        };
+      })
+    );
+    res.json({ submissions: submissionsWithStudent });
+  } catch (error) {
+    console.error('Error fetching assignment submissions:', error);
+    res.status(500).json({ message: 'Server error fetching assignment submissions', error: error.message });
   }
 });
 

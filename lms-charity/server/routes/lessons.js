@@ -262,4 +262,50 @@ router.post('/courses/:courseId/modules/:moduleId/lessons/:lessonId/submit-essay
     res.status(500).json({ message: 'Server error submitting essay.', error: error.message });
   }
 });
+
+// @desc    Submit assignment for a lesson
+// @route   POST /api/lessons/:lessonId/submit
+// @access  Private (Student)
+router.post('/:lessonId/submit', protect, async (req, res) => {
+  try {
+    const { courseId, content, files } = req.body;
+    
+    // Find the course containing the lesson
+    const course = await Course.findOne({ 'modules.lessons._id': req.params.lessonId });
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    let foundLesson = null;
+    for (const module of course.modules) {
+      const lesson = module.lessons.id(req.params.lessonId);
+      if (lesson) {
+        foundLesson = lesson;
+        break;
+      }
+    }
+
+    if (!foundLesson || !foundLesson.assignment) {
+      return res.status(404).json({ message: 'Assignment not found for this lesson' });
+    }
+
+    // Create new submission
+    const newSubmission = {
+      student: req.user._id,
+      content,
+      files,
+      submittedAt: new Date(),
+    };
+
+    foundLesson.assignment.submissions.push(newSubmission);
+    await course.save();
+
+    res.status(201).json({ 
+      message: 'Assignment submitted successfully', 
+      submission: newSubmission 
+    });
+  } catch (error) {
+    console.error('Error submitting assignment:', error);
+    res.status(500).json({ message: 'Server error submitting assignment' });
+  }
+});
+
 export default router;
