@@ -334,7 +334,7 @@ const InstructorDashboard = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <StudentsTab students={students} courses={instructorCourses} onRefresh={fetchStudents} />
+              <StudentsTab students={students} courses={instructorCourses} onRefresh={fetchStudents} activeStudents={dashboardData?.activeStudents || 0} completedStudents={dashboardData?.completedStudents || 0} />
             </motion.div>
           )}
 
@@ -1055,7 +1055,7 @@ const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
 };
 
 // Students Tab Component
-const StudentsTab = ({ students, courses, onRefresh }) => {
+const StudentsTab = ({ students, courses, onRefresh, activeStudents, completedStudents }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [showBulkEnrollModal, setShowBulkEnrollModal] = useState(false);
@@ -1083,11 +1083,11 @@ const StudentsTab = ({ students, courses, onRefresh }) => {
     });
 
   const handleExportData = () => {
-    // Export student data to CSV
+    // Export student data to CSV with real fields
     const csvContent = "data:text/csv;charset=utf-8," 
-      + "Name,Email,Courses Enrolled,Overall Progress,Join Date\n"
+      + "Name,Email,Courses Enrolled,Average Progress,Completed Courses,Certificates,Join Date\n"
       + filteredStudents.map(student => 
-          `${student.name},${student.email},${student.coursesCount || 0},${student.totalProgress || 0}%,${student.joinedAt ? new Date(student.joinedAt).toLocaleDateString() : 'N/A'}`
+          `${student.name},${student.email},${student.courses.length},${student.averageProgress || 0}%,${student.completedCourses || 0},${student.totalCertificates || 0},${student.enrolledAt ? new Date(student.enrolledAt).toLocaleDateString() : 'N/A'}`
         ).join("\n");
 
     const encodedUri = encodeURI(csvContent);
@@ -1112,17 +1112,8 @@ const StudentsTab = ({ students, courses, onRefresh }) => {
           <h3 className="text-2xl font-bold text-black font-serif">Student Management</h3>
           <p className="text-gray-600 mt-1">Track and manage your students' progress</p>
         </div>
-        <div className="flex items-center space-x-3">            <button
-              onClick={() => setShowBulkEnrollModal(true)}
-              className="inline-flex items-center px-4 py-2 bg-purple-600 text-white font-medium hover:bg-purple-700 transition-colors"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Bulk Enrollment
-            </button>
-          <span className="flex items-center text-sm text-gray-600">
-            <Users className="w-4 h-4 mr-1" />
-            {filteredStudents.length} Students
-          </span>
+        <div className="flex items-center space-x-3">
+          {/* Removed duplicate student count */}
         </div>
       </div>
 
@@ -1140,10 +1131,8 @@ const StudentsTab = ({ students, courses, onRefresh }) => {
         <div className="bg-white border border-gray-200 p-4 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Avg. Progress</p>
-              <p className="text-2xl font-bold text-green-600">
-                {students?.length ? Math.round(students.reduce((sum, s) => sum + (s.totalProgress || 0), 0) / students.length) : 0}%
-              </p>
+              <p className="text-sm text-gray-600">Active Students</p>
+              <p className="text-2xl font-bold text-green-600">{activeStudents || 0}</p>
             </div>
             <Target className="w-8 h-8 text-green-600" />
           </div>
@@ -1151,10 +1140,8 @@ const StudentsTab = ({ students, courses, onRefresh }) => {
         <div className="bg-white border border-gray-200 p-4 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Active This Week</p>
-              <p className="text-2xl font-bold text-purple-600">
-                {Math.floor((students?.length || 0) * 0.8)}
-              </p>
+              <p className="text-sm text-gray-600">Completed Students</p>
+              <p className="text-2xl font-bold text-purple-600">{completedStudents || 0}</p>
             </div>
             <TrendingUp className="w-8 h-8 text-purple-600" />
           </div>
@@ -1163,9 +1150,7 @@ const StudentsTab = ({ students, courses, onRefresh }) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Certificates Earned</p>
-              <p className="text-2xl font-bold text-black">
-                {Math.floor((students?.length || 0) * 0.3)}
-              </p>
+              <p className="text-2xl font-bold text-black">{students?.reduce((sum, s) => sum + (s.totalCertificates || 0), 0)}</p>
             </div>
             <Award className="w-8 h-8 text-black" />
           </div>

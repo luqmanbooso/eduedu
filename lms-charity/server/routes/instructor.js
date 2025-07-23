@@ -124,7 +124,7 @@ router.get('/students', protect, restrictTo('instructor', 'admin'), async (req, 
   try {
     // Get instructor's courses with populated student information
     const instructorCourses = await Course.find({ instructor: req.user._id })
-      .populate('enrolledStudents.student', 'name email avatar createdAt');
+      .populate('enrolledStudents.student', 'name email avatar createdAt role'); // Add role
     
     // Collect all unique students with their progress
     const studentsMap = new Map();
@@ -132,7 +132,7 @@ router.get('/students', protect, restrictTo('instructor', 'admin'), async (req, 
     instructorCourses.forEach(course => {
       course.enrolledStudents.forEach(enrollment => {
         const student = enrollment.student;
-        if (!student) return; // Skip if student is null
+        if (!student || student.role !== 'student') return; // Only include students
         
         const studentId = student._id.toString();
         
