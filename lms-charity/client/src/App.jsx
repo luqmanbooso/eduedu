@@ -112,13 +112,29 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
-              <Route 
-                path="/instructor/analytics" 
+              <Route
+                path="/instructor/discussions"
                 element={
                   <ProtectedRoute requiredRole="instructor">
                     <InstructorDashboard />
                   </ProtectedRoute>
-                } 
+                }
+              />
+              <Route
+                path="/instructor/grading"
+                element={
+                  <ProtectedRoute requiredRole="instructor">
+                    <InstructorDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/instructor/analytics"
+                element={
+                  <ProtectedRoute requiredRole="instructor">
+                    <InstructorDashboard />
+                  </ProtectedRoute>
+                }
               />
               <Route 
                 path="/profile" 

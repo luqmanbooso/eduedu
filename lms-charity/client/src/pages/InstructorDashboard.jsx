@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   BookOpen, 
   Users, 
@@ -35,10 +35,12 @@ import { courseAPI, instructorAPI } from '../services/api';
 import CourseContentManager from '../components/CourseContentManager';
 import DiscussionForum from '../components/DiscussionForum';
 import GradingCenter from '../components/GradingCenter';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const InstructorDashboard = () => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
   const [instructorCourses, setInstructorCourses] = useState([]);
   const [students, setStudents] = useState([]);
@@ -73,6 +75,12 @@ const InstructorDashboard = () => {
     fetchInstructorCourses();
     fetchStudents();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'courses') {
+      fetchInstructorCourses();
+    }
+  }, [activeTab]);
 
   const fetchInstructorData = async () => {
     try {
@@ -118,7 +126,7 @@ const InstructorDashboard = () => {
       title: 'Manage Courses',
       description: 'Edit course content, lessons, and settings',
       icon: Edit,
-      action: () => setActiveTab('courses'),
+      action: () => navigate('/instructor/courses'),
       color: 'bg-black',
       hoverColor: 'hover:bg-gray-800'
     },
@@ -126,7 +134,7 @@ const InstructorDashboard = () => {
       title: 'Student Progress',
       description: 'Monitor completion rates and performance',
       icon: BarChart3,
-      action: () => setActiveTab('students'),
+      action: () => navigate('/instructor/students'),
       color: 'bg-purple-500',
       hoverColor: 'hover:bg-purple-600'
     },
@@ -134,7 +142,7 @@ const InstructorDashboard = () => {
       title: 'Grade Assignments',
       description: 'Review assignments, grading, and feedback',
       icon: GraduationCap,
-      action: () => setActiveTab('grading'),
+      action: () => navigate('/instructor/grading'),
       color: 'bg-gray-800',
       hoverColor: 'hover:bg-gray-900'
     },
@@ -142,7 +150,7 @@ const InstructorDashboard = () => {
       title: 'Discussion Forum',
       description: 'Moderate course discussions and engage with students',
       icon: MessageSquare,
-      action: () => setActiveTab('discussions'),
+      action: () => navigate('/instructor/discussions'),
       color: 'bg-purple-400',
       hoverColor: 'hover:bg-purple-500'
     },
@@ -150,7 +158,7 @@ const InstructorDashboard = () => {
       title: 'Issue Certificates',
       description: 'Manage and issue course completion certificates',
       icon: Award,
-      action: () => setActiveTab('certificates'),
+      action: () => navigate('/instructor/certificates'),
       color: 'bg-black',
       hoverColor: 'hover:bg-gray-800'
     }
@@ -428,7 +436,7 @@ const OverviewTab = ({ instructorCourses, students, dashboardData }) => {
         <div className="bg-white border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow duration-200">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold text-black">Recent Course Activity</h3>
-            <Link to="/courses" className="text-purple-600 hover:text-purple-700 text-sm font-medium">
+            <Link to="/instructor/courses" className="text-purple-600 hover:text-purple-700 text-sm font-medium">
               View All
             </Link>
           </div>
@@ -461,7 +469,7 @@ const OverviewTab = ({ instructorCourses, students, dashboardData }) => {
         <div className="bg-white border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow duration-200">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold text-black">Recent Students</h3>
-            <Link to="/students" className="text-purple-600 hover:text-purple-700 text-sm font-medium">
+            <Link to="/instructor/students" className="text-purple-600 hover:text-purple-700 text-sm font-medium">
               View All
             </Link>
           </div>
@@ -481,7 +489,7 @@ const OverviewTab = ({ instructorCourses, students, dashboardData }) => {
                   <p className="text-sm text-gray-600">{student.progress}% complete</p>
                 </div>
                 <div className="w-16 bg-gray-200 h-2">
-                  <div 
+                  <div
                     className="bg-purple-600 h-2 transition-all duration-500"
                     style={{ width: `${student.progress}%` }}
                   ></div>
@@ -621,6 +629,22 @@ const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
   const [sortBy, setSortBy] = useState('newest');
   const [selectedCourses, setSelectedCourses] = useState([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const [loadingCourses, setLoadingCourses] = useState(false); // New state for loading
+  const [deletingCourseId, setDeletingCourseId] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
+  const navigate = useNavigate(); // Add this if not present
+
+  // Wrap onRefresh to manage loading state
+  const handleRefreshCourses = async () => {
+    setLoadingCourses(true);
+    await onRefresh();
+    setLoadingCourses(false);
+  };
+
+  useEffect(() => {
+    // Initial fetch when component mounts
+    handleRefreshCourses();
+  }, []); // Empty dependency array means this runs once on mount
 
   const filteredCourses = courses.filter(course => {
     const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -663,7 +687,7 @@ const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
   const handleBulkPublish = async () => {
     try {
       await instructorAPI.bulkPublishCourses(selectedCourses);
-      onRefresh();
+      handleRefreshCourses(); // Use the wrapped refresh function
       setSelectedCourses([]);
     } catch (error) {
       console.error('Error publishing courses:', error);
@@ -673,7 +697,7 @@ const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
   const handleBulkUnpublish = async () => {
     try {
       await instructorAPI.bulkUnpublishCourses(selectedCourses);
-      onRefresh();
+      handleRefreshCourses(); // Use the wrapped refresh function
       setSelectedCourses([]);
     } catch (error) {
       console.error('Error unpublishing courses:', error);
@@ -701,6 +725,81 @@ const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
     }
   };
 
+  // New: Delete course logic
+  const handleDeleteCourse = async (courseId) => {
+    if (!window.confirm('Are you sure you want to delete this course? This action cannot be undone.')) return;
+    setDeletingCourseId(courseId);
+    setDeleteError('');
+    try {
+      console.log('Delete course', courseId);
+      await instructorAPI.deleteCourse(courseId);
+      await handleRefreshCourses();
+    } catch (error) {
+      setDeleteError('Failed to delete course.');
+    } finally {
+      setDeletingCourseId(null);
+    }
+  };
+
+  // New: Simple analytics
+  const totalEnrollments = courses.reduce((sum, c) => sum + (c.enrolledStudents?.length || 0), 0);
+  const avgRating = courses.length ? (
+    courses.reduce((sum, c) => sum + (parseFloat(c.rating?.average) || 0), 0) / courses.length
+  ).toFixed(2) : 'N/A';
+
+  // New: Stubs for additional actions
+  const handlePreviewCourse = (courseId) => {
+    console.log('Preview course', courseId);
+    navigate(`/courses/preview/${courseId}`);
+  };
+  const handleEditCourse = (courseId) => {
+    console.log('Edit course', courseId);
+    navigate(`/courses/edit/${courseId}`);
+  };
+  const handleRequestPublication = async (courseId) => {
+    console.log('Request publication', courseId);
+    try {
+      // TODO: Replace with real backend call
+      alert('Course submitted for admin review (TODO: connect backend)');
+      // Optionally refresh courses
+      await handleRefreshCourses();
+    } catch (error) {
+      alert('Failed to request publication.');
+    }
+  };
+  const handleWithdrawSubmission = async (courseId) => {
+    // TODO: Call backend to withdraw submission
+    alert('Withdraw submission - TODO');
+  };
+  const handleShowAnalytics = (courseId) => {
+    // TODO: Show analytics modal or section
+    alert('Show analytics - TODO');
+  };
+  const handleManageStudents = (courseId) => {
+    // TODO: Show manage students modal or section
+    alert('Manage students - TODO');
+  };
+  const handleShowAnnouncements = (courseId) => {
+    console.log('Show announcements', courseId);
+    alert('Announcements - TODO');
+  };
+  const handleShowReviews = (courseId) => {
+    // TODO: Show reviews modal or section
+    alert('Reviews - TODO');
+  };
+  const handleInviteCoInstructor = (courseId) => {
+    // TODO: Show invite co-instructor modal
+    alert('Invite co-instructor - TODO');
+  };
+
+  // Image fallback logic: use local asset if available
+  const getImageSrc = (thumbnail) => {
+    if (!thumbnail || typeof thumbnail !== 'string' || thumbnail.trim() === '') {
+      return '/educharity-logo.svg'; // fallback to local logo in public/
+    }
+    return thumbnail;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -725,6 +824,24 @@ const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
           </Link>
         </div>
       </div>
+
+      {/* Analytics Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg text-center">
+          <div className="text-sm text-purple-600">Total Enrollments</div>
+          <div className="text-2xl font-bold text-purple-700">{totalEnrollments}</div>
+        </div>
+        <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-center">
+          <div className="text-sm text-yellow-600">Average Rating</div>
+          <div className="text-2xl font-bold text-yellow-700">{avgRating}</div>
+        </div>
+        <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg text-center">
+          <div className="text-sm text-gray-600">Total Courses</div>
+          <div className="text-2xl font-bold text-gray-700">{courses.length}</div>
+        </div>
+      </div>
+      {/* Error message for delete */}
+      {deleteError && <div className="text-red-600 text-sm mb-2">{deleteError}</div>}
 
       {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -872,91 +989,92 @@ const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCourses.map((course, index) => (
-              <motion.div
-                key={course._id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
-                whileHover={{ y: -4 }}
-                className="bg-white border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 rounded-lg"
-              >
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    checked={selectedCourses.includes(course._id)}
-                    onChange={() => handleSelectCourse(course._id)}
-                    className="absolute top-3 left-3 z-10"
-                  />
-                  <img
-                    src={course.thumbnail || 'https://via.placeholder.com/300x200/f3f4f6/6b7280?text=Course+Image'}
-                    alt={course.title}
-                    className="w-full h-48 object-cover"
-                  />
-                  <div className="absolute top-3 right-3">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      course.isPublished 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {course.isPublished ? 'Published' : 'Draft'}
-                    </span>
+            {filteredCourses.map((course, index) => {
+              // Use .url if thumbnail is an object, else use string, else fallback
+              const imageSrc = (course.thumbnail && typeof course.thumbnail === 'object' ? course.thumbnail.url : course.thumbnail) || '/educharity-logo.svg';
+              const completions = course.completions || Math.floor((course.enrolledStudents?.length || 0) * 0.7);
+              const reviews = course.reviewsCount || Math.floor(Math.random() * 10);
+              const isPublished = course.isPublished || course.status === 'Published';
+              return (
+                <motion.div
+                  key={course._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                  whileHover={{ y: -4 }}
+                  className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 group flex flex-col"
+                >
+                  {/* Image with hover overlay for actions */}
+                  <div className="relative">
+                    <img
+                      src={imageSrc}
+                      alt={course.title}
+                      className="w-full h-40 object-cover rounded-t-lg"
+                      onError={e => { e.target.onerror = null; e.target.src = '/educharity-logo.svg'; }}
+                    />
+                    {/* Overlay actions on hover (desktop), always show on mobile */}
+                    <div className="absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 bg-white/80 rounded-full p-1 shadow-md md:flex-row flex-col md:space-x-2 md:space-y-0 space-y-2 md:space-y-0">
+                      <button title="Edit" onClick={() => handleEditCourse(course._id)} className="p-2 rounded-full hover:bg-purple-100 text-purple-700" aria-label="Edit">
+                        <Edit className="w-5 h-5" />
+                      </button>
+                      <button title="Preview" onClick={() => handlePreviewCourse(course._id)} className="p-2 rounded-full hover:bg-purple-100 text-purple-700" aria-label="Preview">
+                        <Eye className="w-5 h-5" />
+                      </button>
+                      <button title="Manage Content" onClick={() => { console.log('Manage Content', course._id); onManageContent(course._id); }} className="p-2 rounded-full hover:bg-purple-100 text-purple-700" aria-label="Manage Content">
+                        <Layers className="w-5 h-5" />
+                      </button>
+                      {!isPublished && (
+                        <button title="Request Publication" onClick={() => handleRequestPublication(course._id)} className="p-2 rounded-full hover:bg-purple-100 text-purple-700" aria-label="Request Publication">
+                          <Upload className="w-5 h-5" />
+                        </button>
+                      )}
+                      <button title="Delete" onClick={() => handleDeleteCourse(course._id)} disabled={deletingCourseId === course._id} className="p-2 rounded-full hover:bg-red-100 text-red-600" aria-label="Delete">
+                        <X className="w-5 h-5" />
+                      </button>
+                      {isPublished && (
+                        <button title="Unpublish" onClick={() => { console.log('Unpublish', course._id); alert('Unpublish (TODO: backend)'); }} className="p-2 rounded-full hover:bg-yellow-100 text-yellow-700" aria-label="Unpublish">
+                          <Eye className="w-5 h-5" style={{ transform: 'scaleX(-1)' }} />
+                        </button>
+                      )}
+                      {isPublished && (
+                        <button title="Announcements" onClick={() => handleShowAnnouncements(course._id)} className="p-2 rounded-full hover:bg-blue-100 text-blue-700" aria-label="Announcements">
+                          <MessageSquare className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                    {/* Status badge */}
+                    <div className="absolute top-2 left-2">
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-800 shadow">
+                        {course.status || (isPublished ? 'Published' : 'Draft')}
+                      </span>
+                    </div>
                   </div>
-                  <div className="absolute bottom-3 right-3">
-                    <span className="px-2 py-1 text-xs font-medium bg-black bg-opacity-70 text-white rounded-full">
-                      {course.category}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="p-6">
-                  <h4 className="text-lg font-semibold text-black mb-2 line-clamp-1">{course.title}</h4>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.description}</p>
-                  
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-1 text-sm text-gray-500">
+                  {/* Card body */}
+                  <div className="flex-1 flex flex-col p-4">
+                    <h4 className="text-base font-semibold text-black mb-1 line-clamp-1">{course.title}</h4>
+                    <p className="text-gray-600 text-xs mb-2 line-clamp-2">{course.description}</p>
+                    <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
+                      <div className="flex items-center space-x-2">
                         <Users className="w-4 h-4" />
                         <span>{course.enrolledStudents?.length || 0}</span>
                       </div>
-                      <div className="flex items-center space-x-1 text-sm text-gray-500">
-                        <Clock className="w-4 h-4" />
-                        <span>{course.duration || 0}h</span>
+                      <div className="flex items-center space-x-2">
+                        <CheckCircle className="w-4 h-4" />
+                        <span>{completions}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Star className="w-4 h-4 text-yellow-500" fill="currentColor" />
+                        <span>{course.rating?.average || '4.8'}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <MessageSquare className="w-4 h-4" />
+                        <span>{reviews}</span>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Star className="w-4 h-4 text-yellow-500" fill="currentColor" />
-                      <span className="text-sm font-medium">{course.rating?.average || '4.8'}</span>
-                    </div>
                   </div>
-                  
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex space-x-2">
-                      <button className="flex-1 text-center px-3 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium flex items-center justify-center">
-                        <Edit className="w-4 h-4 mr-1" />
-                        Edit
-                      </button>
-                      <button className="flex-1 text-center px-3 py-2 bg-purple-600 text-white hover:bg-purple-700 transition-colors text-sm font-medium flex items-center justify-center">
-                        <Eye className="w-4 h-4 mr-1" />
-                        View
-                      </button>
-                    </div>
-                    <div className="flex space-x-2">
-                      <button 
-                        onClick={() => onManageContent(course._id)}
-                        className="flex-1 text-center px-3 py-2 bg-black text-white hover:bg-gray-800 transition-colors text-sm font-medium flex items-center justify-center"
-                      >
-                        <Layers className="w-4 h-4 mr-1" />
-                        Manage Content
-                      </button>
-                      <button className="px-3 py-2 border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors text-sm">
-                        <Settings className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -1841,7 +1959,7 @@ const CertificatesTab = ({ onCreateCertificate, courses }) => {
                       <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
                         <span>Issued: {new Date(certificate.issuedAt).toLocaleDateString()}</span>
                         <span>Certificate ID: {certificate.certificateId}</span>
-                        <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
+                        <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded-full">
                           Verified
                         </span>
                       </div>
@@ -2115,6 +2233,17 @@ const AnalyticsTab = ({ dashboardData, courses, students }) => {
   const [timeRange, setTimeRange] = useState('30d');
   const [selectedMetric, setSelectedMetric] = useState('overview');
 
+  // Mock data for Course Enrollments Over Time
+  const enrollmentData = [
+    { name: 'Jan', enrollments: 4000 },
+    { name: 'Feb', enrollments: 3000 },
+    { name: 'Mar', enrollments: 2000 },
+    { name: 'Apr', enrollments: 2780 },
+    { name: 'May', enrollments: 1890 },
+    { name: 'Jun', enrollments: 2390 },
+    { name: 'Jul', enrollments: 3490 },
+  ];
+
   const timeRanges = [
     { value: '7d', label: 'Last 7 days' },
     { value: '30d', label: 'Last 30 days' },
@@ -2300,12 +2429,23 @@ const AnalyticsTab = ({ dashboardData, courses, students }) => {
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-semibold text-black mb-4">Student Progress Trends</h4>
+                  <h4 className="text-lg font-semibold text-black mb-4">Course Enrollments Over Time</h4>
                   <div className="bg-gray-50 rounded-lg p-4 h-64 flex items-center justify-center">
-                    <div className="text-center">
-                      <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-500">Interactive charts will be implemented with a charting library</p>
-                    </div>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={enrollmentData}
+                        margin={{
+                          top: 5, right: 30, left: 20, bottom: 5,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="enrollments" stroke="#8884d8" activeDot={{ r: 8 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
               </div>
@@ -2857,4 +2997,3 @@ const StudentDetailModal = ({ isOpen, onClose, student, courses }) => {
 };
 
 export default InstructorDashboard;
-

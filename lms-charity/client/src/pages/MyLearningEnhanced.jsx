@@ -308,23 +308,7 @@ const MyLearningEnhanced = () => {
             </div>
           </div>
 
-          {/* Data Consistency Indicator */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <div className="flex items-center">
-                <BarChart3 className="w-5 h-5 text-blue-600 mr-2" />
-                <h4 className="font-medium text-blue-900">Data Consistency Check</h4>
-              </div>
-              <div className="mt-2 text-sm text-blue-800">
-                <p>Enrolled courses shown: {enrolledCourses.length}</p>
-                <p>Completed courses shown: {completedCourses.length}</p>
-                <p>Wishlist items shown: {wishlistedCourses.length}</p>
-                <p className="mt-2 text-xs text-blue-600">
-                  If numbers don't match dashboard, orphaned progress records were cleaned up automatically.
-                </p>
-              </div>
-            </div>
-          )}
+          {/* Data Consistency Indicator Removed */}
         </div>
 
         {/* Continue Watching Section */}

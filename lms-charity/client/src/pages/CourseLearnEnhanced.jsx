@@ -344,9 +344,7 @@ const CourseLearnEnhanced = () => {
                       type: 'document',
                       description: 'Code examples demonstrating JSX patterns'
                     }
-                  ],
-                  transcript: 'JSX is a syntax extension for JavaScript that allows you to write HTML-like code in your JavaScript files...',
-                  notes: 'Remember: JSX is not HTML! It\'s JavaScript that looks like HTML. Always use camelCase for attributes.'
+                  ]
                 },
                 {
                   _id: 'lesson5',
@@ -836,18 +834,25 @@ const CourseLearnEnhanced = () => {
     }
   };
 
-  const sendDiscussionMessage = () => {
-    if (newMessage.trim()) {
-      const message = {
-        id: Date.now(),
-        user: user.name,
-        message: newMessage,
-        timestamp: new Date().toLocaleTimeString(),
-        likes: 0
-      };
-      setDiscussionMessages([...discussionMessages, message]);
+  const sendDiscussionMessage = async () => {
+    if (!newMessage.trim()) return;
+
+    try {
+      const response = await axios.post(`/courses/${courseId}/discussions`, {
+        content: newMessage.trim(),
+        category: 'general' // Default category, can be made dynamic
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      setDiscussionMessages(prevMessages => [...prevMessages, response.data.discussion]);
       setNewMessage('');
       toast.success('Message sent!');
+    } catch (error) {
+      console.error('Error sending discussion message:', error);
+      toast.error('Failed to send message.');
     }
   };
 
@@ -1414,14 +1419,14 @@ const CourseLearnEnhanced = () => {
                           {currentLesson.content ? (
                             <div 
                               className="whitespace-pre-wrap text-gray-800 leading-relaxed text-lg"
-                              style={{ lineHeight: '1.8' }}
-                            >
-                              {currentLesson.content}
-                            </div>
+                              dangerouslySetInnerHTML={{ __html: currentLesson.content }}
+                            />
                           ) : (
-                            <div className="text-center py-12 text-gray-500">
-                              <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                              <p>No reading content available for this lesson.</p>
+                            <div className="text-center py-8">
+                              <BookOpen className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+                              <p className="text-gray-400">
+                                This is a reading lesson. The content will be displayed here.
+                              </p>
                             </div>
                           )}
                         </div>
