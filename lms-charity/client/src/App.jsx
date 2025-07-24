@@ -24,6 +24,7 @@ import CourseEditPlaceholder from './pages/CourseEditPlaceholder';
 import CoursePreviewPlaceholder from './pages/CoursePreviewPlaceholder';
 import InstructorProfile from './pages/InstructorProfile';
 import InstructorHelp from './pages/InstructorHelp';
+import AdminApprove from './pages/AdminApprove';
 
 // Component to conditionally render the appropriate navbar
 const ConditionalNavbar = () => {
@@ -156,6 +157,10 @@ function App() {
                     <AdminDashboard />
                   </ProtectedRoute>
                 } 
+              />
+              <Route 
+                path="/admin-approve" 
+                element={<AdminApprove />} 
               />
               <Route 
                 path="/instructor/profile" 

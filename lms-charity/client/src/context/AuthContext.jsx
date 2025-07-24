@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import api from '../services/api';
 
 const AuthContext = createContext();
 
@@ -29,13 +30,32 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // Listen for token changes in other tabs (e.g., after admin approval)
+  useEffect(() => {
+    const onStorage = (event) => {
+      if (event.key === 'token' && event.newValue) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${event.newValue}`;
+        fetchUser();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
   const fetchUser = async () => {
     try {
+      console.log('fetchUser: Authorization header (axios):', axios.defaults.headers.common['Authorization']);
+      if (api && api.defaults) {
+        console.log('fetchUser: Authorization header (api):', api.defaults.headers.common['Authorization']);
+      }
       const response = await axios.get('/auth/me');
       setUser(response.data);
     } catch (error) {
       localStorage.removeItem('token');
       delete axios.defaults.headers.common['Authorization'];
+      if (api && api.defaults) {
+        delete api.defaults.headers.common['Authorization'];
+      }
     } finally {
       setLoading(false);
     }
@@ -139,8 +159,12 @@ export const AuthProvider = ({ children }) => {
 
   // Rename the new login method to loginWithToken to avoid redeclaration
   const loginWithToken = ({ token }) => {
+    console.log('Setting token in loginWithToken:', token);
     localStorage.setItem('token', token);
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    if (api && api.defaults) {
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
     fetchUser();
   };
 

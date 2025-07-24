@@ -420,7 +420,7 @@ router.post('/admin-approve', async (req, res) => {
     const user = await User.findById(decoded.userId);
     if (!user) return res.status(404).json({ message: 'User not found.' });
     const loginToken = jwt.sign(
-      { _id: user._id, email: user.email, role: user.role },
+      { id: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
