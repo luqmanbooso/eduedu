@@ -7,6 +7,11 @@ import Course from '../models/Course.js';
 import User from '../models/User.js';
 import Progress from '../models/Progress.js';
 import { protect } from '../middleware/auth.js';
+import QRCode from 'qrcode';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
@@ -17,7 +22,7 @@ if (!fs.existsSync(certificatesDir)) {
 
 // --- FINAL, UDEMY-STYLE PDF GENERATION ---
 async function generateCertificatePDF(certificate, course, user, filePath) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     try {
       const doc = new PDFDocument({
         layout: 'landscape',
@@ -43,6 +48,15 @@ async function generateCertificatePDF(certificate, course, user, filePath) {
       // Background
       doc.rect(0, 0, pageWidth, pageHeight).fill(colors.bgColor);
 
+      // Watermark (EduCharity logo faded in center)
+      const logoPath = path.join(__dirname, '..', 'educharity-logo.png');
+      console.log('Logo path exists:', fs.existsSync(logoPath), logoPath);
+      if (fs.existsSync(logoPath)) {
+        doc.opacity(0.5); // Increased opacity for testing
+        doc.image(logoPath, pageWidth/2 - 180, pageHeight/2 - 120, { width: 360, height: 240 });
+        doc.opacity(1);
+      }
+
       // Double Border
       doc.rect(margin, margin, pageWidth - margin * 2, pageHeight - margin * 2)
          .lineWidth(1)
@@ -53,16 +67,21 @@ async function generateCertificatePDF(certificate, course, user, filePath) {
          .strokeColor(colors.primary)
          .stroke();
 
+      // Badge (EduCharity logo at top center)
+      if (fs.existsSync(logoPath)) {
+        doc.image(logoPath, pageWidth/2 - 60, 30, { width: 120, height: 120 });
+      }
+
       // Main Content
       const contentX = margin + 20;
       const contentWidth = pageWidth - (margin + 20) * 2;
 
-      // EduCharity Logo (Placeholder)
+      // EduCharity Title
       doc.font('Times-Bold').fontSize(24).fillColor(colors.primary)
-         .text('EduCharity', contentX, 70, { align: 'left' });
+         .text('EduCharity', contentX, 170, { align: 'left' });
 
       // Main Text
-      let y = 180;
+      let y = 220;
       doc.font('Times-Roman').fontSize(18).fillColor(colors.lightText)
          .text('This is to certify that', { align: 'center' });
 
@@ -115,6 +134,15 @@ async function generateCertificatePDF(certificate, course, user, filePath) {
       // Verification Info
       doc.font('Helvetica').fontSize(10).fillColor(colors.lightText)
          .text(`Certificate ID: ${certificate.certificateId}`, margin, pageHeight - margin + 10, { align: 'left' });
+
+      // QR Code (bottom right)
+      const certUrl = `http://localhost:5173/certificate/${certificate.certificateId}/${certificate.verificationCode}`;
+      const qrDataUrl = await QRCode.toDataURL(certUrl);
+      const qrImg = qrDataUrl.replace(/^data:image\/png;base64,/, '');
+      const qrBuffer = Buffer.from(qrImg, 'base64');
+      doc.image(qrBuffer, pageWidth - margin - 100, pageHeight - margin - 100, { width: 80, height: 80 });
+      doc.font('Helvetica').fontSize(8).fillColor(colors.lightText)
+         .text('Scan to verify', pageWidth - margin - 100, pageHeight - margin + 5, { width: 80, align: 'center' });
 
       doc.end();
 
