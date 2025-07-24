@@ -53,6 +53,7 @@ import {
   Cog
 } from 'lucide-react';
 import { adminAPI } from '../services/api';
+import { contactAPI } from '../services/api';
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
@@ -71,11 +72,25 @@ const AdminDashboard = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [showCourseModal, setShowCourseModal] = useState(false);
+  const [contactMessages, setContactMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [replyLoading, setReplyLoading] = useState(false);
+  const [replySuccess, setReplySuccess] = useState(null);
 
   useEffect(() => {
     fetchAdminData();
     fetchNotifications();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'messaging') {
+      fetchContactMessages();
+    }
+    // eslint-disable-next-line
+  }, [activeTab]);
 
   const fetchAdminData = async () => {
     try {
@@ -112,6 +127,18 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error('Error fetching notifications:', error);
       setNotifications([]);
+    }
+  };
+
+  const fetchContactMessages = async () => {
+    setLoadingMessages(true);
+    try {
+      const data = await contactAPI.getContactMessages();
+      setContactMessages(data);
+    } catch (err) {
+      setContactMessages([]);
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
@@ -198,12 +225,46 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleDeleteMessage = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this message?')) return;
+    try {
+      await contactAPI.deleteContactMessage(id);
+      setContactMessages((prev) => prev.filter((msg) => msg._id !== id));
+    } catch (err) {
+      alert('Failed to delete message.');
+    }
+  };
+
+  const handleViewMessage = (msg) => {
+    setSelectedMessage(msg);
+    setReplyText('');
+    setReplySuccess(null);
+    setShowMessageModal(true);
+  };
+
+  const handleReply = async () => {
+    if (!replyText.trim()) return;
+    setReplyLoading(true);
+    setReplySuccess(null);
+    try {
+      // Call backend API to send reply email
+      await contactAPI.replyToContactMessage(selectedMessage._id, { message: replyText });
+      setReplySuccess('success');
+      setReplyText('');
+    } catch (err) {
+      setReplySuccess('error');
+    } finally {
+      setReplyLoading(false);
+    }
+  };
+
   const tabs = [
     { id: 'overview', label: 'Dashboard', icon: BarChart2 },
     { id: 'users', label: 'Users', icon: UserPlus, count: users.length },
     { id: 'courses', label: 'Courses', icon: GraduationCap, count: courses.length },
     { id: 'pending', label: 'Pending Review', icon: Clock, count: pendingCourses.length },
     { id: 'content', label: 'Content', icon: Layers },
+    { id: 'messaging', label: 'Messages', icon: MessageSquare, count: contactMessages.length },
     { id: 'reports', label: 'Analytics', icon: TrendingUp },
     { id: 'settings', label: 'Settings', icon: Cog },
   ];
@@ -1031,6 +1092,63 @@ const AdminDashboard = () => {
     </div>
   );
 
+  const MessagesView = ({ onViewMessage }) => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900 mb-4">Contact Messages</h2>
+      {loadingMessages ? (
+        <div className="text-center py-8">Loading messages...</div>
+      ) : contactMessages.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">No messages found.</div>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl shadow-lg bg-white">
+          <table className="min-w-full bg-white rounded-2xl overflow-hidden">
+            <thead>
+              <tr className="bg-[#f3f0fa] border-b border-gray-200">
+                <th className="px-4 py-3 text-left font-semibold text-black">User</th>
+                <th className="px-4 py-3 text-left font-semibold text-black">Email</th>
+                <th className="px-4 py-3 text-left font-semibold text-black">Subject</th>
+                <th className="px-4 py-3 text-left font-semibold text-black">Type</th>
+                <th className="px-4 py-3 text-left font-semibold text-black">Message</th>
+                <th className="px-4 py-3 text-left font-semibold text-black">Date</th>
+                <th className="px-4 py-3 text-left font-semibold text-black">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contactMessages.map((msg) => (
+                <tr key={msg._id} className="border-b border-gray-100 hover:bg-[#f8f6fd] transition-colors group">
+                  <td className="px-4 py-3 text-sm text-black/90 font-medium">{msg.name || msg.user?.name}</td>
+                  <td className="px-4 py-3 text-sm text-black/70">{msg.email || msg.user?.email}</td>
+                  <td className="px-4 py-3 text-sm text-black/80">{msg.subject}</td>
+                  <td className="px-4 py-3 text-xs font-semibold text-purple-700 uppercase">{msg.type}</td>
+                  <td className="px-4 py-3 max-w-xs truncate text-black/70" title={msg.message}>{msg.message}</td>
+                  <td className="px-4 py-3 text-xs text-gray-500">{new Date(msg.createdAt).toLocaleString()}</td>
+                  <td className="px-4 py-3 flex gap-2 items-center">
+                    <button
+                      onClick={() => onViewMessage(msg)}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg font-medium bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      title="View"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                      <span className="hidden md:inline">View</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteMessage(msg._id)}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg font-medium bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-400 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+                      title="Reject"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3m5 0H6" /></svg>
+                      <span className="hidden md:inline">Reject</span>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview': return renderOverview();
@@ -1038,6 +1156,7 @@ const AdminDashboard = () => {
       case 'courses': return renderCourses();
       case 'pending': return renderPendingReview();
       case 'content': return renderContent();
+      case 'messaging': return <MessagesView onViewMessage={handleViewMessage} />;
       case 'reports': return renderReports();
       case 'settings': return renderSettings();
       default: return renderOverview();
@@ -1204,7 +1323,6 @@ const AdminDashboard = () => {
 
         {/* Tab Content */}
         <motion.div
-          key={activeTab}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
@@ -1212,6 +1330,68 @@ const AdminDashboard = () => {
           {renderTabContent()}
         </motion.div>
       </div>
+      {showMessageModal && selectedMessage && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-0 relative overflow-hidden border border-purple-100">
+            {/* Header Gradient */}
+            <div className="bg-gradient-to-r from-[#a435f0] to-[#6a11cb] px-8 py-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-extrabold text-white mb-1 font-serif">Message Details</h3>
+                <p className="text-purple-100 text-sm font-medium">Contacted on {new Date(selectedMessage.createdAt).toLocaleString()}</p>
+              </div>
+              <button onClick={() => setShowMessageModal(false)} className="text-purple-100 hover:text-white text-3xl font-bold ml-4">&times;</button>
+            </div>
+            {/* Content */}
+            <div className="px-8 py-6">
+              <div className="mb-4 space-y-1">
+                <div><span className="font-semibold text-gray-700">User:</span> {selectedMessage.name || selectedMessage.user?.name}</div>
+                <div><span className="font-semibold text-gray-700">Email:</span> {selectedMessage.email || selectedMessage.user?.email}</div>
+                <div><span className="font-semibold text-gray-700">Subject:</span> {selectedMessage.subject}</div>
+                <div><span className="font-semibold text-gray-700">Type:</span> {selectedMessage.type}</div>
+                <div className="font-semibold text-gray-700">Message:</div>
+                <div className="bg-gray-50 border border-purple-100 rounded p-3 mt-1 text-gray-800 whitespace-pre-line shadow-inner">{selectedMessage.message}</div>
+              </div>
+              <div className="border-t pt-6 mt-6">
+                <h4 className="font-bold mb-2 text-[#a435f0] text-lg font-serif">Reply to User</h4>
+                <textarea
+                  className="w-full border border-purple-200 rounded-lg p-3 mb-2 focus:ring-2 focus:ring-[#a435f0] focus:border-[#a435f0] transition shadow-sm"
+                  rows={3}
+                  placeholder="Type your reply..."
+                  value={replyText}
+                  onChange={e => setReplyText(e.target.value)}
+                  disabled={replyLoading}
+                  style={{ fontFamily: 'inherit' }}
+                />
+                <button
+                  onClick={async () => {
+                    setReplyLoading(true);
+                    setReplySuccess(null);
+                    try {
+                      await contactAPI.replyToContactMessage(selectedMessage._id, { message: replyText });
+                      setReplySuccess('success');
+                      setReplyText('');
+                    } catch (err) {
+                      setReplySuccess('error');
+                    } finally {
+                      setReplyLoading(false);
+                    }
+                  }}
+                  className="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-purple-700 transition disabled:opacity-50"
+                  disabled={replyLoading || !replyText.trim()}
+                >
+                  {replyLoading ? 'Sending Reply...' : 'Send Reply'}
+                </button>
+                {replySuccess === 'success' && (
+                  <div className="mt-4 flex items-center text-green-600 font-semibold"><svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Reply sent successfully!</div>
+                )}
+                {replySuccess === 'error' && (
+                  <div className="mt-4 flex items-center text-red-600 font-semibold"><svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>Failed to send reply.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

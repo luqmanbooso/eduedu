@@ -676,4 +676,25 @@ export const instructorAPI = {
   }
 };
 
+export const contactAPI = {
+  // Send a contact message (logged-in users only)
+  sendContactMessage: async (data) => {
+    const response = await api.post('/contact', data);
+    return response.data;
+  },
+  // Get all contact messages (admin only)
+  getContactMessages: async () => {
+    const response = await api.get('/contact');
+    return response.data;
+  },
+  // Delete a contact message (admin only)
+  deleteContactMessage: async (id) => {
+    await api.delete(`/contact/${id}`);
+  },
+  replyToContactMessage: async (id, data) => {
+    const response = await api.post(`/contact/${id}/reply`, data);
+    return response.data;
+  }
+};
+
 export default api;

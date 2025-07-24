@@ -1,29 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Send, 
-  MessageCircle, 
-  Clock,
-  CheckCircle,
-  Star,
-  Globe,
-  Users,
-  Heart
-} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { contactAPI } from '../services/api';
+import { Mail, Phone, MapPin, Send, MessageCircle, Clock, CheckCircle, Star, Globe, Users, Heart } from 'lucide-react';
 
 const Contact = () => {
+  const { user, loading } = useAuth();
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
     subject: '',
     message: '',
     type: 'general'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [adminMessages, setAdminMessages] = useState([]);
+  const [fetchingMessages, setFetchingMessages] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (user && user.role === 'admin') {
+      setFetchingMessages(true);
+      contactAPI.getContactMessages()
+        .then(setAdminMessages)
+        .catch(() => setError('Failed to fetch messages.'))
+        .finally(() => setFetchingMessages(false));
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     setFormData({
@@ -35,24 +37,23 @@ const Contact = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setIsSubmitting(false);
-    setIsSubmitted(true);
-    
-    // Reset form after 3 seconds
-    setTimeout(() => {
-      setIsSubmitted(false);
-      setFormData({
-        name: '',
-        email: '',
-        subject: '',
-        message: '',
-        type: 'general'
-      });
-    }, 3000);
+    setError('');
+    try {
+      await contactAPI.sendContactMessage(formData);
+      setIsSubmitted(true);
+      setFormData({ subject: '', message: '', type: 'general' });
+      setTimeout(() => setIsSubmitted(false), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send message.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to reject/delete this message?')) return;
+    await contactAPI.deleteContactMessage(id);
+    setAdminMessages((msgs) => msgs.filter((msg) => msg._id !== id));
   };
 
   const contactInfo = [
@@ -177,122 +178,149 @@ const Contact = () => {
                 We typically respond within 24 hours.
               </p>
 
-              {isSubmitted ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center"
-                >
-                  <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                  <h3 className="text-2xl font-bold text-green-800 mb-2">Message Sent!</h3>
-                  <p className="text-green-600">Thank you for reaching out. We'll get back to you soon.</p>
-                </motion.div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-semibold text-gray-900 mb-2">
-                        Your Name
-                      </label>
-                      <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        required
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 text-gray-900"
-                        placeholder="John Doe"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-semibold text-gray-900 mb-2">
-                        Email Address
-                      </label>
-                      <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        required
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 text-gray-900"
-                        placeholder="john@example.com"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="type" className="block text-sm font-semibold text-gray-900 mb-2">
-                      Inquiry Type
-                    </label>
-                    <select
-                      id="type"
-                      name="type"
-                      value={formData.type}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 text-gray-900"
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+                  <p className="mt-4 text-gray-600">Loading...</p>
+                </div>
+              ) : user ? (
+                <>
+                  {isSubmitted ? (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center"
                     >
-                      <option value="general">General Inquiry</option>
-                      <option value="technical">Technical Support</option>
-                      <option value="partnership">Partnership</option>
-                      <option value="instructor">Become an Instructor</option>
-                      <option value="feedback">Feedback</option>
-                    </select>
-                  </div>
+                      <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                      <h3 className="text-2xl font-bold text-green-800 mb-2">Message Sent!</h3>
+                      <p className="text-green-600">Thank you for reaching out. We'll get back to you soon.</p>
+                    </motion.div>
+                  ) : (
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                          <label htmlFor="name" className="block text-sm font-semibold text-gray-900 mb-2">
+                            Your Name
+                          </label>
+                          <input
+                            type="text"
+                            id="name"
+                            name="name"
+                            value={formData.name}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 text-gray-900"
+                            placeholder="John Doe"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="email" className="block text-sm font-semibold text-gray-900 mb-2">
+                            Email Address
+                          </label>
+                          <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 text-gray-900"
+                            placeholder="john@example.com"
+                          />
+                        </div>
+                      </div>
 
-                  <div>
-                    <label htmlFor="subject" className="block text-sm font-semibold text-gray-900 mb-2">
-                      Subject
-                    </label>
-                    <input
-                      type="text"
-                      id="subject"
-                      name="subject"
-                      value={formData.subject}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 text-gray-900"
-                      placeholder="How can we help you?"
-                    />
-                  </div>
+                      <div>
+                        <label htmlFor="type" className="block text-sm font-semibold text-gray-900 mb-2">
+                          Inquiry Type
+                        </label>
+                        <select
+                          id="type"
+                          name="type"
+                          value={formData.type}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 text-gray-900"
+                        >
+                          <option value="general">General Inquiry</option>
+                          <option value="technical">Technical Support</option>
+                          <option value="partnership">Partnership</option>
+                          <option value="instructor">Become an Instructor</option>
+                          <option value="feedback">Feedback</option>
+                        </select>
+                      </div>
 
-                  <div>
-                    <label htmlFor="message" className="block text-sm font-semibold text-gray-900 mb-2">
-                      Message
-                    </label>
-                    <textarea
-                      id="message"
-                      name="message"
-                      value={formData.message}
-                      onChange={handleChange}
-                      required
-                      rows={6}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 text-gray-900 resize-none"
-                      placeholder="Tell us more about your inquiry..."
-                    />
-                  </div>
+                      <div>
+                        <label htmlFor="subject" className="block text-sm font-semibold text-gray-900 mb-2">
+                          Subject
+                        </label>
+                        <input
+                          type="text"
+                          id="subject"
+                          name="subject"
+                          value={formData.subject}
+                          onChange={handleChange}
+                          required
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 text-gray-900"
+                          placeholder="How can we help you?"
+                        />
+                      </div>
 
-                  <motion.button
-                    type="submit"
-                    disabled={isSubmitting}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-2xl transition-all duration-300 shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed"
+                      <div>
+                        <label htmlFor="message" className="block text-sm font-semibold text-gray-900 mb-2">
+                          Message
+                        </label>
+                        <textarea
+                          id="message"
+                          name="message"
+                          value={formData.message}
+                          onChange={handleChange}
+                          required
+                          rows={6}
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 text-gray-900 resize-none"
+                          placeholder="Tell us more about your inquiry..."
+                        />
+                      </div>
+
+                      <motion.button
+                        type="submit"
+                        disabled={isSubmitting}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="w-full flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-2xl transition-all duration-300 shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="mr-2 w-5 h-5" />
+                            Send Message
+                          </>
+                        )}
+                      </motion.button>
+                    </form>
+                  )}
+                </>
+              ) : (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-8 text-center">
+                  <h3 className="text-2xl font-bold text-yellow-800 mb-2">Please Log In</h3>
+                  <p className="text-yellow-600">You must be logged in to send a message.</p>
+                  <a
+                    href="/login"
+                    className="mt-4 inline-flex items-center px-6 py-3 text-lg font-semibold text-indigo-600 bg-white rounded-2xl hover:bg-gray-50 transition-all duration-300 shadow-xl hover:shadow-2xl"
                   >
-                    {isSubmitting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="mr-2 w-5 h-5" />
-                        Send Message
-                      </>
-                    )}
-                  </motion.button>
-                </form>
+                    Log In
+                    <Star className="ml-2 w-5 h-5 group-hover:rotate-12 transition-transform" />
+                  </a>
+                </div>
+              )}
+
+              {error && (
+                <div className="mt-6 text-center text-red-600">
+                  {error}
+                </div>
               )}
             </motion.div>
 
@@ -408,6 +436,48 @@ const Contact = () => {
           </motion.div>
         </div>
       </section>
+
+      {user && user.role === 'admin' && (
+        <div className="mt-12">
+          <h2 className="text-3xl font-bold mb-6">Contact Messages</h2>
+          {fetchingMessages ? (
+            <div className="text-center py-8">Loading messages...</div>
+          ) : adminMessages.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No messages found.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white border border-gray-200 rounded-xl">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="px-4 py-2 text-left">User</th>
+                    <th className="px-4 py-2 text-left">Email</th>
+                    <th className="px-4 py-2 text-left">Subject</th>
+                    <th className="px-4 py-2 text-left">Type</th>
+                    <th className="px-4 py-2 text-left">Message</th>
+                    <th className="px-4 py-2 text-left">Date</th>
+                    <th className="px-4 py-2 text-left">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminMessages.map((msg) => (
+                    <tr key={msg._id} className="border-t">
+                      <td className="px-4 py-2">{msg.name || msg.user?.name}</td>
+                      <td className="px-4 py-2">{msg.email || msg.user?.email}</td>
+                      <td className="px-4 py-2">{msg.subject}</td>
+                      <td className="px-4 py-2">{msg.type}</td>
+                      <td className="px-4 py-2 max-w-xs truncate" title={msg.message}>{msg.message}</td>
+                      <td className="px-4 py-2">{new Date(msg.createdAt).toLocaleString()}</td>
+                      <td className="px-4 py-2">
+                        <button onClick={() => handleDelete(msg._id)} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition">Reject</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

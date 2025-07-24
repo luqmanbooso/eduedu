@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +20,19 @@ import {
 } from 'lucide-react';
 import NotificationCenter from './NotificationCenter';
 
+const REAL_CATEGORIES = [
+  'Programming',
+  'Design',
+  'Business',
+  'Marketing',
+  'Science',
+  'Language',
+  'Data Science',
+  'AI/ML',
+  'Cybersecurity',
+  'Other'
+];
+
 const Navbar = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -28,6 +41,7 @@ const Navbar = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isCoursesHovered, setIsCoursesHovered] = useState(false);
+  const [categories, setCategories] = useState(REAL_CATEGORIES);
 
   const handleLogout = () => {
     logout();
@@ -40,39 +54,6 @@ const Navbar = () => {
     { name: 'Courses', href: '/courses', icon: BookOpen, hasDropdown: true },
     { name: 'About', href: '/about', icon: Sparkles },
     { name: 'Contact', href: '/contact', icon: User },
-  ];
-
-  const courseCategories = [
-    { 
-      name: 'Data Science', 
-      description: 'Analytics, Machine Learning & AI',
-      courses: ['Python for Data Science', 'Machine Learning Basics', 'Data Visualization']
-    },
-    { 
-      name: 'Software Engineering', 
-      description: 'Web & Mobile Development',
-      courses: ['Full Stack Development', 'React.js Mastery', 'Node.js Backend']
-    },
-    { 
-      name: 'IoT & Hardware', 
-      description: 'Internet of Things & Electronics',
-      courses: ['Arduino Programming', 'Raspberry Pi Projects', 'Smart Home Systems']
-    },
-    { 
-      name: 'Digital Marketing', 
-      description: 'SEO, Social Media & Analytics',
-      courses: ['SEO Fundamentals', 'Social Media Strategy', 'Google Analytics']
-    },
-    { 
-      name: 'Design', 
-      description: 'UI/UX & Graphic Design',
-      courses: ['UI/UX Design', 'Adobe Creative Suite', 'Figma Mastery']
-    },
-    { 
-      name: 'Business', 
-      description: 'Entrepreneurship & Management',
-      courses: ['Startup Fundamentals', 'Project Management', 'Financial Planning']
-    }
   ];
 
   const userNavItems = user ? [
@@ -161,103 +142,21 @@ const Navbar = () => {
                             
                             {/* Course Categories Grid */}
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-12">
-                              {courseCategories.map((category, index) => (
+                              {categories.map((category, index) => (
                                 <motion.div
-                                  key={category.name}
+                                  key={category}
                                   initial={{ opacity: 0, y: 20 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ duration: 0.3, delay: index * 0.05 }}
                                   className="group text-center p-6 bg-gray-50 hover:bg-white hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-100 hover:border-purple-200"
+                                  onClick={() => navigate(`/courses?category=${encodeURIComponent(category)}`)}
+                                  style={{ minWidth: 180 }}
                                 >
                                   <h4 className="text-lg font-bold text-black group-hover:text-purple-600 transition-colors mb-2">
-                                    {category.name}
+                                    {category}
                                   </h4>
-                                  <p className="text-sm text-gray-600 mb-4">{category.description}</p>
-                                  <div className="text-xs text-purple-600 font-medium">
-                                    {category.courses.length} courses available
-                                  </div>
                                 </motion.div>
                               ))}
-                            </div>
-                            
-                            {/* Featured Content */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
-                              {/* Popular Courses */}
-                              <div>
-                                <h4 className="text-xl font-bold text-black mb-6">Most Popular This Week</h4>
-                                <div className="space-y-4">
-                                  <div className="flex items-center space-x-4 p-4 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-100">
-                                    <div className="w-12 h-12 bg-purple-600 flex items-center justify-center text-white font-bold">
-                                      JS
-                                    </div>
-                                    <div className="flex-1">
-                                      <div className="font-semibold text-black">Complete JavaScript Course</div>
-                                      <div className="text-sm text-gray-600">Build real projects • 15.2k students</div>
-                                    </div>
-                                    <div className="text-right">
-                                      <div className="text-sm font-medium text-green-600">Free</div>
-                                      <div className="text-xs text-gray-500">4.8 ⭐</div>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center space-x-4 p-4 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-100">
-                                    <div className="w-12 h-12 bg-purple-600 flex items-center justify-center text-white font-bold">
-                                      PY
-                                    </div>
-                                    <div className="flex-1">
-                                      <div className="font-semibold text-black">Python for Data Science</div>
-                                      <div className="text-sm text-gray-600">From basics to advanced • 12.8k students</div>
-                                    </div>
-                                    <div className="text-right">
-                                      <div className="text-sm font-medium text-green-600">Free</div>
-                                      <div className="text-xs text-gray-500">4.9 ⭐</div>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center space-x-4 p-4 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-100">
-                                    <div className="w-12 h-12 bg-purple-600 flex items-center justify-center text-white font-bold">
-                                      UX
-                                    </div>
-                                    <div className="flex-1">
-                                      <div className="font-semibold text-black">UI/UX Design Masterclass</div>
-                                      <div className="text-sm text-gray-600">Design thinking + tools • 9.4k students</div>
-                                    </div>
-                                    <div className="text-right">
-                                      <div className="text-sm font-medium text-green-600">Free</div>
-                                      <div className="text-xs text-gray-500">4.7 ⭐</div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              {/* Learning Paths */}
-                              <div>
-                                <h4 className="text-xl font-bold text-black mb-6">Recommended Learning Paths</h4>
-                                <div className="space-y-4">
-                                  <div className="p-4 bg-purple-50 border border-purple-200">
-                                    <div className="font-semibold text-black mb-2">Full Stack Developer</div>
-                                    <div className="text-sm text-gray-600 mb-3">HTML, CSS, JavaScript, React, Node.js, MongoDB</div>
-                                    <div className="flex items-center justify-between">
-                                      <div className="text-xs text-purple-600">6 courses • 120 hours</div>
-                                      <div className="text-xs bg-purple-100 text-purple-800 px-2 py-1">Beginner friendly</div>
-                                    </div>
-                                  </div>
-                                  <div className="p-4 bg-gray-50 border border-gray-200">
-                                    <div className="font-semibold text-black mb-2">Data Scientist</div>
-                                    <div className="text-sm text-gray-600 mb-3">Python, Statistics, Machine Learning, Data Viz</div>
-                                    <div className="flex items-center justify-between">
-                                      <div className="text-xs text-purple-600">8 courses • 150 hours</div>
-                                      <div className="text-xs bg-gray-100 text-gray-800 px-2 py-1">High demand</div>
-                                    </div>
-                                  </div>
-                                  <div className="p-4 bg-purple-50 border border-purple-200">
-                                    <div className="font-semibold text-black mb-2">Digital Marketer</div>
-                                    <div className="text-sm text-gray-600 mb-3">SEO, Social Media, Analytics, Content Strategy</div>
-                                    <div className="flex items-center justify-between">
-                                      <div className="text-xs text-purple-600">5 courses • 80 hours</div>
-                                      <div className="text-xs bg-purple-100 text-purple-800 px-2 py-1">Creative</div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
                             </div>
                             
                             {/* Footer CTA */}
@@ -276,9 +175,6 @@ const Navbar = () => {
                                 >
                                   View Learning Paths
                                 </Link>
-                              </div>
-                              <div className="mt-4 text-sm text-gray-500">
-                                Join 50,000+ learners who are advancing their careers with our courses
                               </div>
                             </div>
                           </div>

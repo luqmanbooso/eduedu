@@ -19,6 +19,7 @@ import discussionRoutes from './routes/discussions.js';
 import enrollmentRoutes from './routes/enrollment.js';
 import wishlistRoutes from './routes/wishlist.js';
 import gradingRoutes from './routes/grading.js';
+import contactRoutes from './routes/contact.js';
 
 // Load environment variables
 dotenv.config();
@@ -56,6 +57,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/enrollment', enrollmentRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/grading', gradingRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Serve static files
 app.use('/uploads', express.static('uploads'));
