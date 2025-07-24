@@ -137,9 +137,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Rename the new login method to loginWithToken to avoid redeclaration
+  const loginWithToken = ({ token }) => {
+    localStorage.setItem('token', token);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    fetchUser();
+  };
+
   const value = {
     user,
     login,
+    loginWithToken,
     register,
     logout,
     googleAuth,

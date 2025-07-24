@@ -67,12 +67,7 @@ router.post('/:id/reply', protect, async (req, res) => {
     </div>
   `;
   try {
-    await sendEmail({
-      email: toEmail,
-      subject: `Reply from EduCharity Support: ${contact.subject}`,
-      html,
-      text: message
-    });
+    await sendEmail(toEmail, `Reply from EduCharity Support: ${contact.subject}`, html);
     res.json({ message: 'Reply sent successfully.' });
   } catch (err) {
     res.status(500).json({ message: 'Failed to send reply email.', error: err.message });

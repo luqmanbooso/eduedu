@@ -112,11 +112,7 @@ router.post('/enroll/:courseId', protect, async (req, res) => {
 
     // 5. Send enrollment confirmation email
     try {
-      await sendEmail({
-        email: user.email,
-        subject: `Welcome to ${course.title}!`,
-        html: generateEnrollmentEmailHTML(user.name, course.title, course._id)
-      });
+      await sendEmail(user.email, `Welcome to ${course.title}!`, generateEnrollmentEmailHTML(user.name, course.title, course._id));
     } catch (emailError) {
       console.error('Failed to send enrollment email:', emailError);
       // Don't fail the enrollment if email fails
@@ -365,11 +361,7 @@ router.post('/progress/:courseId/lesson/:lessonId', protect, async (req, res) =>
         // Send completion email
         try {
           const user = await User.findById(userId);
-          await sendEmail({
-            email: user.email,
-            subject: `Congratulations! You've completed ${course.title}`,
-            html: generateCompletionEmailHTML(user.name, course.title, certificate.certificateId)
-          });
+          await sendEmail(user.email, `Congratulations! You've completed ${course.title}`, generateCompletionEmailHTML(user.name, course.title, certificate.certificateId));
         } catch (emailError) {
           console.error('Failed to send completion email:', emailError);
         }

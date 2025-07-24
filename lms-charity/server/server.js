@@ -2,6 +2,12 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+console.log('GMAIL_USER (server.js):', process.env.GMAIL_USER);
+console.log('GMAIL_APP_PASSWORD (server.js):', process.env.GMAIL_APP_PASSWORD ? 'SET' : 'MISSING');
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -21,8 +27,6 @@ import wishlistRoutes from './routes/wishlist.js';
 import gradingRoutes from './routes/grading.js';
 import contactRoutes from './routes/contact.js';
 
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

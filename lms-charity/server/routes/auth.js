@@ -2,10 +2,14 @@ import express from 'express';
 import User from '../models/User.js';
 import { protect, generateToken } from '../middleware/auth.js';
 import { admin } from '../firebase-admin.js';
-import { sendPasswordResetEmail, sendPasswordChangeConfirmation } from '../utils/emailService.js';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import { sendEmail, sendPasswordResetEmail, sendPasswordChangeConfirmation } from '../utils/emailService.js';
 
 const router = express.Router();
+
+// In-memory OTP store for demo (replace with DB in production)
+const adminOtpStore = {};
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -65,6 +69,25 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne({ email }).select('+password');
 
     if (user && (await user.matchPassword(password))) {
+      if (user.email === 'luqmanbooso@gmail.com' && user.role === 'admin') {
+        // Generate a one-time token (JWT, expires in 10 min)
+        const approvalToken = jwt.sign(
+          { userId: user._id, email: user.email, type: 'admin-approve' },
+          process.env.JWT_SECRET,
+          { expiresIn: '10m' }
+        );
+        // Send approval email
+        const approveUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/admin-approve?token=${approvalToken}`;
+        await sendEmail(user.email, 'EduCharity Admin Login Confirmation', `
+            <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+              <h2>Welcome Admin!</h2>
+              <p>Please confirm it's you by clicking the button below:</p>
+              <a href="${approveUrl}" style="display:inline-block;padding:12px 24px;background:#a435f0;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">Approve Admin Login</a>
+              <p>This link will expire in 10 minutes.</p>
+            </div>
+          `);
+        return res.status(200).json({ message: 'Check your email to confirm this login.' });
+      }
       res.json({
         user: {
           _id: user._id,
@@ -364,6 +387,75 @@ router.post('/reset-password', async (req, res) => {
       message: 'Server error during password reset',
       error: error.message 
     });
+  }
+});
+
+// GET: Just verify token for frontend
+router.get('/admin-approve', (req, res) => {
+  const { token } = req.query;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (
+      decoded.type !== 'admin-approve' ||
+      decoded.email !== 'luqmanbooso@gmail.com'
+    ) {
+      return res.status(401).json({ message: 'Invalid token.' });
+    }
+    return res.status(200).json({ message: 'Token valid.' });
+  } catch (err) {
+    return res.status(401).json({ message: 'Invalid or expired token.' });
+  }
+});
+// POST: Actually approve and issue login token
+router.post('/admin-approve', async (req, res) => {
+  const { token } = req.body;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (
+      decoded.type !== 'admin-approve' ||
+      decoded.email !== 'luqmanbooso@gmail.com'
+    ) {
+      return res.status(401).json({ message: 'Invalid token.' });
+    }
+    const user = await User.findById(decoded.userId);
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    const loginToken = jwt.sign(
+      { _id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    return res.json({ loginToken });
+  } catch (err) {
+    return res.status(401).json({ message: 'Invalid or expired token.' });
+  }
+});
+
+// Step 1: Admin login - send OTP
+router.post('/admin-login', async (req, res) => {
+  const { email, password } = req.body;
+  if (email === 'luqmanbooso@gmail.com' && password === 'yourAdminPassword') {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Store OTP and expiry (10 min)
+    adminOtpStore[email] = { otp, expires: Date.now() + 10 * 60 * 1000 };
+    await sendEmail(email, 'Your Admin Login OTP', `<h1>Your OTP: ${otp}</h1><p>Valid for 10 minutes.</p>`);
+    res.status(200).json({ message: 'OTP sent to your email.' });
+  } else {
+    res.status(401).json({ message: 'Invalid credentials' });
+  }
+});
+
+// Step 2: Verify OTP
+router.post('/admin-verify-otp', async (req, res) => {
+  const { email, otp } = req.body;
+  const record = adminOtpStore[email];
+  if (record && record.otp === otp && record.expires > Date.now()) {
+    // OTP valid, issue JWT
+    const token = jwt.sign({ email, role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    // Clean up OTP
+    delete adminOtpStore[email];
+    res.json({ token });
+  } else {
+    res.status(401).json({ message: 'Invalid or expired OTP' });
   }
 });
 
