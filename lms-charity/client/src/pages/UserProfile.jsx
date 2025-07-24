@@ -19,7 +19,7 @@ import {
   Clock,
   BarChart3
 } from 'lucide-react';
-import axios from 'axios';
+import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import FileUpload from '../components/FileUpload';
@@ -56,7 +56,7 @@ const UserProfile = () => {
 
   const fetchProfile = async () => {
     try {
-      const response = await axios.get('/api/profile');
+      const response = await api.get('/profile');
       setProfileData(response.data);
       setEditForm({
         name: response.data.name || '',
@@ -82,16 +82,33 @@ const UserProfile = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get('/api/profile/stats');
+      console.log('Fetching stats from:', '/profile/stats');
+      const response = await api.get('/profile/stats');
+      console.log('Stats response:', response.data);
       setStats(response.data);
     } catch (error) {
       console.error('Error fetching stats:', error);
+      console.error('Request URL:', error.config?.url);
+      // Set default stats if API fails
+      setStats({
+        general: {
+          totalCourses: 0,
+          completedCourses: 0,
+          certificatesEarned: 0,
+          totalLearningTime: 0
+        },
+        progress: {
+          averageProgress: 0,
+          currentStreak: 0,
+          lastActivity: 'No recent activity'
+        }
+      });
     }
   };
 
   const handleSaveProfile = async () => {
     try {
-      const response = await axios.put('/api/profile', editForm);
+      const response = await api.put('/profile', editForm);
       setProfileData(response.data.user);
       updateUser(response.data.user);
       setIsEditing(false);
@@ -108,11 +125,11 @@ const UserProfile = () => {
       const formData = new FormData();
       formData.append('image', file);
 
-      const uploadResponse = await axios.post('/api/upload/image', formData, {
+      const uploadResponse = await api.post('/upload/image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      const avatarResponse = await axios.put('/api/profile/avatar', {
+      const avatarResponse = await api.put('/profile/avatar', {
         avatar: uploadResponse.data.url
       });
 

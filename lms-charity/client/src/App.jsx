@@ -108,14 +108,7 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
-              <Route 
-                path="/instructor/certificates" 
-                element={
-                  <ProtectedRoute requiredRole="instructor">
-                    <InstructorDashboard />
-                  </ProtectedRoute>
-                } 
-              />
+
               <Route
                 path="/instructor/discussions"
                 element={

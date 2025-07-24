@@ -11,7 +11,6 @@ import {
   BookOpen, 
   BarChart3, 
   Bell,
-  Search,
   Sparkles,
   Home,
   Award,
@@ -77,13 +76,7 @@ const Navbar = () => {
   ];
 
   const userNavItems = user ? [
-    { 
-      name: 'Dashboard', 
-      href: user.role === 'instructor' ? '/instructor/dashboard' : '/dashboard', 
-      icon: BarChart3 
-    },
     { name: 'My Learning', href: '/my-learning', icon: BookOpen },
-    { name: 'Certificates', href: '/certificates', icon: Award },
     ...(user.role === 'instructor' || user.role === 'admin' 
       ? [{ name: 'Create Course', href: '/create-course', icon: PlusCircle }] 
       : []),
@@ -319,17 +312,7 @@ const Navbar = () => {
             })}
           </div>
 
-          {/* Search Bar - Simplified */}
-          <div className="hidden md:flex items-center flex-1 max-w-sm mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search courses..."
-                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600 focus:bg-white transition-all duration-200 text-gray-900 placeholder-gray-500 text-sm"
-              />
-            </div>
-          </div>
+
 
           {/* User Section */}
           <div className="flex items-center space-x-2">
@@ -341,14 +324,17 @@ const Navbar = () => {
                   onMouseEnter={() => setShowNotifications(true)}
                   onMouseLeave={() => setShowNotifications(false)}
                 >
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <Bell className="w-5 h-5 text-gray-600" />
-                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                  </motion.button>
+                  <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            style={{ position: 'fixed', top: 18, right: 160, zIndex: 1000 }}
+            onMouseEnter={() => setShowNotifications(true)}
+            onMouseLeave={() => setShowNotifications(false)}
+          >
+            <NotificationCenter onClose={() => setShowNotifications(false)} />
+          </motion.div>
                 </div>
 
                 {/* User Menu */}
@@ -524,22 +510,7 @@ const Navbar = () => {
           )}
         </AnimatePresence>
 
-      {/* Notification Center */}
-      <AnimatePresence>
-        {showNotifications && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className="absolute top-16 right-4 z-50"
-            onMouseEnter={() => setShowNotifications(true)}
-            onMouseLeave={() => setShowNotifications(false)}
-          >
-            <NotificationCenter onClose={() => setShowNotifications(false)} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      
     </motion.nav>
   );
 };

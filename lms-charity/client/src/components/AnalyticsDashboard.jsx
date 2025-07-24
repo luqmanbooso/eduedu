@@ -25,7 +25,7 @@ import {
   BarChart,
   Bar
 } from 'recharts';
-import axios from 'axios';
+import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const AnalyticsDashboard = ({ type = 'student', dashboardData }) => {
@@ -50,10 +50,10 @@ const AnalyticsDashboard = ({ type = 'student', dashboardData }) => {
     try {
       setLoading(true);
       const endpoint = type === 'student' 
-        ? '/api/progress/analytics/user'
-        : `/api/progress/analytics/course/${user.courseId}`;
+        ? '/progress/analytics/user'
+        : `/progress/analytics/course/${user.courseId}`;
       
-      const response = await axios.get(endpoint);
+      const response = await api.get(endpoint);
       setAnalytics(response.data);
     } catch (error) {
       console.error('Error fetching analytics:', error);

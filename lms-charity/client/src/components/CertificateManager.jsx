@@ -10,7 +10,7 @@ import {
   Copy,
   CheckCircle 
 } from 'lucide-react';
-import axios from 'axios';
+import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 
@@ -26,8 +26,8 @@ const CertificateManager = () => {
 
   const fetchCertificates = async () => {
     try {
-      const response = await axios.get('/api/certificates');
-      setCertificates(response.data);
+      const response = await api.get('/certificates/my-certificates');
+      setCertificates(response.data.data || []);
     } catch (error) {
       console.error('Error fetching certificates:', error);
       toast.error('Failed to load certificates');
@@ -39,7 +39,7 @@ const CertificateManager = () => {
   const generateCertificate = async (courseId, courseName, score = 100) => {
     try {
       setGeneratingCert(courseId);
-      const response = await axios.post('/api/certificates/generate', {
+      const response = await api.post('/certificates/generate', {
         courseId,
         score
       });
@@ -56,7 +56,7 @@ const CertificateManager = () => {
 
   const downloadCertificate = async (certificateId, courseName) => {
     try {
-      const response = await axios.get(`/api/certificates/${certificateId}/download`, {
+      const response = await api.get(`/certificates/${certificateId}/download`, {
         responseType: 'blob'
       });
       
@@ -309,7 +309,7 @@ export const CertificateVerification = ({ certificateId, verificationCode }) => 
 
   const verifyCertificate = async () => {
     try {
-      const response = await axios.get(`/api/certificates/verify/${certificateId}/${verificationCode}`);
+      const response = await api.get(`/certificates/verify/${certificateId}/${verificationCode}`);
       setCertificate(response.data.certificate);
       setIsValid(response.data.isValid);
     } catch (error) {

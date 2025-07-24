@@ -59,11 +59,11 @@ const Navbar = () => {
                 )}
                 
                 <Link 
-                  to="/dashboard" 
+                  to="/my-learning" 
                   className="flex items-center space-x-1 text-gray-700 hover:text-blue-500 px-3 py-2 rounded-md text-sm font-medium dark:text-gray-300 dark:hover:text-blue-400"
                 >
                   <User className="h-4 w-4" />
-                  <span>Dashboard</span>
+                  <span>My Learning</span>
                 </Link>
 
                 {/* Notification Center */}

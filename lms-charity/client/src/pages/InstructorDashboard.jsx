@@ -29,7 +29,8 @@ import {
   X,
   Layers,
   Video,
-  HelpCircle
+  HelpCircle,
+  User
 } from 'lucide-react';
 import { courseAPI, instructorAPI } from '../services/api';
 import CourseContentManager from '../components/CourseContentManager';
@@ -38,6 +39,7 @@ import GradingCenter from '../components/GradingCenter';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../services/api'; // Make sure this import is present for direct API calls
 import { toast } from 'react-toastify'; // Add this import at the top if using react-toastify
+import axios from 'axios'; // Add this import for fetching student details
 
 const InstructorDashboard = () => {
   const { user } = useAuth();
@@ -119,8 +121,7 @@ const InstructorDashboard = () => {
     { id: 'courses', label: 'My Courses', icon: BookOpen },
     { id: 'students', label: 'Students', icon: Users },
     { id: 'discussions', label: 'Discussions', icon: MessageSquare },
-    { id: 'grading', label: 'Grading', icon: GraduationCap },
-    { id: 'certificates', label: 'Certificates', icon: Award }
+    { id: 'grading', label: 'Grading', icon: GraduationCap }
   ];
 
   const handleManageContent = (courseId) => {
@@ -290,18 +291,6 @@ const InstructorDashboard = () => {
               transition={{ duration: 0.3 }}
             >
               <GradingTab instructorId={user._id} courses={instructorCourses} />
-            </motion.div>
-          )}
-
-          {activeTab === 'certificates' && (
-            <motion.div
-              key="certificates"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <CertificatesTab onCreateCertificate={() => setShowCertificateModal(true)} courses={instructorCourses} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -959,13 +948,13 @@ const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
                   <p className="text-gray-600 text-xs mb-2 line-clamp-2">{course.description}</p>
                   <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
                     <div className="flex items-center space-x-2">
-                      <Users className="w-4 h-4" />
+                        <Users className="w-4 h-4" />
                       <span>{course.enrolledStudents?.length || 0}</span>
-                    </div>
+                      </div>
                     <div className="flex items-center space-x-2">
                       <CheckCircle className="w-4 h-4" />
                       <span>{completions}</span>
-                    </div>
+                      </div>
                     <div className="flex items-center space-x-2">
                       <Star className="w-4 h-4 text-yellow-500" fill="currentColor" />
                       <span>{course.rating?.average || '4.8'}</span>
@@ -2704,12 +2693,57 @@ const BulkEnrollmentModal = ({ isOpen, onClose, courses, onEnrollmentComplete })
 // Student Detail Modal Component
 const StudentDetailModal = ({ isOpen, onClose, student, courses }) => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(false);
+  const [studentDetails, setStudentDetails] = useState(null);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && student) {
+      fetchStudentDetails();
+    }
+    // eslint-disable-next-line
+  }, [isOpen, student]);
+
+  const fetchStudentDetails = async () => {
+    setLoading(true);
+    try {
+      // Fetch public profile (basic info, createdCourses, etc.)
+      const profileRes = await axios.get(`/profile/public/${student._id}`);
+      setStudentDetails({
+        profile: profileRes.data,
+      });
+    } catch (error) {
+      setStudentDetails(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!isOpen || !student) return null;
 
-  const studentCourses = courses.filter(course => 
-    course.enrolledStudents?.some(id => id === student._id)
-  );
+  if (loading || !studentDetails) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] flex items-center justify-center"
+          style={{ minHeight: 300 }}
+        >
+          <div className="flex flex-col items-center justify-center w-full h-full py-12">
+            <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mb-4" />
+            <p className="text-gray-600">Loading student details...</p>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  const { profile } = studentDetails;
+
+  // Only show overview, courses, progress tabs
+  const tabs = ['overview', 'courses', 'progress'];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -2722,11 +2756,11 @@ const StudentDetailModal = ({ isOpen, onClose, student, courses }) => {
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center text-white font-semibold">
-              {student.name?.charAt(0)?.toUpperCase() || 'S'}
+              {profile.name?.charAt(0)?.toUpperCase() || 'S'}
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-black">{student.name}</h3>
-              <p className="text-gray-600">{student.email}</p>
+              <h3 className="text-xl font-semibold text-black">{profile.name}</h3>
+              <p className="text-gray-600">{profile.email || student.email}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -2735,7 +2769,7 @@ const StudentDetailModal = ({ isOpen, onClose, student, courses }) => {
         </div>
 
         <div className="flex border-b border-gray-200">
-          {['overview', 'courses', 'progress', 'certificates'].map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -2758,27 +2792,18 @@ const StudentDetailModal = ({ isOpen, onClose, student, courses }) => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-purple-600">Courses Enrolled</p>
-                      <p className="text-2xl font-bold text-purple-700">{studentCourses.length}</p>
+                      <p className="text-2xl font-bold text-purple-700">{profile.createdCourses?.length || 0}</p>
                     </div>
                     <BookOpen className="w-8 h-8 text-purple-600" />
-                  </div>
-                </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-green-600">Overall Progress</p>
-                      <p className="text-2xl font-bold text-green-700">{student.totalProgress || 0}%</p>
-                    </div>
-                    <Target className="w-8 h-8 text-green-600" />
                   </div>
                 </div>
                 <div className="bg-yellow-50 p-4 rounded-lg">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-yellow-600">Certificates Earned</p>
-                      <p className="text-2xl font-bold text-yellow-700">{student.certificatesCount || 0}</p>
+                      <p className="text-sm text-yellow-600">Joined</p>
+                      <p className="text-2xl font-bold text-yellow-700">{profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}</p>
                     </div>
-                    <Award className="w-8 h-8 text-yellow-600" />
+                    <User className="w-8 h-8 text-yellow-600" />
                   </div>
                 </div>
               </div>
@@ -2788,25 +2813,15 @@ const StudentDetailModal = ({ isOpen, onClose, student, courses }) => {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">Email:</span>
-                    <span className="ml-2 text-black">{student.email}</span>
+                    <span className="ml-2 text-black">{profile.email || student.email}</span>
                   </div>
                   <div>
                     <span className="text-gray-600">Joined:</span>
-                    <span className="ml-2 text-black">
-                      {student.joinedAt ? new Date(student.joinedAt).toLocaleDateString() : 'N/A'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Last Active:</span>
-                    <span className="ml-2 text-black">
-                      {student.lastActive ? new Date(student.lastActive).toLocaleDateString() : 'N/A'}
-                    </span>
+                    <span className="ml-2 text-black">{profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}</span>
                   </div>
                   <div>
                     <span className="text-gray-600">Status:</span>
-                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                      Active
-                    </span>
+                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Active</span>
                   </div>
                 </div>
               </div>
@@ -2816,34 +2831,7 @@ const StudentDetailModal = ({ isOpen, onClose, student, courses }) => {
           {activeTab === 'courses' && (
             <div className="space-y-4">
               <h4 className="font-semibold text-black">Enrolled Courses</h4>
-              {studentCourses.length === 0 ? (
-                <p className="text-gray-600">Not enrolled in any courses yet.</p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {studentCourses.map((course) => (
-                    <div key={course._id} className="border border-gray-200 p-4 rounded-lg">
-                      <img
-                        src={course.thumbnail || 'https://via.placeholder.com/300x200/f3f4f6/6b7280?text=Course'}
-                        alt={course.title}
-                        className="w-full h-32 object-cover rounded mb-3"
-                      />
-                      <h5 className="font-medium text-black">{course.title}</h5>
-                      <p className="text-sm text-gray-600 mb-2">{course.category}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">
-                          Progress: {student.courseProgress?.[course._id] || 0}%
-                        </span>
-                        <div className="w-20 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-purple-600 h-2 rounded-full"
-                            style={{ width: `${student.courseProgress?.[course._id] || 0}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <p className="text-gray-600">Course details will be available in a future update.</p>
             </div>
           )}
 
@@ -2852,17 +2840,7 @@ const StudentDetailModal = ({ isOpen, onClose, student, courses }) => {
               <h4 className="font-semibold text-black">Learning Progress</h4>
               <div className="bg-white border border-gray-200 p-4 rounded-lg">
                 <h5 className="font-medium text-black mb-3">Recent Activity</h5>
-                {/* Add recent activity timeline here */}
-                <p className="text-gray-600">Activity tracking will be implemented with backend integration.</p>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'certificates' && (
-            <div className="space-y-4">
-              <h4 className="font-semibold text-black">Certificates</h4>
-              <div className="bg-white border border-gray-200 p-4 rounded-lg">
-                <p className="text-gray-600">Certificate management will be implemented with backend integration.</p>
+                <p className="text-gray-600">Recent activity tracking will be implemented with backend integration.</p>
               </div>
             </div>
           )}
@@ -2875,10 +2853,40 @@ const StudentDetailModal = ({ isOpen, onClose, student, courses }) => {
           >
             Close
           </button>
-          <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+          <button
+            onClick={() => setShowMessageModal(true)}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
             Send Message
           </button>
         </div>
+
+        {showMessageModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-lg">
+              <h4 className="text-lg font-semibold mb-4">Send Message to {profile.name}</h4>
+              <textarea
+                rows={5}
+                className="w-full border border-gray-300 rounded-lg p-2 mb-4"
+                placeholder="Type your message here..."
+              />
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={() => setShowMessageModal(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  // TODO: Implement send message logic
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </motion.div>
     </div>
   );

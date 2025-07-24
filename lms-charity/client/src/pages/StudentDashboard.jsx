@@ -4,7 +4,6 @@ import {
   BookOpen, 
   Users, 
   Clock, 
-  Award, 
   TrendingUp, 
   MessageSquare, 
   FileText, 
@@ -28,7 +27,10 @@ import {
   BookMarked,
   GraduationCap,
   ChevronRight,
-  Heart
+  Heart,
+  User,
+  Camera,
+  Award
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import CourseCard from '../components/CourseCard';
@@ -36,85 +38,29 @@ import NotificationCenter from '../components/NotificationCenter';
 import { useStudentDashboard } from '../hooks/useStudentDashboard';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import api from '../services/api';
 
 const StudentDashboard = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterLevel, setFilterLevel] = useState('all');
-  const [filterCategory, setFilterCategory] = useState('all');
+  const [activeTab, setActiveTab] = useState('courses');
 
   // Use custom hook for dashboard data
   const {
     enrolledCourses,
-    availableCourses,
-    notifications,
-    certificates,
     loading,
     error,
-    enrollInCourse,
     continueLearning,
-    markNotificationAsRead,
-    markAllNotificationsAsRead,
-    deleteNotification,
-    downloadCertificate
   } = useStudentDashboard();
 
-  // Enhanced course management functions
-  const handleEnrollInCourse = async (courseId) => {
-    const success = await enrollInCourse(courseId);
-    if (success) {
-      // Course will be automatically moved to enrolled courses by the hook
-    }
-  };
-
-  const handleContinueLearning = async (courseId) => {
-    const success = await continueLearning(courseId);
-    if (success) {
-      // Navigate to course learning page
-      // This would typically use react-router navigation
-    }
-  };
-
+  // Only two tabs: My Learning and Settings
   const tabContent = {
-    overview: <OverviewTab 
-      enrolledCourses={enrolledCourses} 
-      notifications={notifications}
-      certificates={certificates}
-    />,
-    courses: <MyCoursesTab 
-      courses={enrolledCourses}
-      searchTerm={searchTerm}
-      setSearchTerm={setSearchTerm}
-      onContinue={handleContinueLearning}
-    />,
-    browse: <BrowseCoursesTab 
-      courses={availableCourses}
-      searchTerm={searchTerm}
-      setSearchTerm={setSearchTerm}
-      filterLevel={filterLevel}
-      setFilterLevel={setFilterLevel}
-      filterCategory={filterCategory}
-      setFilterCategory={setFilterCategory}
-      onEnroll={handleEnrollInCourse}
-    />,
-    progress: <ProgressTab courses={enrolledCourses} />,
-    certificates: <CertificatesTab 
-      certificates={certificates} 
-      onDownload={downloadCertificate}
-    />,
-    discussions: <DiscussionsTab />,
-    notifications: <NotificationsTab 
-      notifications={notifications}
-      onMarkAsRead={markNotificationAsRead}
-      onMarkAllAsRead={markAllNotificationsAsRead}
-      onDelete={deleteNotification}
-    />
+    courses: <MyCoursesTab courses={enrolledCourses} onContinue={continueLearning} />,
+    settings: <SettingsTab user={user} />,
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -126,13 +72,13 @@ const StudentDashboard = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
             Something went wrong
           </h2>
-          <p className="text-gray-600 dark:text-gray-300 mb-4">
+          <p className="text-gray-600 mb-4">
             {error}
           </p>
           <button 
@@ -147,21 +93,20 @@ const StudentDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <>
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-3xl font-bold text-gray-900">
                 Welcome back, {user?.name || 'Student'}!
               </h1>
-              <p className="text-gray-600 dark:text-gray-300 mt-1">
+              <p className="text-gray-600 mt-1">
                 Continue your learning journey
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              <NotificationCenter notifications={notifications} />
               <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
                 {user?.name?.charAt(0) || 'S'}
               </div>
@@ -171,17 +116,12 @@ const StudentDashboard = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-8">
             {[
-              { id: 'overview', label: 'Overview', icon: BarChart3 },
-              { id: 'courses', label: 'My Courses', icon: BookOpen },
-              { id: 'browse', label: 'Browse Courses', icon: Search },
-              { id: 'progress', label: 'Progress', icon: TrendingUp },
-              { id: 'certificates', label: 'Certificates', icon: Award },
-              { id: 'discussions', label: 'Discussions', icon: MessageSquare },
-              { id: 'notifications', label: 'Notifications', icon: Bell }
+              { id: 'courses', label: 'My Learning', icon: BookOpen },
+              { id: 'settings', label: 'Settings', icon: Users },
             ].map((tab) => {
               const Icon = tab.icon;
               return (
@@ -190,8 +130,8 @@ const StudentDashboard = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                     activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:border-gray-300'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
                   <Icon className="h-5 w-5" />
@@ -217,164 +157,29 @@ const StudentDashboard = () => {
           </motion.div>
         </AnimatePresence>
       </div>
-    </div>
+      <FloatingNotificationCenter />
+    </>
   );
 };
 
-// Overview Tab Component
-const OverviewTab = ({ enrolledCourses, notifications, certificates }) => {
-  const totalProgress = enrolledCourses.reduce((acc, course) => acc + course.progress, 0) / enrolledCourses.length || 0;
-  const completedCourses = enrolledCourses.filter(course => course.progress === 100).length;
-  const upcomingDeadlines = enrolledCourses.flatMap(course => 
-    course.upcomingDeadlines?.map(deadline => ({
-      ...deadline,
-      courseName: course.title
-    })) || []
-  );
-
+// My Courses Tab Component (no search bar)
+const MyCoursesTab = ({ courses, onContinue }) => {
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Enrolled Courses"
-          value={enrolledCourses.length}
-          icon={BookOpen}
-          color="blue"
-          trend="+2 this month"
-        />
-        <StatCard
-          title="Average Progress"
-          value={`${Math.round(totalProgress)}%`}
-          icon={TrendingUp}
-          color="green"
-          trend="Keep going!"
-        />
-        <StatCard
-          title="Completed Courses"
-          value={completedCourses}
-          icon={CheckCircle}
-          color="purple"
-          trend="Great job!"
-        />
-        <StatCard
-          title="Certificates Earned"
-          value={certificates.length}
-          icon={Award}
-          color="yellow"
-          trend="Well done!"
-        />
-      </div>
-
-      {/* Current Courses */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Continue Learning
-          </h2>
-          <Link 
-            to="/courses"
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center"
-          >
-            View All <ChevronRight className="h-4 w-4 ml-1" />
-          </Link>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {enrolledCourses.slice(0, 2).map((course) => (
-            <CourseProgressCard key={course._id} course={course} />
-          ))}
-        </div>
-      </div>
-
-      {/* Upcoming Deadlines */}
-      {upcomingDeadlines.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-            Upcoming Deadlines
-          </h2>
-          <div className="space-y-3">
-            {upcomingDeadlines.map((deadline, index) => (
-              <DeadlineCard key={index} deadline={deadline} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Recent Activity */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-          Recent Activity
-        </h2>
-        <div className="space-y-4">
-          {notifications.slice(0, 3).map((notification) => (
-            <div key={notification.id} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
-              <div className={`p-2 rounded-full ${
-                notification.type === 'achievement' ? 'bg-green-100 text-green-600' :
-                notification.type === 'deadline' ? 'bg-red-100 text-red-600' :
-                'bg-blue-100 text-blue-600'
-              }`}>
-                {notification.type === 'achievement' ? <Trophy className="h-4 w-4" /> :
-                 notification.type === 'deadline' ? <Calendar className="h-4 w-4" /> :
-                 <Bell className="h-4 w-4" />}
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900 dark:text-white">
-                  {notification.title}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {notification.message}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {notification.time}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// My Courses Tab Component
-const MyCoursesTab = ({ courses, searchTerm, setSearchTerm, onContinue }) => {
-  const filteredCourses = courses.filter(course =>
-    course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  return (
-    <div className="space-y-6">
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-          <input
-            type="text"
-            placeholder="Search your courses..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
-          />
-        </div>
-      </div>
-
       {/* Course Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCourses.map((course, index) => (
+        {courses.map((course, index) => (
           <EnrolledCourseCard key={course._id} course={course} index={index} onContinue={onContinue} />
         ))}
       </div>
-
-      {filteredCourses.length === 0 && (
+      {courses.length === 0 && (
         <div className="text-center py-12">
           <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
             No courses found
           </h3>
-          <p className="text-gray-600 dark:text-gray-300">
-            {searchTerm ? 'Try adjusting your search terms' : 'Start by enrolling in some courses'}
+          <p className="text-gray-600">
+            Start by enrolling in some courses
           </p>
         </div>
       )}
@@ -382,387 +187,364 @@ const MyCoursesTab = ({ courses, searchTerm, setSearchTerm, onContinue }) => {
   );
 };
 
-// Browse Courses Tab Component
-const BrowseCoursesTab = ({ 
-  courses, 
-  searchTerm, 
-  setSearchTerm, 
-  filterLevel, 
-  setFilterLevel,
-  filterCategory,
-  setFilterCategory,
-  onEnroll
-}) => {
-  const categories = ['all', 'Programming', 'Design', 'Data Science', 'Business', 'Marketing'];
-  const levels = ['all', 'Beginner', 'Intermediate', 'Advanced'];
-
-  const filteredCourses = courses.filter(course => {
-    const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         course.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLevel = filterLevel === 'all' || course.level === filterLevel;
-    const matchesCategory = filterCategory === 'all' || course.category === filterCategory;
-    
-    return matchesSearch && matchesLevel && matchesCategory;
+// Settings Tab Component with full functionality
+const SettingsTab = ({ user }) => {
+  const [activeSection, setActiveSection] = useState('profile');
+  const [profileData, setProfileData] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    bio: '',
+    location: '',
+    phoneNumber: ''
   });
+  const [isEditing, setIsEditing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [analytics, setAnalytics] = useState(null);
+  const [certificates, setCertificates] = useState([]);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [loadingCertificates, setLoadingCertificates] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(false);
 
-  return (
-    <div className="space-y-6">
-      {/* Search and Filters */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-            <input
-              type="text"
-              placeholder="Search courses..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            />
-          </div>
-          
-          <div className="flex gap-4">
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            >
-              {categories.map(category => (
-                <option key={category} value={category}>
-                  {category === 'all' ? 'All Categories' : category}
-                </option>
-              ))}
-            </select>
-            
-            <select
-              value={filterLevel}
-              onChange={(e) => setFilterLevel(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            >
-              {levels.map(level => (
-                <option key={level} value={level}>
-                  {level === 'all' ? 'All Levels' : level}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
+  React.useEffect(() => {
+    fetchProfile();
+    fetchAnalytics();
+    fetchCertificates();
+  }, []);
 
-      {/* Course Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCourses.map((course, index) => (
-          <AvailableCourseCard key={course._id} course={course} index={index} onEnroll={onEnroll} />
-        ))}
-      </div>
-
-      {filteredCourses.length === 0 && (
-        <div className="text-center py-12">
-          <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-            No courses found
-          </h3>
-          <p className="text-gray-600 dark:text-gray-300">
-            Try adjusting your search terms or filters
-          </p>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Progress Tab Component
-const ProgressTab = ({ courses }) => {
-  const totalLessons = courses.reduce((acc, course) => acc + course.totalLessons, 0);
-  const completedLessons = courses.reduce((acc, course) => acc + course.completedLessons, 0);
-  const overallProgress = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
-
-  return (
-    <div className="space-y-6">
-      {/* Overall Progress */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-          Overall Learning Progress
-        </h2>
-        
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-              Total Progress
-            </span>
-            <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-              {Math.round(overallProgress)}%
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
-            <motion.div
-              className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${overallProgress}%` }}
-              transition={{ duration: 1, ease: "easeOut" }}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {completedLessons}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              Lessons Completed
-            </div>
-          </div>
-          <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {courses.filter(c => c.progress === 100).length}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              Courses Completed
-            </div>
-          </div>
-          <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-              {Math.round(courses.reduce((acc, course) => acc + (course.estimatedTimeLeft ? parseInt(course.estimatedTimeLeft) : 0), 0))}h
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              Time Remaining
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Individual Course Progress */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-          Course Progress Details
-        </h2>
-        
-        <div className="space-y-4">
-          {courses.map((course) => (
-            <CourseProgressDetail key={course._id} course={course} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Certificates Tab Component
-const CertificatesTab = ({ certificates, onDownload }) => {
-  return (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Your Certificates
-          </h2>
-          <div className="text-sm text-gray-600 dark:text-gray-300">
-            {certificates.length} certificate(s) earned
-          </div>
-        </div>
-
-        {certificates.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {certificates.map((certificate) => (
-              <CertificateCard 
-                key={certificate._id || certificate.id} 
-                certificate={certificate} 
-                onDownload={onDownload}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <Award className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              No certificates yet
-            </h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              Complete courses to earn certificates
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Discussions Tab Component
-const DiscussionsTab = () => {
-  const [discussions, setDiscussions] = useState([
-    {
-      id: '1',
-      title: 'Help with React Hooks',
-      category: 'question',
-      course: 'React Advanced Patterns',
-      author: 'John Doe',
-      replies: 5,
-      lastActivity: '2 hours ago',
-      isPinned: false
-    },
-    {
-      id: '2',
-      title: 'Course Materials Update',
-      category: 'announcement',
-      course: 'Machine Learning Fundamentals',
-      author: 'Jane Smith',
-      replies: 12,
-      lastActivity: '1 day ago',
-      isPinned: true
+  React.useEffect(() => {
+    if (user && !profileData.name) {
+      setProfileData({
+        name: user.name || '',
+        email: user.email || '',
+        bio: '',
+        location: '',
+        phoneNumber: ''
+      });
     }
-  ]);
+  }, [user, profileData.name]);
 
-  return (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Course Discussions
-          </h2>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            Start Discussion
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          {discussions.map((discussion) => (
-            <div 
-              key={discussion.id}
-              className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-2">
-                    {discussion.isPinned && (
-                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
-                        Pinned
-                      </span>
-                    )}
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      discussion.category === 'announcement' ? 'bg-blue-100 text-blue-800' :
-                      discussion.category === 'question' ? 'bg-green-100 text-green-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {discussion.category}
-                    </span>
-                  </div>
-                  
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
-                    {discussion.title}
-                  </h3>
-                  
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                    in {discussion.course} • by {discussion.author}
-                  </p>
-                  
-                  <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
-                    <span className="flex items-center">
-                      <MessageSquare className="h-4 w-4 mr-1" />
-                      {discussion.replies} replies
-                    </span>
-                    <span>{discussion.lastActivity}</span>
-                  </div>
-                </div>
-                
-                <ChevronRight className="h-5 w-5 text-gray-400" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Notifications Tab Component
-const NotificationsTab = ({ notifications, onMarkAsRead, onMarkAllAsRead, onDelete }) => {
-  const handleNotificationClick = (notification) => {
-    if (!notification.isRead) {
-      onMarkAsRead(notification._id);
+  const fetchProfile = async () => {
+    setLoadingProfile(true);
+    try {
+      const response = await api.get('/profile');
+      const data = response.data;
+      setProfileData({
+        name: data.name || user?.name || '',
+        email: data.email || user?.email || '',
+        bio: data.bio || '',
+        location: data.location || '',
+        phoneNumber: data.phoneNumber || ''
+      });
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      // Set default data if API fails
+      setProfileData({
+        name: user?.name || '',
+        email: user?.email || '',
+        bio: '',
+        location: '',
+        phoneNumber: ''
+      });
+    } finally {
+      setLoadingProfile(false);
     }
   };
 
-  const handleDeleteNotification = (notificationId, e) => {
-    e.stopPropagation();
-    onDelete(notificationId);
+  const fetchAnalytics = async () => {
+    setLoadingAnalytics(true);
+    try {
+      const response = await api.get('/progress/analytics');
+      setAnalytics(response.data);
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+      // Set default analytics data if API fails
+      setAnalytics({
+        totalCourses: 0,
+        completedCourses: 0,
+        totalLearningTime: 0,
+        currentStreak: 0,
+        averageProgress: 0
+      });
+    } finally {
+      setLoadingAnalytics(false);
+    }
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            All Notifications
-          </h2>
-          <button 
-            onClick={onMarkAllAsRead}
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-          >
-            Mark all as read
-          </button>
-        </div>
+  const fetchCertificates = async () => {
+    setLoadingCertificates(true);
+    try {
+      const response = await api.get('/certificates/my-certificates');
+      setCertificates(response.data || []);
+    } catch (error) {
+      console.error('Error fetching certificates:', error);
+      // Set empty certificates array if API fails
+      setCertificates([]);
+    } finally {
+      setLoadingCertificates(false);
+    }
+  };
 
-        <div className="space-y-3">
-          {notifications.map((notification) => (
-            <div 
-              key={notification._id}
-              onClick={() => handleNotificationClick(notification)}
-              className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                notification.isRead 
-                  ? 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800' 
-                  : 'border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20'
+  const handleSaveProfile = async () => {
+    setLoading(true);
+    try {
+      await api.put('/profile', profileData);
+      toast.success('Profile updated successfully!');
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error(error.response?.data?.message || 'Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAvatarUpload = async (file) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const uploadResponse = await api.post('/upload/image', formData);
+      const imageUrl = uploadResponse.data.url;
+      
+      await api.put('/profile/avatar', { avatar: imageUrl });
+      toast.success('Profile picture updated!');
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast.error('Failed to upload profile picture');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDownloadCertificate = async (certificateId) => {
+    try {
+      const response = await api.get(`/certificates/${certificateId}/download`, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `certificate-${certificateId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Certificate downloaded successfully!');
+    } catch (error) {
+      console.error('Error downloading certificate:', error);
+      toast.error('Failed to download certificate');
+    }
+  };
+
+  const sections = [
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'certificates', label: 'Certificates', icon: Award }
+  ];
+
+  return (
+    <div className="flex flex-col md:flex-row gap-8">
+      {/* Sidebar */}
+      <aside className="md:w-1/4 w-full bg-white border rounded-xl shadow p-6 flex flex-col gap-4">
+        {sections.map(section => (
+          <button
+            key={section.id}
+            onClick={() => setActiveSection(section.id)}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-lg font-semibold transition-colors
+              ${activeSection === section.id
+                ? 'bg-blue-50 border-l-4 border-blue-600 text-blue-700'
+                : 'hover:bg-gray-50 text-gray-800'
               }`}
-            >
-              <div className="flex items-start space-x-3">
-                <div className={`p-2 rounded-full ${
-                  notification.type === 'certificate_issued' ? 'bg-green-100 text-green-600' :
-                  notification.type === 'course_completion' ? 'bg-purple-100 text-purple-600' :
-                  notification.type === 'quiz_result' ? 'bg-blue-100 text-blue-600' :
-                  'bg-gray-100 text-gray-600'
-                }`}>
-                  {notification.type === 'certificate_issued' ? <Trophy className="h-4 w-4" /> :
-                   notification.type === 'course_completion' ? <CheckCircle className="h-4 w-4" /> :
-                   notification.type === 'quiz_result' ? <Brain className="h-4 w-4" /> :
-                   <Bell className="h-4 w-4" />}
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {notification.title}
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                    {notification.message}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-2">
-                    {new Date(notification.createdAt).toLocaleString()}
-                  </p>
-                </div>
-                {!notification.isRead && (
-                  <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                )}
-                <button
-                  onClick={(e) => handleDeleteNotification(notification._id, e)}
-                  className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+          >
+            <section.icon className="h-6 w-6" />
+            {section.label}
+          </button>
+        ))}
+      </aside>
 
-        {notifications.length === 0 && (
-          <div className="text-center py-12">
-            <Bell className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              No notifications
-            </h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              You're all caught up!
-            </p>
-          </div>
+      {/* Main Content */}
+      <main className="md:w-3/4 w-full space-y-8">
+        {/* Profile Card */}
+        {activeSection === 'profile' && (
+          <section className="bg-white border rounded-xl shadow p-8 flex flex-col md:flex-row gap-8 items-center">
+            {loadingProfile ? (
+              <div className="flex items-center justify-center w-full py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <div className="w-32 h-32 rounded-full border-4 border-blue-100 bg-gray-100 flex items-center justify-center text-5xl font-bold text-blue-600">
+                    {profileData.name?.charAt(0) || 'S'}
+                  </div>
+                  <label className="absolute bottom-2 right-2 bg-white border rounded-full p-2 cursor-pointer shadow">
+                    <input type="file" accept="image/*" onChange={e => e.target.files[0] && handleAvatarUpload(e.target.files[0])} className="hidden" />
+                    <Camera className="h-5 w-5 text-gray-600" />
+                  </label>
+                </div>
+                <div className="flex-1 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                      <input type="text" value={profileData.name} onChange={e => setProfileData({...profileData, name: e.target.value})} disabled={!isEditing} className="input-field text-lg" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input type="email" value={profileData.email} onChange={e => setProfileData({...profileData, email: e.target.value})} disabled={!isEditing} className="input-field text-lg" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                      <input type="text" value={profileData.location} onChange={e => setProfileData({...profileData, location: e.target.value})} disabled={!isEditing} className="input-field text-lg" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                      <input type="tel" value={profileData.phoneNumber} onChange={e => setProfileData({...profileData, phoneNumber: e.target.value})} disabled={!isEditing} className="input-field text-lg" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+                    <textarea value={profileData.bio} onChange={e => setProfileData({...profileData, bio: e.target.value})} disabled={!isEditing} rows={3} className="input-field text-lg" />
+                  </div>
+                  <div className="flex gap-3">
+                    {!isEditing ? (
+                      <button onClick={() => setIsEditing(true)} className="btn-primary text-lg">Edit Profile</button>
+                    ) : (
+                      <>
+                        <button onClick={handleSaveProfile} disabled={loading} className="btn-secondary text-lg">{loading ? 'Saving...' : 'Save Changes'}</button>
+                        <button onClick={() => { setIsEditing(false); fetchProfile(); }} className="btn-outline text-lg">Cancel</button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
         )}
-      </div>
+
+        {/* Analytics/Stat Cards */}
+        {activeSection === 'analytics' && (
+          <section>
+            {loadingAnalytics ? (
+              <div className="flex items-center justify-center w-full py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                  <StatCard title="Total Courses" value={analytics?.totalCourses || 0} icon={BookOpen} color="blue" />
+                  <StatCard title="Completed Courses" value={analytics?.completedCourses || 0} icon={CheckCircle} color="green" />
+                  <StatCard title="Learning Time" value={`${analytics?.totalLearningTime || 0}h`} icon={Clock} color="purple" />
+                  <StatCard title="Current Streak" value={`${analytics?.currentStreak || 0} days`} icon={TrendingUp} color="yellow" />
+                </div>
+                <div className="bg-white border rounded-xl shadow p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Progress Overview</h3>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">Average Progress</span>
+                      <span className="text-blue-600 font-medium">{analytics?.averageProgress || 0}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-4">
+                      <div className="bg-blue-500 h-4 rounded-full" style={{ width: `${analytics?.averageProgress || 0}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {/* Certificates */}
+        {activeSection === 'certificates' && (
+          <section>
+            {loadingCertificates ? (
+              <div className="flex items-center justify-center w-full py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-gray-900">
+                    My Certificates <span className="text-base font-medium text-gray-500">({certificates.length})</span>
+                  </h3>
+                </div>
+                {certificates.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Award className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No certificates yet
+                    </h3>
+                    <p className="text-gray-600">
+                      Complete courses to earn certificates and showcase your achievements!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {certificates.map((certificate) => {
+                      const certId = certificate.certificateId || certificate._id;
+                      const viewUrl = certificate.verificationCode
+                        ? `/certificate/${certId}/${certificate.verificationCode}`
+                        : null;
+                      return (
+                        <div
+                          key={certId}
+                          className="bg-white border border-gray-200 rounded-2xl shadow-lg flex flex-col justify-between h-full p-6 transition hover:shadow-xl"
+                        >
+                          <div className="flex items-center gap-3 mb-4">
+                            <Award className="h-8 w-8 text-yellow-500" />
+                            <span className="text-xs font-semibold bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full">
+                              {certificate.grade || 'Completed'}
+                            </span>
+                          </div>
+                          <div className="mb-2">
+                            <h3 className="font-bold text-gray-900 text-lg truncate">
+                              {certificate.courseName || certificate.course?.title}
+                            </h3>
+                            <p className="text-sm text-gray-600 truncate">
+                              Instructor: {certificate.instructor || certificate.course?.instructor?.name}
+                            </p>
+                          </div>
+                          <div className="mb-4">
+                            <p className="text-xs text-gray-500">
+                              Completed: {new Date(certificate.completedDate || certificate.issuedAt).toLocaleDateString()}
+                            </p>
+                            {certificate.score && (
+                              <p className="text-xs text-gray-500">Score: {certificate.score}%</p>
+                            )}
+                          </div>
+                          <div className="flex gap-2 mt-auto">
+                            <button
+                              onClick={() => handleDownloadCertificate(certId)}
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold flex items-center justify-center transition"
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Download
+                            </button>
+                            {viewUrl && (
+                              <a
+                                href={viewUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 bg-gray-100 hover:bg-gray-200 text-blue-700 py-2 px-4 rounded-lg font-semibold flex items-center justify-center border border-gray-200 transition"
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        )}
+      </main>
     </div>
   );
 };
@@ -770,26 +552,26 @@ const NotificationsTab = ({ notifications, onMarkAsRead, onMarkAllAsRead, onDele
 // Helper Components
 const StatCard = ({ title, value, icon: Icon, color, trend }) => {
   const colorClasses = {
-    blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
-    green: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
-    purple: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
-    yellow: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400'
+    blue: 'bg-blue-50 text-blue-600',
+    green: 'bg-green-50 text-green-600',
+    purple: 'bg-purple-50 text-purple-600',
+    yellow: 'bg-yellow-50 text-yellow-600'
   };
 
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
-      className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm"
+      className="bg-white p-6 rounded-xl shadow-sm"
     >
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+          <p className="text-sm font-medium text-gray-600">
             {title}
           </p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+          <p className="text-2xl font-bold text-gray-900 mt-1">
             {value}
           </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-xs text-gray-500 mt-1">
             {trend}
           </p>
         </div>
@@ -805,18 +587,18 @@ const CourseProgressCard = ({ course }) => {
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
-      className="bg-gray-50 dark:bg-gray-700 p-6 rounded-xl"
+      className="bg-gray-50 p-6 rounded-xl"
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-gray-900 dark:text-white">
+        <h3 className="font-semibold text-gray-900">
           {course.title}
         </h3>
-        <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+        <span className="text-sm text-blue-600 font-medium">
           {course.progress}%
         </span>
       </div>
       
-      <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 mb-4">
+      <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
         <motion.div
           className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
           initial={{ width: 0 }}
@@ -825,7 +607,7 @@ const CourseProgressCard = ({ course }) => {
         />
       </div>
       
-      <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300 mb-4">
+      <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
         <span>{course.completedLessons}/{course.totalLessons} lessons</span>
         <span>{course.estimatedTimeLeft} left</span>
       </div>
@@ -835,7 +617,7 @@ const CourseProgressCard = ({ course }) => {
           <Play className="h-4 w-4 mr-2" />
           Continue
         </button>
-        <button className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+        <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
           <Eye className="h-4 w-4" />
         </button>
       </div>
@@ -848,7 +630,7 @@ const DeadlineCard = ({ deadline }) => {
 
   return (
     <div className={`flex items-center space-x-3 p-3 rounded-lg ${
-      isUrgent ? 'bg-red-50 dark:bg-red-900/20' : 'bg-gray-50 dark:bg-gray-700'
+      isUrgent ? 'bg-red-50' : 'bg-gray-50'
     }`}>
       <div className={`p-2 rounded-full ${
         deadline.type === 'assignment' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
@@ -856,10 +638,10 @@ const DeadlineCard = ({ deadline }) => {
         {deadline.type === 'assignment' ? <FileText className="h-4 w-4" /> : <Brain className="h-4 w-4" />}
       </div>
       <div className="flex-1">
-        <p className="font-medium text-gray-900 dark:text-white">
+        <p className="font-medium text-gray-900">
           {deadline.title}
         </p>
-        <p className="text-sm text-gray-600 dark:text-gray-300">
+        <p className="text-sm text-gray-600">
           {deadline.courseName} • Due {deadline.dueDate}
         </p>
       </div>
@@ -879,7 +661,7 @@ const EnrolledCourseCard = ({ course, index, onContinue }) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
       whileHover={{ scale: 1.02 }}
-      className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden"
+      className="bg-white rounded-xl shadow-sm overflow-hidden"
     >
       <div className="relative h-48 bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center">
         <BookOpen className="h-12 w-12 text-white" />
@@ -896,27 +678,27 @@ const EnrolledCourseCard = ({ course, index, onContinue }) => {
       
       <div className="p-6">
         <div className="mb-3">
-          <span className="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs px-3 py-1 rounded-full font-medium">
+          <span className="inline-block bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-medium">
             {course.category}
           </span>
         </div>
         
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
           {course.title}
         </h3>
         
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">
+        <p className="text-sm text-gray-600 mb-4 line-clamp-2">
           {course.description}
         </p>
         
         <div className="mb-4">
           <div className="flex justify-between text-sm mb-1">
-            <span className="text-gray-600 dark:text-gray-300">Progress</span>
-            <span className="text-blue-600 dark:text-blue-400 font-medium">
+            <span className="text-gray-600">Progress</span>
+            <span className="text-blue-600 font-medium">
               {course.progress}%
             </span>
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+          <div className="w-full bg-gray-200 rounded-full h-2">
             <div 
               className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
               style={{ width: `${course.progress}%` }}
@@ -924,7 +706,7 @@ const EnrolledCourseCard = ({ course, index, onContinue }) => {
           </div>
         </div>
         
-        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
+        <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
           <span className="flex items-center">
             <Book className="h-4 w-4 mr-1" />
             {course.completedLessons}/{course.totalLessons} lessons
@@ -940,36 +722,36 @@ const EnrolledCourseCard = ({ course, index, onContinue }) => {
           {course.hasQuizzes && (
             <button 
               onClick={() => toast.success('Quiz section opened!')}
-              className="flex flex-col items-center p-2 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+              className="flex flex-col items-center p-2 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
             >
-              <Brain className="h-4 w-4 text-green-600 dark:text-green-400 mb-1" />
-              <span className="text-xs text-green-600 dark:text-green-400">Quiz</span>
+              <Brain className="h-4 w-4 text-green-600 mb-1" />
+              <span className="text-xs text-green-600">Quiz</span>
             </button>
           )}
           {course.hasAssignments && (
             <button 
               onClick={() => toast.success('Assignment section opened!')}
-              className="flex flex-col items-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+              className="flex flex-col items-center p-2 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
             >
-              <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400 mb-1" />
-              <span className="text-xs text-blue-600 dark:text-blue-400">Tasks</span>
+              <FileText className="h-4 w-4 text-blue-600 mb-1" />
+              <span className="text-xs text-blue-600">Tasks</span>
             </button>
           )}
           {course.hasDiscussions && (
             <button 
               onClick={() => toast.success('Discussion forum opened!')}
-              className="flex flex-col items-center p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+              className="flex flex-col items-center p-2 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
             >
-              <MessageSquare className="h-4 w-4 text-purple-600 dark:text-purple-400 mb-1" />
-              <span className="text-xs text-purple-600 dark:text-purple-400">Forum</span>
+              <MessageSquare className="h-4 w-4 text-purple-600 mb-1" />
+              <span className="text-xs text-purple-600">Forum</span>
             </button>
           )}
           <button 
             onClick={() => toast.success('Course materials opened!')}
-            className="flex flex-col items-center p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+            className="flex flex-col items-center p-2 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
           >
-            <Download className="h-4 w-4 text-orange-600 dark:text-orange-400 mb-1" />
-            <span className="text-xs text-orange-600 dark:text-orange-400">Files</span>
+            <Download className="h-4 w-4 text-orange-600 mb-1" />
+            <span className="text-xs text-orange-600">Files</span>
           </button>
         </div>
         
@@ -984,19 +766,19 @@ const EnrolledCourseCard = ({ course, index, onContinue }) => {
           
           <Link
             to={`/courses/${course._id}`}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors flex items-center justify-center"
           >
             <Eye className="h-4 w-4" />
           </Link>
         </div>
         
         {course.upcomingDeadlines && course.upcomingDeadlines.length > 0 && (
-          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-            <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium flex items-center">
+          <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
+            <p className="text-sm text-yellow-800 font-medium flex items-center">
               <Calendar className="h-4 w-4 mr-2" />
               Upcoming: {course.upcomingDeadlines[0].title}
             </p>
-            <p className="text-xs text-yellow-600 dark:text-yellow-300">
+            <p className="text-xs text-yellow-600">
               Due {course.upcomingDeadlines[0].dueDate}
             </p>
           </div>
@@ -1017,7 +799,7 @@ const AvailableCourseCard = ({ course, index, onEnroll }) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
       whileHover={{ scale: 1.02 }}
-      className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden"
+      className="bg-white rounded-xl shadow-sm overflow-hidden"
     >
       <div className="relative h-48 bg-gradient-to-br from-green-400 to-blue-600 flex items-center justify-center">
         <BookOpen className="h-12 w-12 text-white" />
@@ -1039,16 +821,16 @@ const AvailableCourseCard = ({ course, index, onEnroll }) => {
       
       <div className="p-6">
         <div className="mb-3">
-          <span className="inline-block bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs px-3 py-1 rounded-full font-medium">
+          <span className="inline-block bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full font-medium">
             {course.category}
           </span>
         </div>
         
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
           {course.title}
         </h3>
         
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">
+        <p className="text-sm text-gray-600 mb-4 line-clamp-2">
           {course.description}
         </p>
         
@@ -1056,12 +838,12 @@ const AvailableCourseCard = ({ course, index, onEnroll }) => {
           <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-semibold mr-3">
             {course.instructor?.name?.charAt(0) || 'A'}
           </div>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+          <span className="text-sm text-gray-500">
             by {course.instructor?.name || 'Anonymous'}
           </span>
         </div>
         
-        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
+        <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
           <div className="flex items-center space-x-4">
             <span className="flex items-center">
               <Users className="h-4 w-4 mr-1" />
@@ -1095,7 +877,7 @@ const AvailableCourseCard = ({ course, index, onEnroll }) => {
                 FREE
               </span>
             ) : (
-              <span className="text-lg font-bold text-gray-900 dark:text-white">
+              <span className="text-lg font-bold text-gray-900">
                 ${course.price}
               </span>
             )}
@@ -1109,15 +891,15 @@ const AvailableCourseCard = ({ course, index, onEnroll }) => {
         
         {/* Course Features */}
         <div className="mb-4 space-y-2">
-          <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+          <div className="flex items-center text-sm text-gray-600">
             <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
             <span>Lifetime Access</span>
           </div>
-          <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+          <div className="flex items-center text-sm text-gray-600">
             <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-            <span>Certificate of Completion</span>
+            <span>Mobile & Desktop Access</span>
           </div>
-          <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+          <div className="flex items-center text-sm text-gray-600">
             <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
             <span>Mobile & Desktop Access</span>
           </div>
@@ -1126,11 +908,11 @@ const AvailableCourseCard = ({ course, index, onEnroll }) => {
         <div className="flex space-x-2 mb-4">
           <Link
             to={`/courses/${course._id}`}
-            className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-center"
+            className="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors text-center"
           >
             Preview Course
           </Link>
-          <button className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+          <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
             <Heart className="h-4 w-4" />
           </button>
         </div>
@@ -1152,17 +934,17 @@ const AvailableCourseCard = ({ course, index, onEnroll }) => {
 
 const CourseProgressDetail = ({ course }) => {
   return (
-    <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+    <div className="p-4 border border-gray-200 rounded-lg">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold text-gray-900 dark:text-white">
+        <h3 className="font-semibold text-gray-900">
           {course.title}
         </h3>
-        <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+        <span className="text-sm font-medium text-blue-600">
           {course.progress}%
         </span>
       </div>
       
-      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-3">
+      <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
         <div 
           className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
           style={{ width: `${course.progress}%` }}
@@ -1171,26 +953,26 @@ const CourseProgressDetail = ({ course }) => {
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
         <div>
-          <span className="text-gray-600 dark:text-gray-300">Completed:</span>
-          <div className="font-medium text-gray-900 dark:text-white">
+          <span className="text-gray-600">Completed:</span>
+          <div className="font-medium text-gray-900">
             {course.completedLessons}/{course.totalLessons} lessons
           </div>
         </div>
         <div>
-          <span className="text-gray-600 dark:text-gray-300">Next:</span>
-          <div className="font-medium text-gray-900 dark:text-white">
+          <span className="text-gray-600">Next:</span>
+          <div className="font-medium text-gray-900">
             {course.nextLesson}
           </div>
         </div>
         <div>
-          <span className="text-gray-600 dark:text-gray-300">Time Left:</span>
-          <div className="font-medium text-gray-900 dark:text-white">
+          <span className="text-gray-600">Time Left:</span>
+          <div className="font-medium text-gray-900">
             {course.estimatedTimeLeft}
           </div>
         </div>
         <div>
-          <span className="text-gray-600 dark:text-gray-300">Last Access:</span>
-          <div className="font-medium text-gray-900 dark:text-white">
+          <span className="text-gray-600">Last Access:</span>
+          <div className="font-medium text-gray-900">
             {course.lastAccessed}
           </div>
         </div>
@@ -1199,44 +981,17 @@ const CourseProgressDetail = ({ course }) => {
   );
 };
 
-const CertificateCard = ({ certificate, onDownload }) => {
-  const handleDownload = () => {
-    onDownload(certificate._id || certificate.id);
-  };
 
-  return (
-    <motion.div
-      whileHover={{ scale: 1.02 }}
-      className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 p-6 rounded-xl border border-yellow-200 dark:border-yellow-700"
-    >
-      <div className="flex items-center justify-between mb-4">
-        <Award className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
-        <span className="text-sm font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded-full">
-          {certificate.grade || 'Completed'}
-        </span>
-      </div>
-      
-      <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-        {certificate.courseName || certificate.course?.title}
-      </h3>
-      
-      <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-        Instructor: {certificate.instructor || certificate.course?.instructor?.name}
-      </p>
-      
-      <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-        Completed: {new Date(certificate.completedDate || certificate.issuedAt).toLocaleDateString()}
-      </p>
-      
-      <button
-        onClick={handleDownload}
-        className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center"
-      >
-        <Download className="h-4 w-4 mr-2" />
-        Download Certificate
-      </button>
-    </motion.div>
-  );
-};
 
 export default StudentDashboard;
+
+// Add floating NotificationCenter for students
+import NotificationCenter from '../components/NotificationCenter';
+
+function FloatingNotificationCenter() {
+  return (
+    <div style={{ position: 'fixed', top: 24, right: 24, zIndex: 1000 }}>
+      <NotificationCenter />
+    </div>
+  );
+}

@@ -235,30 +235,36 @@ router.get('/stats', protect, async (req, res) => {
     // Calculate average course rating for instructors
     let averageInstructorRating = 0;
     if (user.role === 'instructor' && createdCoursesCount > 0) {
-      const totalRating = user.createdCourses.reduce((sum, course) => sum + course.rating.average, 0);
+      const totalRating = user.createdCourses.reduce((sum, course) => {
+        return sum + (course.rating?.average || 0);
+      }, 0);
       averageInstructorRating = totalRating / createdCoursesCount;
     }
     
     // Calculate total students taught (for instructors)
     let totalStudentsTaught = 0;
     if (user.role === 'instructor') {
-      totalStudentsTaught = user.createdCourses.reduce((sum, course) => sum + course.enrolledStudents.length, 0);
+      totalStudentsTaught = user.createdCourses.reduce((sum, course) => {
+        return sum + (course.enrolledStudents?.length || 0);
+      }, 0);
     }
     
     // Learning categories for students
     const learningCategories = {};
     if (user.role === 'student') {
       user.enrolledCourses.forEach(enrollment => {
-        const category = enrollment.course.category;
-        learningCategories[category] = (learningCategories[category] || 0) + 1;
+        if (enrollment.course && enrollment.course.category) {
+          const category = enrollment.course.category;
+          learningCategories[category] = (learningCategories[category] || 0) + 1;
+        }
       });
     }
     
     res.json({
       general: {
-        totalLearningTime: user.totalLearningTime,
-        certificatesEarned: user.certificatesEarned,
-        coursesCompleted: user.coursesCompleted,
+        totalLearningTime: user.totalLearningTime || 0,
+        certificatesEarned: user.certificatesEarned || 0,
+        coursesCompleted: user.coursesCompleted || 0,
         memberSince: user.createdAt
       },
       courses: {
