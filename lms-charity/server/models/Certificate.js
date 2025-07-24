@@ -23,7 +23,7 @@ const certificateSchema = new mongoose.Schema({
   },
   grade: {
     type: String,
-    enum: ['A+', 'A', 'B+', 'B', 'C+', 'C', 'Pass'],
+    enum: ['A+', 'A', 'B+', 'B', 'C+', 'C', 'Pass', 'Excellent'],
     default: 'Pass'
   },
   score: {
@@ -98,7 +98,12 @@ certificateSchema.statics.verifyCertificate = async function(certificateId, veri
       certificateId,
       verificationCode,
       isValid: true
-    }).populate('user', 'name email').populate('course', 'title');
+    }).populate('user', 'name email')
+      .populate({
+        path: 'course',
+        select: 'title instructor',
+        populate: { path: 'instructor', select: 'name' }
+      });
     
     return certificate;
   } catch (error) {

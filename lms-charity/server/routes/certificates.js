@@ -250,7 +250,27 @@ router.get('/verify/:certificateId/:verificationCode', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Invalid certificate.' });
     }
 
-    res.json({ success: true, message: 'Certificate is valid.', data: certificate });
+    // Defensive: ensure all fields are present
+    const data = {
+      userName: certificate.user?.name || 'N/A',
+      userEmail: certificate.user?.email || 'N/A',
+      courseTitle: certificate.course?.title || 'N/A',
+      instructorName: certificate.course?.instructor?.name || 'N/A',
+      completionDate: certificate.completionDate,
+      grade: certificate.grade,
+      score: certificate.score,
+      certificateId: certificate.certificateId,
+      verificationCode: certificate.verificationCode,
+      certificateUrl: certificate.certificateUrl,
+      issuedBy: certificate.issuedBy,
+      creditsEarned: certificate.creditsEarned,
+      expiryDate: certificate.expiryDate,
+      isValid: certificate.isValid,
+      downloadCount: certificate.downloadCount,
+      lastDownloaded: certificate.lastDownloaded
+    };
+
+    res.json({ success: true, message: 'Certificate is valid.', data });
   } catch (error) {
     console.error('Certificate Verification Error:', error);
     res.status(500).json({ message: 'Server error verifying certificate.' });

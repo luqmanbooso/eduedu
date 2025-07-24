@@ -146,75 +146,15 @@ const CertificateViewer = () => {
         }
       `}</style>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 print:px-0">
-        {/* Action Buttons */}
-        <div className="flex justify-between items-center mb-8 print:hidden">
+        {/* Download Button Only */}
+        <div className="flex justify-end mb-8 print:hidden">
           <button
-            onClick={() => navigate('/my-learning')}
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
+            onClick={handleDownloadPDF}
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors print:hidden"
           >
-            <ExternalLink className="w-4 h-4" />
-            <span>Back to My Learning</span>
+            <Download className="w-4 h-4" />
+            <span>Download PDF</span>
           </button>
-
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={handlePrint}
-              className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors print:hidden"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Print</span>
-            </button>
-
-            <button
-              onClick={handleDownloadPDF}
-              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors print:hidden"
-            >
-              <Download className="w-4 h-4" />
-              <span>Download PDF</span>
-            </button>
-
-            <div className="relative print:hidden">
-              <button
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                onClick={() => document.getElementById('shareMenu').classList.toggle('hidden')}
-              >
-                <Share2 className="w-4 h-4" />
-                <span>Share</span>
-              </button>
-
-              <div id="shareMenu" className="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
-                <button 
-                  onClick={() => handleShare('linkedin')}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                >
-                  <Share2 className="w-4 h-4 mr-3" />
-                  Share on LinkedIn
-                </button>
-                <button 
-                  onClick={() => handleShare('twitter')}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                >
-                  <Share2 className="w-4 h-4 mr-3" />
-                  Share on Twitter
-                </button>
-                <button 
-                  onClick={() => handleShare('facebook')}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                >
-                  <Share2 className="w-4 h-4 mr-3" />
-                  Share on Facebook
-                </button>
-                <div className="border-t border-gray-100 my-1"></div>
-                <button 
-                  onClick={() => handleShare('copy')}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                >
-                  {copied ? <Check className="w-4 h-4 mr-3" /> : <Copy className="w-4 h-4 mr-3" />}
-                  {copied ? 'Copied!' : 'Copy Link'}
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Certificate Display */}
@@ -267,7 +207,7 @@ const CertificateViewer = () => {
                 
                 <div className="py-2">
                   <h3 className="text-4xl font-bold text-purple-700 mb-1 border-b-2 border-purple-300 pb-2 inline-block px-6">
-                    {certificate.studentName}
+                    {certificate.userName}
                   </h3>
                 </div>
                 
@@ -289,7 +229,7 @@ const CertificateViewer = () => {
                     <User className="w-8 h-8 text-purple-600" />
                   </div>
                   <h5 className="font-semibold text-gray-700 mb-1 text-sm">INSTRUCTOR</h5>
-                  <p className="text-gray-600 text-base">{certificate.courseInstructor || 'N/A'}</p>
+                  <p className="text-gray-600 text-base">{certificate.instructorName || 'N/A'}</p>
                 </div>
 
                 <div className="text-center p-4 rounded-lg bg-blue-50 border border-blue-100">

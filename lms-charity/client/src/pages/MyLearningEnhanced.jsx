@@ -535,13 +535,10 @@ const CourseCard = ({ course, viewMode, activeTab, onContinue, onView, onRate })
       
       if (certificate && (certificate.certificateId && certificate.verificationCode)) {
         toast.success('Certificate ready for viewing!');
-        
-        // Redirect to certificate viewer page
         const certificateId = certificate.certificateId;
         const verificationCode = certificate.verificationCode;
-        
-        // Open certificate in new tab
-        window.open(`/certificate/${certificateId}/${verificationCode}`, '_blank');
+        // Navigate to certificate viewer page in the same tab
+        navigate(`/certificate/${certificateId}/${verificationCode}`);
       } else {
         console.error('Invalid certificate response:', response);
         toast.error('Failed to generate certificate - invalid response');
