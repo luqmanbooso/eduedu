@@ -213,21 +213,6 @@ const Contact = () => {
                             placeholder="John Doe"
                           />
                         </div>
-                        <div>
-                          <label htmlFor="email" className="block text-sm font-semibold text-gray-900 mb-2">
-                            Email Address
-                          </label>
-                          <input
-                            type="email"
-                            id="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            required
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 text-gray-900"
-                            placeholder="john@example.com"
-                          />
-                        </div>
                       </div>
 
                       <div>

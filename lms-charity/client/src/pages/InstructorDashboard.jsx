@@ -365,11 +365,6 @@ const OverviewTab = ({ instructorCourses, students, dashboardData }) => {
                 transition={{ duration: 0.2 }}
                 className="flex items-center space-x-4 p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
               >
-                <img
-                  src={course.thumbnail || '/api/placeholder/48/48'}
-                  alt={course.title}
-                  className="w-12 h-12 object-cover"
-                />
                 <div className="flex-1">
                   <h4 className="font-medium text-black">{course.title}</h4>
                   <p className="text-sm text-gray-600">
@@ -1444,6 +1439,16 @@ const GradingTab = ({ instructorId, courses = [] }) => {
     }
   };
 
+  // Compute assignmentsCount for each course
+  const assignmentsByCourse = {};
+  assignments.forEach(a => {
+    assignmentsByCourse[a.course] = (assignmentsByCourse[a.course] || 0) + 1;
+  });
+  const coursesWithAssignments = courses.map(course => ({
+    ...course,
+    assignmentsCount: assignmentsByCourse[course._id] || 0
+  }));
+
   const handleCourseSelect = (courseId) => {
     setSelectedCourse(courseId);
     setShowGradingModal(true);
@@ -1525,7 +1530,7 @@ const GradingTab = ({ instructorId, courses = [] }) => {
       <div className="bg-white border border-gray-200 p-6 rounded-lg">
         <h4 className="text-lg font-semibold text-black mb-4">Select Course to Grade Assignments</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {courses.map((course) => (
+          {coursesWithAssignments.map((course) => (
             <motion.div
               key={course._id}
               whileHover={{ y: -2 }}
@@ -1533,15 +1538,10 @@ const GradingTab = ({ instructorId, courses = [] }) => {
               className="p-4 border border-gray-200 rounded-lg hover:border-purple-300 cursor-pointer transition-colors"
             >
               <div className="flex items-center space-x-3">
-                <img
-                  src={course.thumbnail || 'https://via.placeholder.com/48/f3f4f6/6b7280?text=Course'}
-                  alt={course.title}
-                  className="w-12 h-12 object-cover rounded"
-                />
                 <div className="flex-1">
                   <h5 className="font-medium text-black">{course.title}</h5>
                   <p className="text-sm text-gray-500">
-                    {course.assignmentsCount || 0} assignments
+                    {course.assignmentsCount} assignments
                   </p>
                   {course.pendingGrades > 0 && (
                     <span className="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
