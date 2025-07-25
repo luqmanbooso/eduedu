@@ -394,7 +394,7 @@ const CourseDetail = () => {
                 <div className="flex items-center space-x-2">
                   <Star className="w-5 h-5 text-yellow-500" fill="currentColor" />
                   <span className="text-gray-600 font-serif">
-                    {course.rating?.average?.toFixed(1) || 'No ratings'} 
+                    {typeof course.rating?.average === 'number' ? course.rating.average.toFixed(1) : 'No ratings'}
                     ({course.rating?.count || 0} reviews)
                   </span>
                 </div>

@@ -191,7 +191,7 @@ const CourseCard = ({ course, index }) => {
             <div className="absolute top-4 right-4">
               <div className="flex items-center space-x-1 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
                 <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                <span className="text-xs font-medium text-gray-800">{course.rating?.average || '4.5'}</span>
+                <span className="text-xs font-medium text-gray-800">{typeof course.rating?.average === 'number' ? course.rating.average.toFixed(1) : 'No ratings'}</span>
               </div>
             </div>
           </div>

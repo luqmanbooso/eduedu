@@ -1,161 +1,179 @@
-# Charity LMS Platform
+# EduCharity LMS
 
-A comprehensive Learning Management System (LMS) designed to facilitate online education with features for course management, student enrollment, assignment grading, and more. This platform is built with a focus on usability, scalability, and modern web technologies.
+A modern, open-source Learning Management System (LMS) designed to empower educators, students, and charitable organizations. EduCharity LMS enables seamless online learning, course management, student engagement, and charitable impact—all in one platform.
 
-## Features
+---
 
--   **User Authentication & Authorization**: Secure login, registration, and role-based access control (Student, Instructor, Admin).
--   **Course Management**: Create, update, and delete courses with detailed descriptions, modules, lessons (video, text, quiz, assignment).
--   **Student Enrollment**: Students can enroll in courses, track their progress, and earn certificates.
--   **Assignment Grading**: Instructors can view and grade student submissions, provide feedback, and utilize AI-powered essay scoring.
--   **Dashboard & Analytics**: Intuitive dashboards for instructors and administrators to monitor course performance, student engagement, and grading progress.
--   **Discussion Forums**: Integrated discussion forums for each course to foster communication and collaboration.
--   **Resource Management**: Attach various types of resources (PDFs, documents, links) to lessons.
--   **Certificate Generation**: Automated certificate generation for course completion.
--   **Responsive Design**: Optimized for various devices and screen sizes.
+## 🚀 Features
 
-## Technologies Used
+- **User Roles:** Student, Instructor, and Admin with secure authentication and role-based access.
+- **Course Management:** Create, edit, and organize courses with modules, lessons (video, text, quiz, assignment), and resources.
+- **Student Experience:** Enroll in courses, track progress, participate in discussions, and earn certificates.
+- **Instructor Tools:** Grade assignments, manage students, view analytics, and moderate discussions.
+- **Admin Dashboard:** Approve instructors, manage users, oversee platform activity, and review contact messages.
+- **Discussion Forums:** Built-in forums for each course to foster community and Q&A.
+- **Certificate Generation:** Automated, downloadable certificates for course completion.
+- **AI/ML Integration:** Optional essay scoring via a Python/Flask ML API.
+- **Responsive UI:** Mobile-friendly, accessible, and visually appealing.
+- **Cloud Storage:** Media uploads via Cloudinary.
 
-### Frontend
--   **React**: A JavaScript library for building user interfaces.
--   **Vite**: A fast build tool for modern web projects.
--   **Tailwind CSS**: A utility-first CSS framework for rapid UI development.
--   **Axios**: Promise-based HTTP client for the browser and Node.js.
--   **Framer Motion**: A production-ready motion library for React.
+---
 
-### Backend
--   **Node.js**: JavaScript runtime environment.
--   **Express.js**: A fast, unopinionated, minimalist web framework for Node.js.
--   **MongoDB**: A NoSQL document database for data storage.
--   **Mongoose**: An ODM (Object Data Modeling) library for MongoDB and Node.js.
--   **JWT (JSON Web Tokens)**: For secure authentication.
--   **Cloudinary**: For cloud-based media management (image/video/document uploads).
--   **Nodemailer**: For sending emails.
+## 🏗️ System Architecture
 
-### AI/ML
--   **Python (Flask)**: A micro web framework for the ML API.
--   **ML Model**: (Details about the specific ML model for essay scoring, if applicable, would go here).
+- **Frontend:** React, Vite, Tailwind CSS, Framer Motion, Axios
+- **Backend:** Node.js, Express.js, MongoDB, Mongoose, JWT, Cloudinary, Nodemailer
+- **ML API (Optional):** Python, Flask
 
-## Getting Started
+---
 
-Follow these instructions to set up the project locally.
+## 📂 Project Structure
+
+```
+eduedu/
+  lms-charity/
+    client/      # Frontend React app
+    server/      # Backend Node/Express API
+    ml_api/      # Python/Flask ML API (optional)
+```
+
+---
+
+## ⚡ Quick Start
 
 ### Prerequisites
+- Node.js (LTS)
+- npm or Yarn
+- MongoDB (local or Atlas)
+- Cloudinary account
+- Python 3.x (for ML API)
 
--   Node.js (LTS version recommended)
--   npm (Node Package Manager) or Yarn
--   MongoDB instance (local or cloud-hosted like MongoDB Atlas)
--   Cloudinary account (for file uploads)
--   Python 3.x (for the ML API)
+### 1. Clone the Repository
+```bash
+git clone https://github.com/your-username/educharity-lms.git
+cd eduedu/lms-charity
+```
 
-### Installation
+### 2. Backend Setup
+```bash
+cd server
+npm install
+```
+Create a `.env` file in `server/`:
+```
+PORT=5000
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret_key
+CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+EMAIL_USER=your_email@example.com
+EMAIL_PASS=your_email_password
+CLIENT_URL=http://localhost:5173
+```
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/your-username/charity-lms.git
-    cd charity-lms
-    ```
+### 3. Frontend Setup
+```bash
+cd ../client
+npm install
+```
+Create a `.env` file in `client/`:
+```
+VITE_API_URL=http://localhost:5000/api
+```
 
-2.  **Backend Setup:**
-    ```bash
-    cd server
-    npm install
-    ```
-    Create a `.env` file in the `server` directory and add your environment variables:
-    ```
-    PORT=5000
-    MONGODB_URI=your_mongodb_connection_string
-    JWT_SECRET=your_jwt_secret_key
-    CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
-    CLOUDINARY_API_KEY=your_cloudinary_api_key
-    CLOUDINARY_API_SECRET=your_cloudinary_api_secret
-    # Optional: For email services
-    EMAIL_USER=your_email@example.com
-    EMAIL_PASS=your_email_password
-    # Frontend URL (for CORS)
-    CLIENT_URL=http://localhost:5173
-    ```
+### 4. ML API Setup (Optional)
+```bash
+cd ../ml_api
+pip install -r requirements.txt
+python app.py
+```
 
-3.  **Frontend Setup:**
-    ```bash
-    cd ../client
-    npm install
-    ```
-    Create a `.env` file in the `client` directory and add your environment variables:
-    ```
-    VITE_API_URL=http://localhost:5000/api
-    # Add any other client-side specific environment variables here
-    ```
+### 5. Run the App
+- **Backend:**
+  ```bash
+  cd server
+  npm run dev
+  ```
+- **Frontend:**
+  ```bash
+  cd ../client
+  npm run dev
+  ```
+- **ML API:** (if used)
+  ```bash
+  cd ../ml_api
+  python app.py
+  ```
 
-4.  **ML API Setup (Optional - for AI Essay Scoring):**
-    ```bash
-    cd ../ml_api
-    pip install -r requirements.txt
-    ```
-    Run the Flask API:
-    ```bash
-    python app.py
-    ```
-    Note: Ensure the ML API is running on a port accessible by your backend (e.g., `http://localhost:5001`). You might need to configure this in your backend.
+Visit the frontend at [http://localhost:5173](http://localhost:5173)
 
-### Running the Application
+---
 
-1.  **Start the Backend Server:**
-    ```bash
-    cd server
-    npm run dev
-    ```
+## 🧑‍💻 Open Source Contribution
 
-2.  **Start the Frontend Development Server:**
-    ```bash
-    cd ../client
-    npm run dev
-    ```
+We welcome contributions from the community! To contribute:
 
-The frontend should now be running at `http://localhost:5173` (or another port if 5173 is in use).
+1. **Fork** this repository.
+2. **Clone** your fork:
+   ```bash
+   git clone https://github.com/your-username/educharity-lms.git
+   ```
+3. **Create a branch** for your feature or fix:
+   ```bash
+   git checkout -b feature/your-feature
+   ```
+4. **Make your changes** and add tests if needed.
+5. **Commit** with a clear message:
+   ```bash
+   git commit -m "feat: Add X" # or "fix: Y"
+   ```
+6. **Push** to your fork:
+   ```bash
+   git push origin feature/your-feature
+   ```
+7. **Open a Pull Request** to the `main` branch.
 
-## Contributing
+**Guidelines:**
+- Follow the existing code style (Prettier, ESLint, comments).
+- Write clear, maintainable code.
+- Add tests for new features if possible.
+- Be respectful and constructive in code reviews and discussions.
 
-We welcome contributions to the Charity LMS Platform! If you're interested in improving the project, please follow these guidelines.
+**Reporting Issues:**
+- Use GitHub Issues for bugs or feature requests.
+- Provide steps to reproduce, screenshots, and error logs if possible.
 
-### How to Contribute
+---
 
-1.  **Fork the repository.**
-2.  **Clone your forked repository** to your local machine.
-3.  **Create a new branch** for your feature or bug fix:
-    ```bash
-    git checkout -b feature/your-feature-name
-    # or
-    git checkout -b bugfix/your-bug-fix
-    ```
-4.  **Make your changes** and test them thoroughly.
-5.  **Commit your changes** with a clear and concise message:
-    ```bash
-    git commit -m "feat: Add new feature X"
-    # or
-    git commit -m "fix: Resolve bug Y"
-    ```
-    (Please adhere to Conventional Commits for commit messages).
-6.  **Push your branch** to your forked repository:
-    ```bash
-    git push origin feature/your-feature-name
-    ```
-7.  **Open a Pull Request** to the `main` branch of the original repository.
+## 📄 License
 
-### Code Style
+This project is licensed under the MIT License:
 
--   Follow the existing code style and conventions used in the project.
--   Ensure your code is well-commented where necessary.
--   Write clear, concise, and maintainable code.
+```
+MIT License
 
-### Reporting Bugs
+Copyright (c) 2024 EduCharity
 
-If you find a bug, please open an issue on the GitHub repository. Provide a detailed description of the bug, steps to reproduce it, and any relevant error messages.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-### Feature Requests
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-Feel free to open an issue for feature requests. Describe the feature, why it would be useful, and any potential implementation ideas.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
-## License
+---
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Made with ❤️ by EduCharity. Empowering learning, enabling impact. 🌍✨

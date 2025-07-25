@@ -185,7 +185,7 @@ const InstructorDashboard = () => {
             />
             <StatCard
               title="Course Rating"
-              value={`${dashboardData.averageRating || '4.8'}⭐`}
+              value={`${typeof dashboardData.averageRating === 'number' ? dashboardData.averageRating.toFixed(1) : 'No ratings'}⭐`}
               icon={<Star className="h-6 w-6" />}
               color="bg-purple-500"
               change={5}
@@ -952,7 +952,7 @@ const CoursesTab = ({ courses, onManageContent, onRefresh }) => {
                       </div>
                     <div className="flex items-center space-x-2">
                       <Star className="w-4 h-4 text-yellow-500" fill="currentColor" />
-                      <span>{course.rating?.average || '4.8'}</span>
+                      <span>{typeof course.rating?.average === 'number' ? course.rating.average.toFixed(1) : 'No ratings'}</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <MessageSquare className="w-4 h-4" />
@@ -1357,7 +1357,7 @@ const DiscussionsTab = ({ instructorId, courses = [] }) => {
       <div className="bg-white border border-gray-200 p-6 rounded-lg">
         <h4 className="text-lg font-semibold text-black mb-4">Select Course to Manage Discussions</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {courses.map((course) => (
+          {courses.map(course => (
             <motion.div
               key={course._id}
               whileHover={{ y: -2 }}
@@ -1365,11 +1365,7 @@ const DiscussionsTab = ({ instructorId, courses = [] }) => {
               className="p-4 border border-gray-200 rounded-lg hover:border-purple-300 cursor-pointer transition-colors"
             >
               <div className="flex items-center space-x-3">
-                <img
-                  src={course.thumbnail || 'https://via.placeholder.com/48/f3f4f6/6b7280?text=Course'}
-                  alt={course.title}
-                  className="w-12 h-12 object-cover rounded"
-                />
+                {/* Removed course thumbnail image */}
                 <div className="flex-1">
                   <h5 className="font-medium text-black">{course.title}</h5>
                   <p className="text-sm text-gray-500">
