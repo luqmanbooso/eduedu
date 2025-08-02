@@ -1,27 +1,15 @@
 {
   "version": 2,
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 30
-    },
-    "api/hello.js": {
-      "maxDuration": 10
-    },
-    "api/test.js": {
-      "maxDuration": 10
-    },
-    "api/status.js": {
-      "maxDuration": 10
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
     }
-  },
+  ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/index.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.js"
+      "dest": "/server.js"
     }
   ]
 }
