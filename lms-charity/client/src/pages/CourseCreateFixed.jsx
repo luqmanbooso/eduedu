@@ -307,7 +307,7 @@ const CourseCreate = () => {
           'Content-Type': 'multipart/form-data',
           'Authorization': token ? `Bearer ${token}` : ''
         },
-        baseURL: 'http://localhost:5000'
+        baseURL: import.meta.env.VITE_API_URL || 'https://eduback.vercel.app/api'
       });
       
       setCourseData(prev => ({

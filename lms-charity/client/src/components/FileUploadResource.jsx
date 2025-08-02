@@ -124,7 +124,9 @@ const FileUploadResource = React.memo(({
     
     formData.append(fieldName, file);
     
-    const response = await fetch(`http://localhost:5000${uploadEndpoint}`, {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://eduback.vercel.app/api';
+    const baseUrl = API_BASE_URL.replace('/api', ''); // Remove /api suffix
+    const response = await fetch(`${baseUrl}${uploadEndpoint}`, {
       method: 'POST',
       body: formData,
       headers: {
@@ -143,7 +145,7 @@ const FileUploadResource = React.memo(({
     return {
       id: Date.now() + Math.random(),
       title: file.name,
-      url: `http://localhost:5000${data.url}`, // Full server URL
+      url: `${baseUrl}${data.url}`, // Full server URL
       type: resourceType,
       mimeType: file.type,
       size: data.size || file.size,

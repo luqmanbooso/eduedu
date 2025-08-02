@@ -366,14 +366,12 @@ const CourseCreateComplete = () => {
       console.log('Submitting course data:', submissionData);
 
       const response = await axios.post('/api/courses', submissionData, {
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        baseURL: 'http://localhost:5000'
-      });
-
-      console.log('Course created successfully:', response.data);
+        baseURL: import.meta.env.VITE_API_URL || 'https://eduback.vercel.app/api'
+      });      console.log('Course created successfully:', response.data);
       toast.success('Course created successfully!');
       navigate('/instructor/dashboard');
     } catch (error) {

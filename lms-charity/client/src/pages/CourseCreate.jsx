@@ -310,8 +310,10 @@ const CourseCreate = () => {
           return prev + 10;
         });
       }, 200);
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://eduback.vercel.app/api';
+      const baseUrl = API_BASE_URL.replace('/api', ''); // Remove /api suffix to get base URL
       
-      const response = await fetch(`http://localhost:5000${uploadEndpoint}`, {
+      const response = await fetch(`${baseUrl}${uploadEndpoint}`, {
         method: 'POST',
         body: formData,
         headers: {
@@ -327,7 +329,7 @@ const CourseCreate = () => {
       }
       
       const data = await response.json();
-      const fileUrl = `http://localhost:5000${data.url}`;
+      const fileUrl = `${baseUrl}${data.url}`;
       
       setUploadProgress(100);
       

@@ -87,7 +87,9 @@ const AssignmentLessonForm = React.memo(({ lessonData, onUpdate }) => {
       
       formData.append(fieldName, file);
       
-      const response = await fetch(`http://localhost:5000${uploadEndpoint}`, {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://eduback.vercel.app/api';
+      const baseUrl = API_BASE_URL.replace('/api', ''); // Remove /api suffix
+      const response = await fetch(`${baseUrl}${uploadEndpoint}`, {
         method: 'POST',
         body: formData,
         headers: {
@@ -101,7 +103,7 @@ const AssignmentLessonForm = React.memo(({ lessonData, onUpdate }) => {
       }
       
       const data = await response.json();
-      const resourceUrl = `http://localhost:5000${data.url}`;
+      const resourceUrl = `${baseUrl}${data.url}`;
       
       const newResources = [...(lessonData.assignment?.resources || []), {
         id: Date.now(),

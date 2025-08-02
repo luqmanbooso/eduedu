@@ -54,7 +54,8 @@ const VideoLessonForm = React.memo(({ lessonData, onUpdate }) => {
         });
       }, 300);
       
-      const response = await fetch('http://localhost:5000/api/upload/video', {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://eduback.vercel.app/api';
+      const response = await fetch(`${API_BASE_URL}/upload/video`, {
         method: 'POST',
         body: formData,
         headers: {
@@ -70,7 +71,8 @@ const VideoLessonForm = React.memo(({ lessonData, onUpdate }) => {
       }
       
       const data = await response.json();
-      const videoUrl = `http://localhost:5000${data.url}`;
+      const baseUrl = API_BASE_URL.replace('/api', ''); // Remove /api suffix
+      const videoUrl = `${baseUrl}${data.url}`;
       
       // Get video duration
       const video = document.createElement('video');
