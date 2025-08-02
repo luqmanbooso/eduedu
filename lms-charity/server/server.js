@@ -89,24 +89,41 @@ app.use('*', (req, res) => {
 });
 
 // Database connection
+let isConnected = false;
 const connectDB = async () => {
+  if (isConnected) return;
+  
   try {
     const mongoURI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/charity-lms';
     const conn = await mongoose.connect(mongoURI);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
+    isConnected = true;
   } catch (error) {
     console.error('Database connection error:', error);
-    process.exit(1);
+    throw error;
   }
 };
 
-// Start server
-const startServer = async () => {
+// Serverless handler
+const handler = async (req, res) => {
   await connectDB();
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`API available at http://localhost:${PORT}/api`);
-  });
+  return app(req, res);
 };
 
-startServer();
+// For serverless deployment (Vercel)
+if (process.env.VERCEL) {
+  // Export the handler for serverless
+} else {
+  // Start server for local development
+  const startServer = async () => {
+    await connectDB();
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+      console.log(`API available at http://localhost:${PORT}/api`);
+    });
+  };
+  
+  startServer();
+}
+
+export default handler;
