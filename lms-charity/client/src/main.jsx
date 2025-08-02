@@ -4,9 +4,10 @@ import axios from 'axios'
 import './index.css'
 import App from './App.jsx'
 
-// Configure axios defaults
-const apiUrl = import.meta.env.VITE_API_URL || 'https://eduback.vercel.app/api';
-console.log('🔗 API URL configured:', apiUrl);
+// Configure axios defaults - FORCE correct API URL
+const apiUrl = 'https://eduback.vercel.app/api'; // Hardcoded to force correct URL
+console.log('🔗 API URL configured (FORCED):', apiUrl);
+console.log('🔗 Environment VITE_API_URL:', import.meta.env.VITE_API_URL);
 axios.defaults.baseURL = apiUrl;
 axios.defaults.withCredentials = true;
 

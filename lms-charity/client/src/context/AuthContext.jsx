@@ -16,8 +16,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Configure axios defaults
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://eduback.vercel.app/api';
+  // Configure axios defaults - FORCE correct URL
+  const API_BASE_URL = 'https://eduback.vercel.app/api'; // Hardcoded to force correct URL
+  console.log('🔗 AuthContext API URL:', API_BASE_URL);
   axios.defaults.baseURL = API_BASE_URL;
   
   // Add token to requests if available

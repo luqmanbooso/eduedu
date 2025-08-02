@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-// Base API URL - adjust based on your environment
-// Using import.meta.env for Vite instead of process.env
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://eduback.vercel.app/api';
+// Base API URL - FORCE correct URL to override any caching issues
+const API_BASE_URL = 'https://eduback.vercel.app/api'; // Hardcoded to force correct URL
+console.log('🔗 API Service URL:', API_BASE_URL);
 
 // Create axios instance with default configuration
 const api = axios.create({
