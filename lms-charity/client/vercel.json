@@ -1,6 +1,10 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "rm -rf node_modules/.cache && rm -rf dist && npm run build",
   "outputDirectory": "dist",
+  "framework": "vite",
+  "env": {
+    "VITE_API_URL": "https://eduback.vercel.app/api"
+  },
   "rewrites": [
     {
       "source": "/(.*)",
