@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "lms-charity/client/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    },
+    {
+      "src": "lms-charity/server/server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/lms-charity/server/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/lms-charity/client/$1"
+    }
+  ],
+  "functions": {
+    "lms-charity/server/server.js": {
+      "maxDuration": 30
+    }
+  }
+} 
