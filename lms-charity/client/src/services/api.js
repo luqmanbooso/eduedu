@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Base API URL - adjust based on your environment
 // Using import.meta.env for Vite instead of process.env
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://eduedu-ten.vercel.app/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://eduback.vercel.app/api';
 
 // Create axios instance with default configuration
 const api = axios.create({
