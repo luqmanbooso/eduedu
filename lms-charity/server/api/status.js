@@ -10,12 +10,11 @@ export default function handler(req, res) {
     return;
   }
 
-  // Return a simple response
+  // Return status response
   res.status(200).json({
-    message: 'Backend API is working!',
+    status: 'ok',
+    message: 'API is running',
     timestamp: new Date().toISOString(),
-    method: req.method,
-    url: req.url,
-    status: 'success'
+    environment: process.env.NODE_ENV || 'development'
   });
 } 

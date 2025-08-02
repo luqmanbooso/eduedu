@@ -7,16 +7,12 @@
       "config": {
         "distDir": "dist"
       }
-    },
-    {
-      "src": "lms-charity/server/server.js",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/lms-charity/server/server.js"
+      "dest": "/lms-charity/server/api/index.js"
     },
     {
       "src": "/(.*)",
@@ -24,8 +20,17 @@
     }
   ],
   "functions": {
-    "lms-charity/server/server.js": {
+    "lms-charity/server/api/index.js": {
       "maxDuration": 30
+    },
+    "lms-charity/server/api/hello.js": {
+      "maxDuration": 10
+    },
+    "lms-charity/server/api/test.js": {
+      "maxDuration": 10
+    },
+    "lms-charity/server/api/status.js": {
+      "maxDuration": 10
     }
   }
 } 
