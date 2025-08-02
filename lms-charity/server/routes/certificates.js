@@ -15,9 +15,15 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-const certificatesDir = path.join(process.cwd(), 'uploads', 'certificates');
-if (!fs.existsSync(certificatesDir)) {
-  fs.mkdirSync(certificatesDir, { recursive: true });
+// For serverless deployment, skip local directory creation
+const isServerless = process.env.VERCEL || process.env.LAMBDA_TASK_ROOT;
+
+if (!isServerless) {
+  // Only create directory in local development
+  const certificatesDir = path.join(process.cwd(), 'uploads', 'certificates');
+  if (!fs.existsSync(certificatesDir)) {
+    fs.mkdirSync(certificatesDir, { recursive: true });
+  }
 }
 
 // --- FINAL, UDEMY-STYLE PDF GENERATION ---
@@ -29,6 +35,12 @@ async function generateCertificatePDF(certificate, course, user, filePath) {
         size: 'A4',
         margins: { top: 0, bottom: 0, left: 0, right: 0 },
       });
+
+      // For serverless, just resolve without writing to disk
+      if (isServerless) {
+        doc.end();
+        return resolve(filePath);
+      }
 
       const stream = fs.createWriteStream(filePath);
       doc.pipe(stream);
@@ -203,8 +215,11 @@ router.post('/generate', protect, async (req, res) => {
       certificateUrl: `/uploads/certificates/certificate-${certificateId}.pdf`,
     });
 
-    const filePath = path.join(certificatesDir, `certificate-${certificateId}.pdf`);
-    await generateCertificatePDF(certificate, course, user, filePath);
+    // For serverless, we don't need to save to disk
+    if (!isServerless) {
+      const filePath = path.join(process.cwd(), 'uploads', 'certificates', `certificate-${certificateId}.pdf`);
+      await generateCertificatePDF(certificate, course, user, filePath);
+    }
 
     await User.findByIdAndUpdate(userId, { $inc: { certificatesEarned: 1 } });
 
@@ -230,7 +245,17 @@ router.get('/download/:certificateId', protect, async (req, res) => {
       return res.status(404).json({ message: 'Certificate not found.' });
     }
 
-    const filePath = path.join(certificatesDir, `certificate-${certificate.certificateId}.pdf`);
+    // For serverless, we can't use file download. Return a message instead.
+    if (isServerless) {
+      await certificate.markAsDownloaded();
+      return res.json({ 
+        message: 'Certificate available for viewing', 
+        certificate,
+        viewUrl: `/certificate/${certificate.certificateId}/${certificate.verificationCode}`
+      });
+    }
+
+    const filePath = path.join(process.cwd(), 'uploads', 'certificates', `certificate-${certificate.certificateId}.pdf`);
 
     // Always regenerate the PDF to ensure the latest design is used.
     const user = await User.findById(req.user._id);
