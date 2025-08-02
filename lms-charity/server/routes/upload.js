@@ -7,30 +7,41 @@ import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(process.cwd(), 'uploads');
-const imagesDir = path.join(uploadsDir, 'images');
-const videosDir = path.join(uploadsDir, 'videos');
-const documentsDir = path.join(uploadsDir, 'documents');
+// For serverless deployment, skip local directory creation
+const isServerless = process.env.VERCEL || process.env.LAMBDA_TASK_ROOT;
 
-[uploadsDir, imagesDir, videosDir, documentsDir].forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-});
+if (!isServerless) {
+  // Create uploads directory if it doesn't exist (local development only)
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  const imagesDir = path.join(uploadsDir, 'images');
+  const videosDir = path.join(uploadsDir, 'videos');
+  const documentsDir = path.join(uploadsDir, 'documents');
+
+  [uploadsDir, imagesDir, videosDir, documentsDir].forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  });
+}
 
 // Configure multer for different file types
-const createMulterConfig = (destination, fileFilter) => {
-  return multer({
-    storage: multer.diskStorage({
+const createMulterConfig = (fileFilter) => {
+  const storage = isServerless ? 
+    multer.memoryStorage() : // Use memory storage for serverless
+    multer.diskStorage({
       destination: (req, file, cb) => {
+        const destination = file.mimetype.startsWith('image/') ? 'uploads/images' :
+                           file.mimetype.startsWith('video/') ? 'uploads/videos' : 'uploads/documents';
         cb(null, destination);
       },
       filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
       }
-    }),
+    });
+
+  return multer({
+    storage: storage,
     fileFilter: fileFilter,
     limits: {
       fileSize: 50 * 1024 * 1024 // 50MB limit
@@ -73,9 +84,9 @@ const documentFilter = (req, file, cb) => {
 };
 
 // Multer configurations
-const uploadImage = createMulterConfig(imagesDir, imageFilter);
-const uploadVideo = createMulterConfig(videosDir, videoFilter);
-const uploadDocument = createMulterConfig(documentsDir, documentFilter);
+const uploadImage = createMulterConfig(imageFilter);
+const uploadVideo = createMulterConfig(videoFilter);
+const uploadDocument = createMulterConfig(documentFilter);
 
 // @desc    Upload and optimize image
 // @route   POST /api/upload/image
