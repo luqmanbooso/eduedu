@@ -66,6 +66,32 @@ app.use('/api/contact', contactRoutes);
 // Serve static files
 app.use('/uploads', express.static('uploads'));
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'EduCharity LMS API Server', 
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth',
+      courses: '/api/courses',
+      lessons: '/api/lessons',
+      instructor: '/api/instructor',
+      admin: '/api/admin',
+      upload: '/api/upload',
+      certificates: '/api/certificates',
+      progress: '/api/progress',
+      profile: '/api/profile',
+      enrollment: '/api/enrollment',
+      wishlist: '/api/wishlist',
+      grading: '/api/grading',
+      contact: '/api/contact'
+    },
+    timestamp: new Date().toISOString() 
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
