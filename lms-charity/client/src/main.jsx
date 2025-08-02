@@ -5,7 +5,9 @@ import './index.css'
 import App from './App.jsx'
 
 // Configure axios defaults
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'https://eduback.vercel.app/api';
+const apiUrl = import.meta.env.VITE_API_URL || 'https://eduback.vercel.app/api';
+console.log('🔗 API URL configured:', apiUrl);
+axios.defaults.baseURL = apiUrl;
 axios.defaults.withCredentials = true;
 
 // Add auth token to requests
